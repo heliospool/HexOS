@@ -100,7 +100,7 @@ export class SystemComponent implements OnInit, OnDestroy {
       { label: '• Internal', value: ByteSuffixPipe.transform(data.info.freeHeapInternal)},
       { label: '• Spiram', value: ByteSuffixPipe.transform(data.info.freeHeapSpiram), class: 'pb-3' },
       { label: 'Firmware Version', value: data.info.version },
-      { label: 'GekkoAxeOS Version', value: data.info.axeOSVersion },
+      { label: 'HexOS Version', value: data.info.axeOSVersion },
       { label: 'ESP-IDF Version', value: data.info.idfVersion },
     ];
   }

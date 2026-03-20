@@ -103,7 +103,7 @@ export class LogsComponent implements OnInit, OnDestroy, AfterViewChecked {
     const a = document.createElement('a');
     const ts = new Date().toISOString().replace(/[:.]/g, '-');
     a.href = url;
-    a.download = `gekkoaxe-logs-${ts}.txt`;
+    a.download = `hexos-logs-${ts}.txt`;
     a.click();
     URL.revokeObjectURL(url);
   }
