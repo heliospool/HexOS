@@ -124,32 +124,46 @@
         </div>
         <div class="col-12 md:col-6 xl:col-3">
             <div class="card mb-0">
-                <div class="flex justify-content-between mb-3">
-                    <div>
-                        <span class="block text-lg font-medium mb-3">Shares</span>
-                        <div class="text-900 font-medium text-2xl">
+                <div class="flex flex-column justify-content-between">
+                    <span class="block text-lg font-medium mb-3">Shares</span>
+
+                    <div class="flex align-items-center justify-content-between gap-2 mb-3">
+                        <span class="text-900 font-medium text-2xl">
                             {{info.sharesAccepted | number: '1.0-0'}}
+                        </span>
+                        <table class="text-sm" *ngIf="(info.workReceived ?? 0) > 0">
+                            <thead>
+                                <tr>
+                                    <th class="p-0 text-400 font-normal line-height-1">Jobs</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="p-0 text-center text-800 line-height-1">{{info.workReceived | number: '1.0-0'}}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div *ngIf="info.sharesRejected === 0">
+                        <span class="text-red-500 font-medium">0 </span>
+                        <span class="text-500">rejected</span>
+                    </div>
+                    <ng-container *ngIf="info.sharesRejected > 0">
+                        <div *ngFor="let sharesRejectedReason of getSortedRejectionReasons(info); trackBy: trackByReason">
+                            <span class="text-red-500 font-medium">
+                                {{ sharesRejectedReason.count | number: '1.0-0' }}
+                            </span>
+                            <span class="text-500">
+                                {{ sharesRejectedReason.message }}
+                            </span>
+                            <tooltip-text-icon
+                                [text]="'(' + (getShareRejectionPercentage(sharesRejectedReason, info) | number:'1.2-2') + ' %)'"
+                                [tooltip]="getRejectionExplanation(sharesRejectedReason.message)"
+                                [split]=false />
                         </div>
-                    </div>
+                    </ng-container>
                 </div>
-                <div *ngIf="info.sharesRejected === 0">
-                    <span class="text-red-500 font-medium">0 </span>
-                    <span class="text-500">rejected</span>
-                </div>
-                <ng-container *ngIf="info.sharesRejected > 0">
-                    <div *ngFor="let sharesRejectedReason of getSortedRejectionReasons(info); trackBy: trackByReason">
-                        <span class="text-red-500 font-medium">
-                            {{ sharesRejectedReason.count | number: '1.0-0' }}
-                        </span>
-                        <span class="text-500">
-                            {{ sharesRejectedReason.message }}
-                        </span>
-                        <tooltip-text-icon
-                            [text]="'(' + (getShareRejectionPercentage(sharesRejectedReason, info) | number:'1.2-2') + ' %)'"
-                            [tooltip]="getRejectionExplanation(sharesRejectedReason.message)"
-                            [split]=false />
-                    </div>
-                </ng-container>
             </div>
         </div>
 
@@ -319,6 +333,23 @@
 
                     <strong class="text-red-500" *ngIf="info.vrTemp >= 105">
                         Danger: High Temperature
+                    </strong>
+                </div>
+
+                <div *ngIf="(info.boardTemp ?? 0) > 0">
+                    <h6 class="flex justify-content-between mb-1">
+                        <tooltip-text-icon
+                            text="Board Temperature"
+                            tooltip="Fan controller internal sensor (board ambient)."
+                        />
+                        <span>{{info.boardTemp! | number: '1.0-1'}} &deg;C</span>
+                    </h6>
+                    <p-progressBar [value]="(info.boardTemp! / 60) * 100" [styleClass]="'p-progressbar--thin'">
+                        <ng-template pTemplate="content" let-value></ng-template>
+                    </p-progressBar>
+
+                    <strong class="text-red-500" *ngIf="(info.boardTemp ?? 0) >= 55">
+                        Warning: High Board Temperature
                     </strong>
                 </div>
             </div>
@@ -495,10 +526,10 @@
                 </div>
                 <div class="flex flex-nowrap justify-content-between" *ngIf="info.coinbaseOutputs.length > 0">
                     <div class="col-fixed-width text-500">
-                        <tooltip-text-icon text="Value" tooltip="Total value of transaction outputs in BTC. For non-bitcoin chains, disable 'Decode Coinbase Tx' in Advanced Pool Options." />
+                        <tooltip-text-icon text="Value" [tooltip]="'Total value of transaction outputs in ' + getCoinLabel(info)" />
                     </div>
                     <ng-container *ngIf="info.coinbaseValueTotalSatoshis && info.coinbaseValueTotalSatoshis > 0">
-                        {{ info.coinbaseValueTotalSatoshis | sats }}
+                        {{ info.coinbaseValueTotalSatoshis | sats:getCoinLabel(info) }}
                     </ng-container>
                 </div>                
                 <div class="flex flex-nowrap align-items-baseline" *ngIf="info.coinbaseOutputs.length > 0">
@@ -508,12 +539,12 @@
                     <div class="w-full">
                         <div *ngFor="let output of info.coinbaseOutputs; let i = index" class="flex justify-content-between">
                             @if (output.value > 0) {
-                                @if (output.address === getAddressPart(activePoolUser)) {
+                                @if (output.isUserOutput) {
                                     <span><span class="text-monospace text-sm font-bold" pTooltip="Your payout address" tooltipPosition="top" sensitive-data>{{ output.address | address }}</span>&nbsp;<i class="pi pi-star-fill text-xs"></i></span>
                                 } @else {
                                     <span class="text-monospace text-sm" pTooltip="{{ output.address }}" tooltipPosition="top">{{ output.address | address }}</span>
                                 }
-                                <span class="text-sm">{{ output.value | sats }}</span>
+                                <span class="text-sm">{{ output.value | sats:getCoinLabel(info) }}</span>
                             } @else {
                                 <span class="text-monospace text-xs">{{ output.address }}</span>
                             }

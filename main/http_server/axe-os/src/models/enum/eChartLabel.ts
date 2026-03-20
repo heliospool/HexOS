@@ -6,6 +6,7 @@ export enum eChartLabel {
     asicTemp = 'ASIC Temp',
     errorPercentage = 'Error %',
     vrTemp = 'VR Temp',
+    boardTemp = 'Board Temp',
     asicVoltage = 'ASIC Voltage',
     voltage = 'Voltage',
     power = 'Power',

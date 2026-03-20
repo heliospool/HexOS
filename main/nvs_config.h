@@ -75,6 +75,24 @@ typedef enum {
     NVS_CONFIG_VIN_ON,
     NVS_CONFIG_VIN_OFF,
     NVS_CONFIG_VIN_OV_FAULT,
+
+    // Danger zone — tuning constants gated by NVS_CONFIG_DANGER_ZONE
+    NVS_CONFIG_DANGER_ZONE,
+    NVS_CONFIG_PID_P,
+    NVS_CONFIG_PID_I,
+    NVS_CONFIG_PID_D,
+    NVS_CONFIG_FAN_DECREASE_RATE,
+    NVS_CONFIG_THROTTLE_TEMP,
+    NVS_CONFIG_SAFE_TEMP,
+    NVS_CONFIG_VR_THROTTLE_TEMP,
+    NVS_CONFIG_ASIC_REDUCTION,
+    NVS_CONFIG_STRATUM_RETRY_MAX,
+    NVS_CONFIG_STRATUM_CRIT_RETRY_MAX,
+    NVS_CONFIG_STRATUM_TIMEOUT_MS,
+    NVS_CONFIG_SELFTEST_DIFF,
+    NVS_CONFIG_SELFTEST_POWER_MARGIN,
+    NVS_CONFIG_SELFTEST_VCORE_MIN,
+    NVS_CONFIG_SELFTEST_VCORE_MAX,
     NVS_CONFIG_COUNT
 } NvsConfigKey;
 
@@ -104,6 +122,7 @@ typedef struct {
     const char *rest_name;
     int min;
     int max;
+    bool danger_zone_gated;
 } Settings;
 
 esp_err_t nvs_config_init(void);

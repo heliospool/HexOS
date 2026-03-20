@@ -21,19 +21,6 @@
 #include "driver/uart.h"
 
 #define POLL_RATE 1800
-#define MAX_TEMP 90.0
-#define THROTTLE_TEMP 75.0
-#define SAFE_TEMP 45.0
-#define THROTTLE_TEMP_RANGE (MAX_TEMP - THROTTLE_TEMP)
-
-#define VOLTAGE_START_THROTTLE 4900
-#define VOLTAGE_MIN_THROTTLE 3500
-#define VOLTAGE_RANGE (VOLTAGE_START_THROTTLE - VOLTAGE_MIN_THROTTLE)
-
-#define TPS546_THROTTLE_TEMP 105.0
-#define TPS546_MAX_TEMP 145.0
-
-#define ASIC_REDUCTION 100.0
 
 static const char * TAG = "power_management";
 
@@ -67,6 +54,13 @@ void POWER_MANAGEMENT_task(void * pvParameters)
 
     POWER_MANAGEMENT_init_frequency(GLOBAL_STATE);
     
+    float throttle_temp  = nvs_config_get_float(NVS_CONFIG_THROTTLE_TEMP);
+    float safe_temp      = nvs_config_get_float(NVS_CONFIG_SAFE_TEMP);
+    float vr_throttle_temp = nvs_config_get_float(NVS_CONFIG_VR_THROTTLE_TEMP);
+    float asic_reduction = nvs_config_get_float(NVS_CONFIG_ASIC_REDUCTION);
+    ESP_LOGI(TAG, "Thermal: throttle=%.1fC safe=%.1fC vr_throttle=%.1fC asic_reduction=%.1f",
+             throttle_temp, safe_temp, vr_throttle_temp, asic_reduction);
+
     float last_asic_frequency = power_management->frequency_value;
 
     vTaskDelay(500 / portTICK_PERIOD_MS);
@@ -83,13 +77,14 @@ void POWER_MANAGEMENT_task(void * pvParameters)
 
         power_management->chip_temp_avg = Thermal_get_chip_temp(GLOBAL_STATE);
         power_management->chip_temp2_avg = Thermal_get_chip_temp2(GLOBAL_STATE);
+        power_management->board_temp = Thermal_get_board_temp(GLOBAL_STATE);
 
         power_management->vr_temp = Power_get_vreg_temp(GLOBAL_STATE);
         bool asic_overheat = 
-            power_management->chip_temp_avg > THROTTLE_TEMP
-            || power_management->chip_temp2_avg > THROTTLE_TEMP;
+            power_management->chip_temp_avg > throttle_temp
+            || power_management->chip_temp2_avg > throttle_temp;
         
-        if ((power_management->vr_temp > TPS546_THROTTLE_TEMP || asic_overheat) && (power_management->frequency_value > 50 || power_management->voltage > 1000)) {
+        if ((power_management->vr_temp > vr_throttle_temp || asic_overheat) && (power_management->frequency_value > 50 || power_management->voltage > 1000)) {
             if (power_management->chip_temp2_avg > 0) {
                 ESP_LOGE(TAG, "OVERHEAT! VR: %fC ASIC1: %fC ASIC2: %fC", power_management->vr_temp, power_management->chip_temp_avg, power_management->chip_temp2_avg);
             } else {
@@ -115,7 +110,7 @@ void POWER_MANAGEMENT_task(void * pvParameters)
             int cooling_cycles = 0;
             const int MIN_COOLING_CYCLES = 6; // Minimum 30 seconds cooling
             
-            while (cooling_cycles < MIN_COOLING_CYCLES || power_management->vr_temp > TPS546_THROTTLE_TEMP - 10) {
+            while (cooling_cycles < MIN_COOLING_CYCLES || power_management->vr_temp > vr_throttle_temp - 10) {
                 vTaskDelay(5000 / portTICK_PERIOD_MS); // Wait 5 seconds
                 cooling_cycles++;
                 
@@ -129,7 +124,7 @@ void POWER_MANAGEMENT_task(void * pvParameters)
                              cooling_cycles, power_management->vr_temp, power_management->chip_temp_avg, power_management->chip_temp2_avg);
                     
                     // Continue if ASIC temps still too high
-                    if (power_management->chip_temp_avg >  SAFE_TEMP || power_management->chip_temp2_avg > SAFE_TEMP) {
+                    if (power_management->chip_temp_avg >  safe_temp || power_management->chip_temp2_avg > safe_temp) {
                         cooling_cycles = 0; // Reset cycle count if still hot
                     }
                 } else {
@@ -140,8 +135,8 @@ void POWER_MANAGEMENT_task(void * pvParameters)
             }
             ESP_LOGI(TAG, "Temperature normalized after %d cooling cycles. Reinitializing ASIC...", cooling_cycles);
             
-            uint16_t reduced_voltage = last_known_asic_voltage > ASIC_REDUCTION ? last_known_asic_voltage - ASIC_REDUCTION : 1000;
-            float reduced_asic_frequency = last_known_asic_frequency > ASIC_REDUCTION ? last_known_asic_frequency - ASIC_REDUCTION : 400.0;
+            uint16_t reduced_voltage = last_known_asic_voltage > asic_reduction ? last_known_asic_voltage - (uint16_t)asic_reduction : 1000;
+            float reduced_asic_frequency = last_known_asic_frequency > asic_reduction ? last_known_asic_frequency - asic_reduction : 400.0;
             
             nvs_config_set_u16(NVS_CONFIG_ASIC_VOLTAGE, reduced_voltage);
             nvs_config_set_float(NVS_CONFIG_ASIC_FREQUENCY, reduced_asic_frequency);

@@ -67,8 +67,8 @@ typedef struct
     uint16_t fallback_pool_difficulty;
     bool pool_extranonce_subscribe;
     bool fallback_pool_extranonce_subscribe;
-    bool pool_decode_coinbase;
-    bool fallback_pool_decode_coinbase;
+    uint8_t pool_coinbase_network;      // 0=disabled, 1=BTC, 2=BCH, 3=auto
+    uint8_t fallback_pool_coinbase_network;
     float response_time;
     bool use_fallback_stratum;
     uint16_t pool_is_tls;

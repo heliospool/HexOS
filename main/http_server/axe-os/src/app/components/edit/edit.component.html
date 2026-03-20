@@ -1,5 +1,14 @@
 <form *ngIf="form" [formGroup]="form">
     <div class="card">
+        <div class="flex align-items-center justify-content-end gap-2 mb-2">
+            <label for="expertModeToggle" class="text-sm cursor-pointer" style="user-select:none">Expert Mode</label>
+            <p-inputSwitch inputId="expertModeToggle"
+                [(ngModel)]="settingsUnlocked"
+                [ngModelOptions]="{standalone: true}"
+                (onChange)="toggleOverclockMode($event.checked)"
+                pTooltip="Enable custom frequency and voltage settings">
+            </p-inputSwitch>
+        </div>
         <p-message *ngIf="settingsUnlocked" severity="warn" styleClass="w-full mb-3 py-4 border-round-xl"
             text="Custom settings can cause damage & system instability. Only modify these settings if you understand the risks of running outside designed parameters.">
         </p-message>
@@ -173,8 +182,5 @@
             class="btn btn-primary">Save</button>
 
         <button pButton [disabled]="!savedChanges" (click)="restart()">Restart</button>
-
-        <button *ngIf="settingsUnlocked" pButton pButton="p-button-danger" (click)="toggleOverclockMode(false)"
-            class="p-button-danger" pTooltip="Return to safe preset values only">Disable Overclock Mode</button>
     </div>
 </form>

@@ -33,6 +33,11 @@ managed_components/*
 # Release artifacts
 releases/
 
+# Maintainer-only tools (not for public repo)
+build_release.sh
+flash_device.sh
+release-notes/
+
 # System files
 .DS_Store
 Thumbs.db

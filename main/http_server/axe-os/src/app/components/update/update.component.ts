@@ -135,7 +135,7 @@ export class UpdateComponent {
       .replace(/\*\*(.+?)\*\*|__(.+?)__/gim, '<b>$1</b>') // Bold text
       .replace(/\*(.+?)\*|_(.+?)_/gim, '<i>$1</i>') // Italic text
       .replace(/\[(.*?)\]\((.*?)\s?(?:"(.*?)")?\)/gm, '<a href="$2" class="underline text-white" target="_blank">$1</a>') // Markdown links
-      .replace(/(https?:\/\/github\.com\/.+\/(.+[^\s])+)/gim, (match, p1, p2) => `<a href="${p1}" target="_blank">${match.includes('/pull/') ? '#' : ''}${p2}</a>`) // Regular links
+      .replace(/(?<!href=")(https?:\/\/github\.com\/[^\s"<>]+)/gim, (match) => { const seg = match.split('/').pop() ?? match; return `<a href="${match}" target="_blank">${match.includes('/pull/') ? '#' : ''}${seg}</a>`; }) // Regular links — skip already-linked URLs
       .replace(/@([^\s]+)/gim, ' <a href="https://github.com/$1" target="_blank">@$1</a> ') // Username links
       .replace(/^\s*[-+*]\s?(.+)$/gim, '<li>$1</li>') // Unordered list
       .replace(/`([^`]+)`/gim, '<code class="surface-100">$1</code>') // Code

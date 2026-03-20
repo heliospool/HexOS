@@ -33,6 +33,13 @@ export class PoolComponent implements OnInit {
     { value: 2, label: 'TLS (Custom CA certificate)' }
   ];
 
+  public decodeCoinbaseOptions = [
+    { value: 3, label: 'Auto' },
+    { value: 1, label: 'BTC' },
+    { value: 2, label: 'BCH' },
+    { value: 0, label: 'Disabled' }
+  ];
+
   @Input() uri = '';
 
   constructor(
@@ -65,7 +72,7 @@ export class PoolComponent implements OnInit {
           stratumPassword: ['*****', [Validators.required]],
           stratumTLS: [info.stratumTLS || 0],
           stratumCert: [info.stratumCert],
-          stratumDecodeCoinbase: [info.stratumDecodeCoinbase == true, [Validators.required]],
+          stratumDecodeCoinbase: [info.stratumDecodeCoinbase ?? 3, [Validators.required]],
           fallbackStratumURL: [info.fallbackStratumURL, [
             Validators.pattern(/^(?!.*stratum\+tcp:\/\/)(?!.*:[1-9]\d{0,4}$).*$/),
           ]],
@@ -79,7 +86,7 @@ export class PoolComponent implements OnInit {
           fallbackStratumSuggestedDifficulty: [info.fallbackStratumSuggestedDifficulty, [Validators.required]],
           fallbackStratumTLS: [info.fallbackStratumTLS || 0],
           fallbackStratumCert: [info.fallbackStratumCert],
-          fallbackStratumDecodeCoinbase: [info.fallbackStratumDecodeCoinbase == true, [Validators.required]],
+          fallbackStratumDecodeCoinbase: [info.fallbackStratumDecodeCoinbase ?? 3, [Validators.required]],
           fallbackStratumUser: [info.fallbackStratumUser, [Validators.required]],
           fallbackStratumPassword: ['*****', [Validators.required]]
         });

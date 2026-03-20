@@ -15,6 +15,7 @@ struct StatisticsData
     float errorPercentage;
     float chipTemperature;
     float vrTemperature;
+    float boardTemperature;
     float power;
     float voltage;
     float current;

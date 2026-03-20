@@ -5,7 +5,6 @@ import { ToastrService } from 'ngx-toastr';
 import { forkJoin, startWith, Subject, takeUntil, pairwise, BehaviorSubject, Observable } from 'rxjs';
 import { LoadingService } from 'src/app/services/loading.service';
 import { SystemApiService } from 'src/app/services/system.service';
-import { ActivatedRoute } from '@angular/router';
 
 type Dropdown = {
   name: string;
@@ -52,32 +51,7 @@ export class EditComponent implements OnInit, OnDestroy, OnChanges {
     private systemService: SystemApiService,
     private toastr: ToastrService,
     private loadingService: LoadingService,
-    private route: ActivatedRoute,
   ) {
-    // Check URL parameter for settings unlock
-    this.route.queryParams.subscribe(params => {
-      const urlOcParam = params['oc'] !== undefined;
-      if (urlOcParam) {
-        // If ?oc is in URL, enable overclock and save to NVS
-        this.settingsUnlocked = true;
-        this.saveOverclockSetting(1);
-        console.log(
-          '🎉 The ancient seals have been broken!\n' +
-          '⚡ Unlimited power flows through your miner...\n' +
-          '🔧 You can now set custom frequency and voltage values.\n' +
-          '⚠️ Remember: with great power comes great responsibility!'
-        );
-      } else {
-        // If ?oc is not in URL, check NVS setting (will be loaded in ngOnInit)
-        console.log('🔒 Here be dragons! Advanced settings are locked for your protection. \n' +
-          'Only the bravest miners dare to venture forth... \n' +
-          'If you wish to unlock dangerous overclocking powers, add: %c?oc',
-          'color: #ff4400; text-decoration: underline; cursor: pointer; font-weight: bold;',
-          'to the current URL'
-        );
-      }
-    });
-
     this.displayTimeoutControl = new FormControl();
     this.displayTimeoutControl.valueChanges.pipe(pairwise()).subscribe(([prev, next]) => {
       if (prev === next) {

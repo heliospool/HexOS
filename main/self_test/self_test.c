@@ -35,20 +35,6 @@
 
 #define GPIO_ASIC_ENABLE CONFIG_GPIO_ASIC_ENABLE
 
-/////Test Constants/////
-// Test Fan Speed
-#define FAN_SPEED_TARGET_MIN 1000 // RPM
-
-// Test Core Voltage
-#define CORE_VOLTAGE_TARGET_MIN 1000 // mV
-#define CORE_VOLTAGE_TARGET_MAX 1300 // mV
-
-// Test Power Consumption
-#define POWER_CONSUMPTION_MARGIN 3 //+/- watts
-
-// Test Difficulty
-#define DIFFICULTY 16
-
 static const char * TAG = "self_test";
 
 static SemaphoreHandle_t longPressSemaphore;
@@ -114,7 +100,7 @@ static esp_err_t test_fan_sense(GlobalState * GLOBAL_STATE)
 static esp_err_t test_power_consumption(GlobalState * GLOBAL_STATE)
 {
     float target_power = (float) GLOBAL_STATE->DEVICE_CONFIG.power_consumption_target;
-    float margin = (float) POWER_CONSUMPTION_MARGIN;
+    float margin = (float) nvs_config_get_u16(NVS_CONFIG_SELFTEST_POWER_MARGIN);
 
     float power = Power_get_power(GLOBAL_STATE);
     ESP_LOGI(TAG, "Power: %.2f W", power);
@@ -133,7 +119,9 @@ static esp_err_t test_core_voltage(GlobalState * GLOBAL_STATE)
     uint16_t core_voltage = VCORE_get_voltage_mv(GLOBAL_STATE);
     ESP_LOGI(TAG, "Voltage: %u mV", core_voltage);
 
-    if (core_voltage > CORE_VOLTAGE_TARGET_MIN && core_voltage < CORE_VOLTAGE_TARGET_MAX) {
+    uint16_t vcore_min = nvs_config_get_u16(NVS_CONFIG_SELFTEST_VCORE_MIN);
+    uint16_t vcore_max = nvs_config_get_u16(NVS_CONFIG_SELFTEST_VCORE_MAX);
+    if (core_voltage > vcore_min && core_voltage < vcore_max) {
         return ESP_OK;
     }
     // tests failed
@@ -342,7 +330,8 @@ bool self_test(void * pvParameters)
 
     POWER_MANAGEMENT_init_frequency(GLOBAL_STATE);
 
-    GLOBAL_STATE->DEVICE_CONFIG.family.asic.difficulty = DIFFICULTY;
+    uint16_t selftest_diff = nvs_config_get_u16(NVS_CONFIG_SELFTEST_DIFF);
+    GLOBAL_STATE->DEVICE_CONFIG.family.asic.difficulty = selftest_diff;
 
     uint8_t chips_detected = ASIC_init(GLOBAL_STATE);
     uint8_t chips_expected = GLOBAL_STATE->DEVICE_CONFIG.family.asic_count;
@@ -534,8 +523,8 @@ bool self_test(void * pvParameters)
 
             // check the nonce difficulty
             double nonce_diff = test_nonce_value(current_job, asic_result->nonce, asic_result->rolled_version);
-            if (nonce_diff >= DIFFICULTY) {
-                counter += DIFFICULTY;
+            if (nonce_diff >= selftest_diff) {
+                counter += selftest_diff;
                 duration_ms = (esp_timer_get_time() / 1000) - start_ms;
                 hashrate = hashCounterToGhs(duration_ms * 1000, counter);
 

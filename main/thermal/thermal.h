@@ -12,5 +12,6 @@ uint16_t Thermal_get_fan2_speed(DeviceConfig * DEVICE_CONFIG);
 
 float Thermal_get_chip_temp(GlobalState * GLOBAL_STATE);
 float Thermal_get_chip_temp2(GlobalState * GLOBAL_STATE);
+float Thermal_get_board_temp(GlobalState * GLOBAL_STATE);
 
 #endif // THERMAL_H

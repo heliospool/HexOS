@@ -769,6 +769,7 @@ export class HomeComponent implements OnInit, OnDestroy {
       case eChartLabel.errorPercentage:  return 1;
       case eChartLabel.asicTemp:         return this.maxTemp;
       case eChartLabel.vrTemp:           return this.maxTemp + 25;
+      case eChartLabel.boardTemp:        return 40;
       case eChartLabel.asicVoltage:      return info.coreVoltage;
       case eChartLabel.voltage:          return info.nominalVoltage + .5;
       case eChartLabel.power:            return this.maxPower;
@@ -791,6 +792,7 @@ export class HomeComponent implements OnInit, OnDestroy {
       case eChartLabel.errorPercentage:    return info.errorPercentage;
       case eChartLabel.asicTemp:           return info.temp;
       case eChartLabel.vrTemp:             return info.vrTemp;
+      case eChartLabel.boardTemp:          return info.boardTemp ?? 0;
       case eChartLabel.asicVoltage:        return info.coreVoltageActual;
       case eChartLabel.voltage:            return info.voltage;
       case eChartLabel.power:              return info.power;
@@ -810,7 +812,8 @@ export class HomeComponent implements OnInit, OnDestroy {
     switch (label) {
       case eChartLabel.errorPercentage:  return {suffix: ' %', precision: 2};
       case eChartLabel.asicTemp:
-      case eChartLabel.vrTemp:           return {suffix: ' °C', precision: 1};
+      case eChartLabel.vrTemp:
+      case eChartLabel.boardTemp:        return {suffix: ' °C', precision: 1};
       case eChartLabel.asicVoltage:
       case eChartLabel.voltage:          return {suffix: ' V', precision: 1};
       case eChartLabel.power:            return {suffix: ' W', precision: 1};
@@ -845,6 +848,18 @@ export class HomeComponent implements OnInit, OnDestroy {
     return dotIndex !== -1 ? user.substring(0, dotIndex) : user;
   }
 
+  getCoinLabel(info: ISystemInfo): string {
+    const network = info.isUsingFallbackStratum ? info.fallbackStratumDecodeCoinbase : info.stratumDecodeCoinbase;
+    if (network === 2) return 'BCH';
+    if (network === 1) return 'BTC';
+    if (network === 3) {
+      // Auto: detect from payout address, same logic as C
+      const addr = this.getAddressPart(this.activePoolUser).replace(/^bitcoincash:/i, '');
+      return (addr[0] === 'q' || addr[0] === 'p') ? 'BCH' : 'BTC';
+    }
+    return '';
+  }
+
   getSuffixPart(user: string): string {
     const dotIndex = user.lastIndexOf('.');
     return dotIndex !== -1 ? '.' + user.substring(dotIndex + 1) : '';
@@ -853,6 +868,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   dataSourceLabels(info: ISystemInfo) {
     return Object.entries(eChartLabel)
       .filter(([key, ]) => key !== 'vrTemp' || info.vrTemp)
+      .filter(([key, ]) => key !== 'boardTemp' || (info.boardTemp ?? 0) > 0)
       .map(([key, value]) => ({name: value, value: key}));
   }
 }
