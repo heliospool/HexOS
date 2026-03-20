@@ -43,11 +43,11 @@
                                 <div class="text-orange-500 mb-3">Update available! Download both files:</div>
 
                                 <div *ngFor="let asset of latestRelease.assets">
-                                    <div *ngIf="asset.name.startsWith('gekkoaxe-firmware-') && asset.name.endsWith('.bin')">
+                                    <div *ngIf="asset.name.startsWith('hexos-firmware-') && asset.name.endsWith('.bin')">
                                         <a style="text-decoration: underline;" target="_blank"
                                             [href]="asset.browser_download_url">{{asset.name}}</a>
                                     </div>
-                                    <div *ngIf="asset.name.startsWith('gekkoaxe-www-') && asset.name.endsWith('.bin')">
+                                    <div *ngIf="asset.name.startsWith('hexos-www-') && asset.name.endsWith('.bin')">
                                         <a style="text-decoration: underline;" target="_blank"
                                             [href]="asset.browser_download_url">{{asset.name}}</a>
                                     </div>
@@ -68,12 +68,12 @@
         </div>
         <div class="col-12 lg:col-6 xl:col-4">
             <div class="card h-full">
-                <h3>Update GekkoAxeOS <span *ngIf="websiteUpdateProgress != null">{{websiteUpdateProgress}} %</span></h3>
+                <h3>Update HexOS <span *ngIf="websiteUpdateProgress != null">{{websiteUpdateProgress}} %</span></h3>
 
                 <p-fileUpload #websiteUpload [customUpload]="true" mode="basic" accept=".bin" (uploadHandler)="otaWWWUpdate($event)"
                     [auto]="true" chooseLabel="Browse"></p-fileUpload>
 
-                <small>(gekkoaxe-www-*.bin)</small>
+                <small>(hexos-www-*.bin)</small>
             </div>
         </div>
         <div class="col-12 lg:col-6 xl:col-4">
@@ -82,7 +82,7 @@
                 <p-fileUpload #firmwareUpload [customUpload]="true" mode="basic" accept=".bin" (uploadHandler)="otaUpdate($event)"
                     [auto]="true" chooseLabel="Browse"></p-fileUpload>
 
-                <small>(gekkoaxe-firmware-*.bin)</small>
+                <small>(hexos-firmware-*.bin)</small>
             </div>
 
         </div>
