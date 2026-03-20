@@ -13,7 +13,7 @@ import { PoolComponent } from './components/pool/pool.component';
 import { AppLayoutComponent } from './layout/app.layout.component';
 import { ApModeGuard } from './guards/ap-mode.guard';
 
-const TITLE_PREFIX = 'GekkoAxeOS';
+const TITLE_PREFIX = 'HexOS';
 
 const routes: Routes = [
   {
