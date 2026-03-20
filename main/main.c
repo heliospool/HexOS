@@ -24,11 +24,11 @@
 
 static GlobalState GLOBAL_STATE;
 
-static const char * TAG = "GekkoAxeOS";
+static const char * TAG = "HexOS";
 
 void app_main(void)
 {
-    ESP_LOGI(TAG, "Welcome to GekkoAxe - Superior Designs by Sidehack");
+    ESP_LOGI(TAG, "Welcome to HexOS");
 
     if (!esp_psram_is_initialized()) {
         ESP_LOGE(TAG, "No PSRAM available on ESP32 device!");
