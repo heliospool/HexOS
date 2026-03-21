@@ -377,3 +377,67 @@
         <app-edit *ngIf="selectedAxeOs" [uri]="'http://' + selectedAxeOs.IP"></app-edit>
     </app-modal>
 </div>
+
+<ng-container *ngIf="heliosPoolWorkers$ | async as hp">
+    <div class="card mt-3" *ngIf="hp">
+        <h2 class="mb-3">HeliosPool {{ hp.coin }} Workers</h2>
+        <div class="grid mb-3">
+            <div class="col-6 xl:col-3">
+                <div class="card flex flex-column mb-0">
+                    <span class="text-500 font-medium mb-3">Total Workers</span>
+                    <div class="text-900 font-medium text-2xl">{{ hp.totalWorkers }}</div>
+                </div>
+            </div>
+            <div class="col-6 xl:col-3">
+                <div class="card flex flex-column mb-0">
+                    <span class="text-500 font-medium mb-3">Total Hashrate</span>
+                    <div class="text-900 font-medium text-2xl">{{ formatHeliosHash(hp.hashrate1m) }}</div>
+                </div>
+            </div>
+            <div class="col-6 xl:col-3">
+                <div class="card flex flex-column mb-0">
+                    <span class="text-500 font-medium mb-3">Total Shares</span>
+                    <div class="text-900 font-medium text-2xl">{{ hp.totalShares | diffSuffix }}</div>
+                </div>
+            </div>
+            <div class="col-6 xl:col-3">
+                <div class="card flex flex-column mb-0">
+                    <span class="text-500 font-medium mb-3">Best Diff</span>
+                    <div class="text-900 font-medium text-2xl">{{ hp.bestEver | diffSuffix }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr>
+                        <th class="text-500 font-medium text-left">Name</th>
+                        <th class="text-500 font-medium text-left">Client</th>
+                        <th class="text-500 font-medium text-left">Hashrate (5m)</th>
+                        <th class="text-500 font-medium text-left">Hashrate (1hr)</th>
+                        <th class="text-500 font-medium text-left">Hashrate (1d)</th>
+                        <th class="text-500 font-medium text-left">Total Shares</th>
+                        <th class="text-500 font-medium text-left">Best Share</th>
+                        <th class="text-500 font-medium text-left">Best Ever</th>
+                        <th class="text-500 font-medium text-left">Last Update</th>
+                        <th class="text-500 font-medium text-left">Uptime</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr *ngFor="let w of hp.workers">
+                        <td class="text-900 white-space-nowrap">{{ w.workername.includes('.') ? w.workername.split('.').pop() : w.workername }}</td>
+                        <td class="text-500">{{ w.useragent }}</td>
+                        <td [ngClass]="w.hashrate5m !== '0' ? 'text-orange-400' : 'text-500'">{{ formatHeliosHash(w.hashrate5m) }}</td>
+                        <td>{{ formatHeliosHash(w.hashrate1hr) }}</td>
+                        <td>{{ formatHeliosHash(w.hashrate1d) }}</td>
+                        <td>{{ w.shares | diffSuffix }}</td>
+                        <td>{{ w.bestshare | diffSuffix }}</td>
+                        <td>{{ w.bestever | diffSuffix }}</td>
+                        <td>{{ formatHeliosElapsed(nowSecs - w.lastshare) }}</td>
+                        <td class="text-green-500">{{ formatHeliosElapsed(nowSecs - w.started) }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</ng-container>

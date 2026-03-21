@@ -1,13 +1,13 @@
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Component, OnDestroy, OnInit, ViewChild, HostListener } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, FormControl } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
-import { forkJoin, catchError, from, map, mergeMap, of, take, timeout, toArray, Observable, Subscription } from 'rxjs';
+import { forkJoin, catchError, from, map, mergeMap, of, take, timeout, toArray, Observable, Subscription, interval, startWith, switchMap, distinctUntilChanged, shareReplay } from 'rxjs';
 import { LocalStorageService } from 'src/app/local-storage.service';
 import { LayoutService } from "../../layout/service/app.layout.service";
 import { SystemApiService } from 'src/app/services/system.service';
+import { HeliosPoolService, HeliosWorker } from 'src/app/services/helios-pool.service';
 import { ModalComponent } from '../modal/modal.component';
-import { SystemInfo as ISystemInfo } from 'src/app/generated';
 
 const SWARM_DATA = 'SWARM_DATA';
 const SWARM_REFRESH_TIME = 'SWARM_REFRESH_TIME';
@@ -51,6 +51,8 @@ export class SwarmComponent implements OnInit, OnDestroy {
 
   public filterText = '';
 
+  public heliosPoolWorkers$: Observable<{ coin: string; workers: HeliosWorker[]; totalWorkers: number; hashrate1m: string; totalShares: number; bestEver: number } | null> = of(null);
+
   @HostListener('document:keydown.esc', ['$event'])
   onEscKey() {
     if (this.filterText) {
@@ -64,6 +66,7 @@ export class SwarmComponent implements OnInit, OnDestroy {
     private localStorageService: LocalStorageService,
     public layoutService: LayoutService,
     private systemService: SystemApiService,
+    private heliosPoolService: HeliosPoolService,
     private httpClient: HttpClient
   ) {
 
@@ -93,6 +96,49 @@ export class SwarmComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    this.heliosPoolWorkers$ = this.systemService.getInfo().pipe(
+      map(info => {
+        const isFallback = !!info.isUsingFallbackStratum;
+        return {
+          url: (isFallback ? info.fallbackStratumURL : info.stratumURL) ?? '',
+          user: (isFallback ? info.fallbackStratumUser : info.stratumUser) ?? ''
+        };
+      }),
+      distinctUntilChanged((a, b) => a.url === b.url && a.user === b.user),
+      switchMap(({ url, user }) => {
+        const helioBTC = ['btc.heliospool.com', 'btc.heliospool.asia', 'btc.heliospool.eu', 'solo.heliospool.com'];
+        const helioBCH = ['bch.heliospool.com', 'bch.heliospool.asia', 'bch.heliospool.eu', 'solo-bch.heliospool.com'];
+        const urlLower = url.toLowerCase();
+        const isBTC = helioBTC.some(d => urlLower.includes(d));
+        const isBCH = helioBCH.some(d => urlLower.includes(d));
+        if (!isBTC && !isBCH) return of(null);
+        const coin: 'btc' | 'bch' = isBCH ? 'bch' : 'btc';
+        return interval(60000).pipe(
+          startWith(0),
+          switchMap(() =>
+            this.heliosPoolService.getAccountStats(coin, this.getHeliosAddress(user)).pipe(
+              map(stats => {
+                if (!stats || !Array.isArray(stats.worker)) return null;
+                const activeWorkers = stats.worker
+                  .filter(w => w.started > 0)
+                  .sort((a, b) => this.parseSuffixString(b.hashrate5m) - this.parseSuffixString(a.hashrate5m));
+                return {
+                  coin: coin.toUpperCase(),
+                  workers: activeWorkers,
+                  totalWorkers: stats.workers,
+                  hashrate1m: stats.hashrate1m,
+                  totalShares: stats.shares,
+                  bestEver: stats.bestever
+                };
+              }),
+              catchError(() => of(null))
+            )
+          )
+        );
+      }),
+      shareReplay({ refCount: true, bufferSize: 1 })
+    );
+
     const swarmData = this.localStorageService.getObject(SWARM_DATA);
 
     if (swarmData == null) {
@@ -485,5 +531,25 @@ export class SwarmComponent implements OnInit, OnDestroy {
 
   isThisDevice(IP: string): boolean {
     return IP === window.location.hostname;
+  }
+
+  getHeliosAddress(user: string): string {
+    const dotIndex = user.lastIndexOf('.');
+    return dotIndex !== -1 ? user.substring(0, dotIndex) : user;
+  }
+
+  formatHeliosElapsed(secs: number): string {
+    if (secs < 60) return 'Recently';
+    const steps: [string, number][] = [['y', 31536000], ['mo', 2592000], ['w', 604800], ['d', 86400], ['h', 3600], ['m', 60]];
+    for (const [label, s] of steps) { const c = Math.floor(secs / s); if (c > 0) return `${c}${label}`; }
+    return 'Recently';
+  }
+
+  formatHeliosHash(v: string): string {
+    return v && v !== '0' ? v.slice(0, -1) + ' ' + v.slice(-1) + 'h/s' : v;
+  }
+
+  get nowSecs(): number {
+    return Math.floor(Date.now() / 1000);
   }
 }
