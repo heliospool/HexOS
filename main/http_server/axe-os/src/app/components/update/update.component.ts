@@ -53,8 +53,8 @@ export class UpdateComponent {
     const file = event.files[0];
     this.firmwareUpload.clear(); // clear the file upload component
 
-    if (!file.name.startsWith('hexos-firmware-') || !file.name.endsWith('.bin')) {
-      this.toastrService.error('Incorrect file. Please select a hexos-firmware-*.bin file.');
+    if (!file.name.startsWith('esp-miner-') || file.name.startsWith('esp-miner-www-') || file.name.startsWith('esp-miner-factory-') || !file.name.endsWith('.bin')) {
+      this.toastrService.error('Incorrect file. Please select a esp-miner-*.bin file.');
       return;
     }
 
@@ -90,8 +90,8 @@ export class UpdateComponent {
     const file = event.files[0];
     this.websiteUpload.clear(); // clear the file upload component
 
-    if (!file.name.startsWith('hexos-www-') || !file.name.endsWith('.bin')) {
-      this.toastrService.error('Incorrect file. Please select a hexos-www-*.bin file.');
+    if (!file.name.startsWith('esp-miner-www-') || !file.name.endsWith('.bin')) {
+      this.toastrService.error('Incorrect file. Please select a esp-miner-www-*.bin file.');
       return;
     }
 
