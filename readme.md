@@ -4,7 +4,7 @@
 
 # HexOS
 
-HexOS is open-source firmware for Bitcoin miners, built and maintained by [Helios Pool](https://heliospool.com). It is a fork of [bitaxeorg/ESP-Miner](https://github.com/bitaxeorg/ESP-Miner), tracking upstream closely while adding hardware support, pool integration, and UI improvements.
+HexOS is open-source firmware for Bitcoin miners, built and maintained for [HeliosPool](https://heliospool.com) by [Z3r0XG](https://github.com/Z3r0XG). It is a fork of [bitaxeorg/ESP-Miner](https://github.com/bitaxeorg/ESP-Miner), tracking upstream closely while adding hardware support, pool integration, and UI improvements.
 
 For pre-built images ready to flash, see the [latest release](https://github.com/heliospool/HexOS/releases/latest).
 
@@ -70,6 +70,7 @@ HexOS supports all upstream ESP-Miner hardware plus the following additional boa
 ### Hardware & board support
 
 - **GekkoAxe hardware support** — dedicated device family entries for GekkoAxe-GT and GekkoAxe-γ with correct regulator config, fan controller, and board-specific power parameters
+- **Bitaxe Gamma Turbo (GT) 800 device support** — support put back in for GT-800 devices (only 801 boards were supported)
 - **Self-test power ceiling corrected** — `gekko-800` `power_consumption_target` fixed from 12 W to 36 W (dormant upstream copy-paste bug; only affects devices with `selftest=1`)
 - **Fan controller improvements** — auto fan continues working if any individual ASIC temperature sensor stops reporting; fails safe to 100% if all sensors are lost; more aggressive response to rising temperatures with gradual spin-down to prevent oscillation
 
