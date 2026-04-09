@@ -30,7 +30,7 @@
                 <div class="card mb-0">
                     <div class="flex flex-column justify-content-between">
                         <div class="flex align-items-center justify-content-between mb-3">
-                            <span class="text-900 font-medium text-lg white-space-nowrap">HeliosPool {{ hp.coin }}</span>
+                            <span class="text-900 font-medium text-lg white-space-nowrap">HeliosPool {{ hp.coin }} ({{ hp.region }})</span>
                             <span class="text-sm white-space-nowrap text-400">Joined <span class="text-800">{{ hp.joined * 1000 | date:'mediumDate' }}</span></span>
                         </div>
                         <div class="flex align-items-start justify-content-between">
@@ -307,11 +307,17 @@
                     </div>
                 </div>
                 <div>
-                    <span class="text-900 font-medium cursor-pointer" pTooltip="{{info.bestSessionDiff | number:'1.0-0'}}" tooltipPosition="bottom">
+                    <span class="text-900 font-medium text-xl cursor-pointer" pTooltip="{{info.bestSessionDiff | number:'1.0-0'}}" tooltipPosition="bottom">
                         {{info.bestSessionDiff | diffSuffix}}
                     </span>
                     <span class="text-500 text-lg">session best</span>
                     <span class="text-sm font-medium mb-3"> ({{ info.uptimeSeconds | dateAgo: { intervals: 2, strict:true, short:true } }})</span>
+                </div>
+                <div>
+                    <span class="text-900 font-medium text-xl cursor-pointer" pTooltip="{{info.lastSubmittedDiff | number:'1.0-0'}}" tooltipPosition="bottom">
+                        {{info.lastSubmittedDiff | diffSuffix}}
+                    </span>
+                    <span class="text-500 text-lg">last submitted</span>
                 </div>
             </div>
         </div>

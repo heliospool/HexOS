@@ -6,7 +6,7 @@ import { forkJoin, catchError, from, map, mergeMap, of, take, timeout, toArray, 
 import { LocalStorageService } from 'src/app/local-storage.service';
 import { LayoutService } from "../../layout/service/app.layout.service";
 import { SystemApiService } from 'src/app/services/system.service';
-import { HeliosPoolService, HeliosWorker } from 'src/app/services/helios-pool.service';
+import { HeliosPoolService, HeliosRegionData, TaggedHeliosWorker } from 'src/app/services/helios-pool.service';
 import { ModalComponent } from '../modal/modal.component';
 
 const SWARM_DATA = 'SWARM_DATA';
@@ -51,7 +51,7 @@ export class SwarmComponent implements OnInit, OnDestroy {
 
   public filterText = '';
 
-  public heliosPoolWorkers$: Observable<{ coin: string; workers: HeliosWorker[]; totalWorkers: number; hashrate1m: string; totalShares: number; bestEver: number } | null> = of(null);
+  public heliosPoolWorkers$: Observable<{ coin: string; regions: HeliosRegionData[] }[] | null> = of(null);
 
   @HostListener('document:keydown.esc', ['$event'])
   onEscKey() {
@@ -96,42 +96,45 @@ export class SwarmComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    const detectCoin = (url: string): 'btc' | 'bch' | null => {
+      const h = url.toLowerCase();
+      if (h.includes('bch.heliospool') || h.includes('solo-bch.heliospool')) return 'bch';
+      if (h.includes('btc.heliospool') || h.includes('solo.heliospool'))     return 'btc';
+      return null;
+    };
+
     this.heliosPoolWorkers$ = this.systemService.getInfo().pipe(
       map(info => {
-        const isFallback = !!info.isUsingFallbackStratum;
-        return {
-          url: (isFallback ? info.fallbackStratumURL : info.stratumURL) ?? '',
-          user: (isFallback ? info.fallbackStratumUser : info.stratumUser) ?? ''
-        };
+        const pools: { coin: 'btc' | 'bch'; address: string }[] = [];
+        for (const [url, user] of [
+          [info.stratumURL ?? '',         info.stratumUser ?? ''],
+          [info.fallbackStratumURL ?? '', info.fallbackStratumUser ?? ''],
+        ] as [string, string][]) {
+          const coin = detectCoin(url);
+          if (!coin) continue;
+          const address = this.getHeliosAddress(user);
+          if (address && !pools.some(p => p.coin === coin && p.address === address)) {
+            pools.push({ coin, address });
+          }
+        }
+        return pools;
       }),
-      distinctUntilChanged((a, b) => a.url === b.url && a.user === b.user),
-      switchMap(({ url, user }) => {
-        const helioBTC = ['btc.heliospool.com', 'btc.heliospool.asia', 'btc.heliospool.eu', 'solo.heliospool.com'];
-        const helioBCH = ['bch.heliospool.com', 'bch.heliospool.asia', 'bch.heliospool.eu', 'solo-bch.heliospool.com'];
-        const urlLower = url.toLowerCase();
-        const isBTC = helioBTC.some(d => urlLower.includes(d));
-        const isBCH = helioBCH.some(d => urlLower.includes(d));
-        if (!isBTC && !isBCH) return of(null);
-        const coin: 'btc' | 'bch' = isBCH ? 'bch' : 'btc';
+      distinctUntilChanged((a, b) => JSON.stringify(a) === JSON.stringify(b)),
+      switchMap(pools => {
+        if (!pools.length) return of(null);
         return interval(60000).pipe(
           startWith(0),
           switchMap(() =>
-            this.heliosPoolService.getAccountStats(coin, this.getHeliosAddress(user)).pipe(
-              map(stats => {
-                if (!stats || !Array.isArray(stats.worker)) return null;
-                const activeWorkers = stats.worker
-                  .filter(w => w.started > 0)
-                  .sort((a, b) => this.parseSuffixString(b.hashrate5m) - this.parseSuffixString(a.hashrate5m));
-                return {
-                  coin: coin.toUpperCase(),
-                  workers: activeWorkers,
-                  totalWorkers: stats.workers,
-                  hashrate1m: stats.hashrate1m,
-                  totalShares: stats.shares,
-                  bestEver: stats.bestever
-                };
-              }),
-              catchError(() => of(null))
+            forkJoin(pools.map(({ coin, address }) =>
+              this.heliosPoolService.getAccountStatsAllRegions(coin, address).pipe(
+                map(regions => regions.length ? { coin: coin.toUpperCase(), regions } : null),
+                catchError(() => of(null))
+              )
+            )).pipe(
+              map(results => {
+                const valid = results.filter((r): r is { coin: string; regions: HeliosRegionData[] } => r !== null);
+                return valid.length ? valid : null;
+              })
             )
           )
         );
@@ -551,5 +554,86 @@ export class SwarmComponent implements OnInit, OnDestroy {
 
   get nowSecs(): number {
     return Math.floor(Date.now() / 1000);
+  }
+
+  private parseHeliosHashToTH(v: string): number {
+    if (!v || v === '0') return 0;
+    const num = parseFloat(v.slice(0, -1));
+    if (isNaN(num)) return 0;
+    const unit = v.slice(-1).toUpperCase();
+    const factors: Record<string, number> = { K: 1e-9, M: 1e-6, G: 1e-3, T: 1, P: 1e3, E: 1e6 };
+    return num * (factors[unit] ?? 0);
+  }
+
+  private formatTHToHeliosHash(th: number): string {
+    if (th <= 0) return '0';
+    const tiers: [string, number][] = [['E', 1e6], ['P', 1e3], ['T', 1], ['G', 1e-3], ['M', 1e-6], ['K', 1e-9]];
+    for (const [unit, factor] of tiers) {
+      if (th >= factor) return (th / factor).toFixed(2) + unit;
+    }
+    return th.toFixed(2) + 'T';
+  }
+
+  heliosTotals(hp: { coin: string; regions: HeliosRegionData[] }[]): {
+    workers: number; hashrate1m: string;
+    shares: number; sharesByCoin: { coin: string; shares: number }[];
+    bestever: number; besteverByCoin: { coin: string; bestever: number }[];
+  } {
+    let workers = 0, shares = 0, bestever = 0, totalTH = 0;
+    const sharesByCoin: { coin: string; shares: number }[] = [];
+    const besteverByCoin: { coin: string; bestever: number }[] = [];
+    for (const ce of hp) {
+      let coinShares = 0, coinBest = 0;
+      for (const rd of ce.regions) {
+        workers += rd.stats.workers;
+        shares += rd.stats.shares;
+        coinShares += rd.stats.shares;
+        if (rd.stats.bestever > bestever) bestever = rd.stats.bestever;
+        if (rd.stats.bestever > coinBest) coinBest = rd.stats.bestever;
+        totalTH += this.parseHeliosHashToTH(rd.stats.hashrate1m);
+      }
+      if (coinShares > 0) sharesByCoin.push({ coin: ce.coin, shares: coinShares });
+      if (coinBest > 0) besteverByCoin.push({ coin: ce.coin, bestever: coinBest });
+    }
+    return { workers, hashrate1m: this.formatTHToHeliosHash(totalTH), shares, sharesByCoin, bestever, besteverByCoin };
+  }
+
+  public heliosWorkerSort: { field: string; dir: 'asc' | 'desc' } = { field: 'server', dir: 'asc' };
+
+  sortHeliosBy(field: string) {
+    if (this.heliosWorkerSort.field === field) {
+      this.heliosWorkerSort = { field, dir: this.heliosWorkerSort.dir === 'asc' ? 'desc' : 'asc' };
+    } else {
+      this.heliosWorkerSort = { field, dir: 'asc' };
+    }
+  }
+
+  heliosFlatWorkers(hp: { coin: string; regions: HeliosRegionData[] }[]): (TaggedHeliosWorker & { server: string })[] {
+    const rows: (TaggedHeliosWorker & { server: string })[] = [];
+    for (const ce of hp) {
+      for (const rd of ce.regions) {
+        for (const w of rd.workers) {
+          rows.push({ ...w, server: `${ce.coin}-${rd.region}` });
+        }
+      }
+    }
+    const { field, dir } = this.heliosWorkerSort;
+    rows.sort((a, b) => {
+      let cmp = 0;
+      switch (field) {
+        case 'server':    cmp = a.server.localeCompare(b.server); break;
+        case 'name':      cmp = a.workername.localeCompare(b.workername); break;
+        case 'hashrate5m':  cmp = this.parseHeliosHashToTH(a.hashrate5m)  - this.parseHeliosHashToTH(b.hashrate5m);  break;
+        case 'hashrate1hr': cmp = this.parseHeliosHashToTH(a.hashrate1hr) - this.parseHeliosHashToTH(b.hashrate1hr); break;
+        case 'hashrate1d':  cmp = this.parseHeliosHashToTH(a.hashrate1d)  - this.parseHeliosHashToTH(b.hashrate1d);  break;
+        case 'useragent':   cmp = (a.useragent ?? '').localeCompare(b.useragent ?? ''); break;
+        case 'shares':    cmp = a.shares - b.shares; break;
+        case 'bestever':  cmp = a.bestever - b.bestever; break;
+        case 'lastshare': cmp = a.lastshare - b.lastshare; break;
+        case 'started':   cmp = a.started - b.started; break;
+      }
+      return dir === 'asc' ? cmp : -cmp;
+    });
+    return rows;
   }
 }

@@ -26,6 +26,7 @@ type PoolLabel = 'Primary' | 'Fallback';
 
 interface HeliosPoolView {
   coin: string;
+  region: string;
   joined: number;
   activeWorkers: number;
   accountHashrate1m: string;
@@ -559,7 +560,7 @@ export class HomeComponent implements OnInit, OnDestroy {
         return interval(60000).pipe(
           startWith(0),
           switchMap(() =>
-            this.heliosPoolService.getAccountStats(coin, address).pipe(
+            this.heliosPoolService.getAccountStats(coin, address, url).pipe(
               map(stats => {
                 if (!stats || !Array.isArray(stats.worker)) return null;
                 const now = Math.floor(Date.now() / 1000);
@@ -575,6 +576,7 @@ export class HomeComponent implements OnInit, OnDestroy {
                 };
                 return {
                   coin: coin.toUpperCase(),
+                  region: urlLower.includes('.eu') ? 'EU' : urlLower.includes('.asia') ? 'APAC' : 'NA',
                   joined: stats.authorised,
                   activeWorkers,
                   accountHashrate1m: fmtHash(stats.hashrate1m),

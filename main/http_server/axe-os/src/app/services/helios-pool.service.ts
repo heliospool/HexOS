@@ -1,8 +1,12 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable, of } from 'rxjs';
-import { catchError, delay } from 'rxjs/operators';
+import { forkJoin, Observable, of } from 'rxjs';
+import { catchError, delay, map } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
+
+export type HeliosRegion = 'NA' | 'EU' | 'APAC';
+
+const REGION_LABELS: Record<string, HeliosRegion> = { com: 'NA', eu: 'EU', asia: 'APAC' };
 
 export interface HeliosWorker {
   workername: string;
@@ -17,6 +21,16 @@ export interface HeliosWorker {
   bestever: number;
   useragent: string;
   shares: number;
+}
+
+export interface TaggedHeliosWorker extends HeliosWorker {
+  region: HeliosRegion;
+}
+
+export interface HeliosRegionData {
+  region: HeliosRegion;
+  stats: HeliosAccountStats;
+  workers: TaggedHeliosWorker[];
 }
 
 export interface HeliosAccountStats {
@@ -37,7 +51,41 @@ export interface HeliosAccountStats {
 export class HeliosPoolService {
   constructor(private http: HttpClient) {}
 
-  getAccountStats(coin: 'btc' | 'bch', address: string): Observable<HeliosAccountStats | null> {
+  static readonly REGIONS = ['com', 'eu', 'asia'] as const;
+
+  private regionFromStratumUrl(stratumUrl: string): string {
+    const lower = stratumUrl.toLowerCase();
+    if (lower.includes('heliospool.eu')) return 'eu';
+    if (lower.includes('heliospool.asia')) return 'asia';
+    return 'com';
+  }
+
+  /** Fetches account stats from all known regions in parallel, one entry per region that responds. */
+  getAccountStatsAllRegions(coin: 'btc' | 'bch', address: string): Observable<HeliosRegionData[]> {
+    if (!environment.production) {
+      return this.getAccountStats(coin, address, '').pipe(
+        map(s => s ? [{ region: 'NA' as HeliosRegion, stats: s, workers: s.worker.map(w => ({ ...w, region: 'NA' as HeliosRegion })) }] : [])
+      );
+    }
+    return forkJoin(
+      HeliosPoolService.REGIONS.map(region =>
+        this.http.get<HeliosAccountStats>(`https://${coin}.heliospool.${region}/api/users/${address}`).pipe(
+          catchError(() => of(null)),
+          map(s => {
+            if (!s || !Array.isArray(s.worker) || s.workers === 0) return null;
+            const workers = s.worker
+              .filter(w => w.started > 0)
+              .map(w => ({ ...w, region: REGION_LABELS[region] }));
+            return { region: REGION_LABELS[region], stats: s, workers } as HeliosRegionData;
+          })
+        )
+      )
+    ).pipe(
+      map(results => results.filter((r): r is HeliosRegionData => r !== null))
+    );
+  }
+
+  getAccountStats(coin: 'btc' | 'bch', address: string, stratumUrl: string): Observable<HeliosAccountStats | null> {
     if (!environment.production) {
       const now = Math.floor(Date.now() / 1000);
       const mockStats: HeliosAccountStats = {
@@ -69,7 +117,8 @@ export class HeliosPoolService {
       return of(mockStats).pipe(delay(400));
     }
 
-    return this.http.get<HeliosAccountStats>(`https://heliospool.com/api/${coin}/users/${address}`).pipe(
+    const region = this.regionFromStratumUrl(stratumUrl);
+    return this.http.get<HeliosAccountStats>(`https://${coin}.heliospool.${region}/api/users/${address}`).pipe(
       catchError(() => of(null))
     );
   }
