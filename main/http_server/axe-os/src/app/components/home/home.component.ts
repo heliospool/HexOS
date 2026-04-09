@@ -442,6 +442,7 @@ export class HomeComponent implements OnInit, OnDestroy {
       map(info => {
         info.voltage = info.voltage / 1000;
         info.current = info.current / 1000;
+        info.currentLimit = info.currentLimit / 1000;
         info.coreVoltageActual = info.coreVoltageActual / 1000;
         info.coreVoltage = info.coreVoltage / 1000;
         return info;
@@ -500,7 +501,7 @@ export class HomeComponent implements OnInit, OnDestroy {
       map(info => {
         info.power = parseFloat(info.power.toFixed(1));
         info.voltage = parseFloat(info.voltage.toFixed(1));
-        info.current = parseFloat(info.current.toFixed(1));
+        info.current = parseFloat(info.current.toFixed(2));
         info.coreVoltageActual = parseFloat(info.coreVoltageActual.toFixed(2));
         info.coreVoltage = parseFloat(info.coreVoltage.toFixed(2));
         info.temp = parseFloat(info.temp.toFixed(1));

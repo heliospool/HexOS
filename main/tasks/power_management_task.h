@@ -15,6 +15,7 @@ typedef struct
     float expected_hashrate;
     float power;
     float current;
+    float current_limit;
     float core_voltage;
 } PowerManagementModule;
 

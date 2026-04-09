@@ -41,6 +41,7 @@ export class SystemApiService {
         power: 44.3,
         voltage: 5100,
         current: 28900,
+        currentLimit: 30000,
         temp: 62,
         temp2: 58,
         vrTemp: 51,

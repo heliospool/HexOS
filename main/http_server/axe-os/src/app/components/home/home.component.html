@@ -387,6 +387,22 @@
 
                 <div class="mb-3">
                     <h6 class="flex justify-content-between mb-1">
+                        Input Current<span>{{(info.power / info.voltage).toFixed(1)}} A</span>
+                    </h6>
+                    <p-progressBar [value]="(info.power / info.voltage / (info.nominalVoltage >= 12 ? 12 : 5)) * 100"
+                        [styleClass]="'p-progressbar--thin'">
+                        <ng-template pTemplate="content" let-value></ng-template>
+                    </p-progressBar>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 md:col-4">
+            <div class="card">
+                <h4 class="text-center">ASIC</h4>
+
+                <div class="mb-3">
+                    <h6 class="flex justify-content-between mb-1">
                         ASIC Frequency<span>{{info.frequency}} MHz</span>
                     </h6>
                     <p-progressBar [value]="(info.frequency / maxFrequency) * 100" [styleClass]="'p-progressbar--thin'">
@@ -394,13 +410,31 @@
                     </p-progressBar>
                 </div>
 
-                <div>
+                <div class="mb-3">
                     <h6 class="flex justify-content-between mb-1">
                         Measured ASIC Voltage<span>{{info.coreVoltageActual}} V</span>
                     </h6>
                     <p-progressBar [value]="(info.coreVoltageActual / 1.8) * 100" [styleClass]="'p-progressbar--thin'">
                         <ng-template pTemplate="content" let-value></ng-template>
                     </p-progressBar>
+                </div>
+
+                <div class="mb-3">
+                    <h6 class="flex justify-content-between mb-1">
+                        Measured ASIC Current<span>{{info.current.toFixed(2)}} A</span>
+                    </h6>
+                    <div *ngIf="(info.currentLimit ?? 0) > 0" class="relative">
+                        <p-progressBar [value]="(info.current / info.currentLimit) * 100" [styleClass]="'p-progressbar--thin'">
+                            <ng-template pTemplate="content" let-value></ng-template>
+                        </p-progressBar>
+                        <div class="absolute bg-white h-full top-0"
+                            style="right: 0; width: 3px;">
+                            <small class="absolute text-white white-space-nowrap text-xs"
+                                style="bottom: -1rem; right: 0;">
+                                {{info.currentLimit}} A
+                            </small>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -476,54 +510,6 @@
                     <strong class="text-red-500" *ngIf="(info.boardTemp ?? 0) >= 55">
                         Warning: High Board Temperature
                     </strong>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-12 md:col-4">
-            <div class="card">
-                <h4 class="text-center">Fan</h4>
-
-                <div class="mb-3">
-                    <h6 class="flex justify-content-between mb-1">
-                        Fan Speed<span>{{info.fanspeed.toFixed(1)}} %</span>
-                    </h6>
-                    <p-progressBar [value]="info.fanspeed" [styleClass]="'p-progressbar--thin'">
-                        <ng-template pTemplate="content" let-value></ng-template>
-                    </p-progressBar>
-                </div>
-
-                <div class="mb-3">
-                    <h6 class="flex justify-content-between mb-1">
-                        <ng-container *ngIf="info.fan2rpm > 0; else singleFan">
-                            Fan 1 RPM
-                        </ng-container>
-                        <ng-template #singleFan>
-                            Fan RPM
-                        </ng-template>
-                        <span>
-                            <ng-container *ngIf="info.fanrpm > 0; else noValue">
-                                {{info.fanrpm}} RPM
-                            </ng-container>
-                        </span>
-                    </h6>
-                    <p-progressBar [value]="(info.fanrpm / maxRpm) * 100" [styleClass]="'p-progressbar--thin'">
-                        <ng-template pTemplate="content" let-value></ng-template>
-                    </p-progressBar>
-                </div>
-
-                <div *ngIf="info.fan2rpm > 0">
-                    <h6 class="flex justify-content-between mb-1">
-                        Fan 2 RPM
-                        <span>
-                            <ng-container *ngIf="info.fan2rpm > 0; else noValue">
-                                {{info.fan2rpm}} RPM
-                            </ng-container>
-                        </span>
-                    </h6>
-                    <p-progressBar [value]="(info.fan2rpm / maxRpm) * 100" [styleClass]="'p-progressbar--thin'">
-                        <ng-template pTemplate="content" let-value></ng-template>
-                    </p-progressBar>
                 </div>
             </div>
         </div>
@@ -621,6 +607,90 @@
 
         <div class="col-12 md:col-4">
             <div class="card">
+                <h4 class="white-space-nowrap overflow-hidden text-overflow-ellipsis">Hashrate Registers</h4>
+
+                <ng-container *ngIf="getAsicsAmount(info) as asicAmount">
+                    <table class="heatmap text-{{asicAmount <= 2 ? 'sm' : 'xs'}}">
+                        <thead>
+                            <tr>
+                                <th *ngIf="asicAmount > 1" class="text-left">ASIC</th>
+                                <ng-container *ngIf="getAsicDomainsAmount(info) as asicDomainsAmount">
+                                    <th *ngIf="asicDomainsAmount > 0" [attr.colspan]="asicDomainsAmount">
+                                        {{ asicDomainsAmount == 1 ? "Domain" : "Domains" }}
+                                    </th>
+                                </ng-container>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="cursor-pointer" *ngFor="let asic of info.hashrateMonitor.asics; let i = index"
+                                    [pTooltip]="(asicAmount > 1 ? 'ASIC ' + (i + 1) + ' - ' : '') + 'Error count: ' + asic.errorCount"
+                                    tooltipPosition="bottom">
+                                <td *ngIf="asicAmount > 1" class="text-500 text-left">
+                                    {{ i + 1 }}
+                                </td>
+                                <td *ngFor="let domain of asic.domains"
+                                    [style.background]="getHeatmapColor(info, domain)"
+                                    [style.height]="(asicAmount <= 2 ? '2rem' : null)"
+                                    class="text-center">
+                                    <span class="text-xs">{{ domain | hashSuffix }}</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </ng-container>
+            </div>
+        </div>
+
+        <div class="col-12 md:col-4">
+            <div class="card">
+                <h4 class="text-center">Fan</h4>
+
+                <div class="mb-3">
+                    <h6 class="flex justify-content-between mb-1">
+                        Fan Speed<span>{{info.fanspeed.toFixed(1)}} %</span>
+                    </h6>
+                    <p-progressBar [value]="info.fanspeed" [styleClass]="'p-progressbar--thin'">
+                        <ng-template pTemplate="content" let-value></ng-template>
+                    </p-progressBar>
+                </div>
+
+                <div class="mb-3">
+                    <h6 class="flex justify-content-between mb-1">
+                        <ng-container *ngIf="info.fan2rpm > 0; else singleFan">
+                            Fan 1 RPM
+                        </ng-container>
+                        <ng-template #singleFan>
+                            Fan RPM
+                        </ng-template>
+                        <span>
+                            <ng-container *ngIf="info.fanrpm > 0; else noValue">
+                                {{info.fanrpm}} RPM
+                            </ng-container>
+                        </span>
+                    </h6>
+                    <p-progressBar [value]="(info.fanrpm / maxRpm) * 100" [styleClass]="'p-progressbar--thin'">
+                        <ng-template pTemplate="content" let-value></ng-template>
+                    </p-progressBar>
+                </div>
+
+                <div *ngIf="info.fan2rpm > 0">
+                    <h6 class="flex justify-content-between mb-1">
+                        Fan 2 RPM
+                        <span>
+                            <ng-container *ngIf="info.fan2rpm > 0; else noValue">
+                                {{info.fan2rpm}} RPM
+                            </ng-container>
+                        </span>
+                    </h6>
+                    <p-progressBar [value]="(info.fan2rpm / maxRpm) * 100" [styleClass]="'p-progressbar--thin'">
+                        <ng-template pTemplate="content" let-value></ng-template>
+                    </p-progressBar>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 md:col-4">
+            <div class="card">
                 <h4 class="white-space-nowrap overflow-hidden text-overflow-ellipsis">Block Header</h4>
 
                 <div class="flex flex-nowrap">
@@ -684,42 +754,6 @@
                         {{ info.coinbaseValueTotalSatoshis / 100_000_000 }}
                     </ng-container>
                 </div>
-            </div>
-        </div>
-
-        <div class="col-12 md:col-4">
-            <div class="card">
-                <h4 class="white-space-nowrap overflow-hidden text-overflow-ellipsis">Hashrate Registers</h4>
-
-                <ng-container *ngIf="getAsicsAmount(info) as asicAmount">
-                    <table class="heatmap text-{{asicAmount <= 2 ? 'sm' : 'xs'}}">
-                        <thead>
-                            <tr>
-                                <th *ngIf="asicAmount > 1" class="text-left">ASIC</th>
-                                <ng-container *ngIf="getAsicDomainsAmount(info) as asicDomainsAmount">
-                                    <th *ngIf="asicDomainsAmount > 0" [attr.colspan]="asicDomainsAmount">
-                                        {{ asicDomainsAmount == 1 ? "Domain" : "Domains" }}
-                                    </th>
-                                </ng-container>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr class="cursor-pointer" *ngFor="let asic of info.hashrateMonitor.asics; let i = index"
-                                    [pTooltip]="(asicAmount > 1 ? 'ASIC ' + (i + 1) + ' - ' : '') + 'Error count: ' + asic.errorCount"
-                                    tooltipPosition="bottom">
-                                <td *ngIf="asicAmount > 1" class="text-500 text-left">
-                                    {{ i + 1 }}
-                                </td>
-                                <td *ngFor="let domain of asic.domains"
-                                    [style.background]="getHeatmapColor(info, domain)"
-                                    [style.height]="(asicAmount <= 2 ? '2rem' : null)"
-                                    class="text-center">
-                                    <span class="text-xs">{{ domain | hashSuffix }}</span>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </ng-container>
             </div>
         </div>
     </div>
