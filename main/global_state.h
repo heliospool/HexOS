@@ -90,6 +90,11 @@ typedef struct
     char * version;
     char * axeOSVersion;
     float last_submitted_diff;
+    uint32_t stratum_disconnects;
+    uint32_t wifi_disconnects;
+    uint32_t tx_errors;
+    uint32_t rx_errors;
+    int64_t last_share_time;
 } SystemModule;
 
 typedef struct

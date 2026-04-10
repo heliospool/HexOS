@@ -194,6 +194,9 @@ static void event_handler(void * arg, esp_event_base_t event_base, int32_t event
                 return;
             }
 
+            if (GLOBAL_STATE->SYSTEM_MODULE.is_connected) {
+                GLOBAL_STATE->SYSTEM_MODULE.wifi_disconnects++;
+            }
             GLOBAL_STATE->SYSTEM_MODULE.is_connected = false;
             wifi_softap_on();
 

@@ -75,6 +75,11 @@ export class SystemApiService {
           { message: "Above target", count: 2 },
           { message: "Duplicate share", count: 1 }
         ],
+        stratumDisconnects: 2,
+        wifiDisconnects: 1,
+        txErrors: 0,
+        rxErrors: 1,
+        lastShareSeconds: 45,
         uptimeSeconds: 7254,
         smallCoreCount: 2040,
         ASICModel: "BM1370" as SystemASICASICModelEnum,

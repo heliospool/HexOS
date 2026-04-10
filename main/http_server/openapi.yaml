@@ -121,6 +121,7 @@ components:
         - coreVoltage
         - coreVoltageActual
         - current
+        - currentLimit
         - display
         - fallbackStratumExtranonceSubscribe
         - fallbackStratumPort
@@ -168,6 +169,11 @@ components:
         - sharesAccepted
         - sharesRejected
         - sharesRejectedReasons
+        - stratumDisconnects
+        - wifiDisconnects
+        - txErrors
+        - rxErrors
+        - lastShareSeconds
         - smallCoreCount
         - ssid
         - ipv4
@@ -236,6 +242,9 @@ components:
         current:
           type: number
           description: Current draw in milliamps
+        currentLimit:
+          type: number
+          description: Current limit in milliamps
         display:
           type: string
           description: The configured display
@@ -376,6 +385,21 @@ components:
           description: Reason(s) shares were rejected
           items:
             $ref: '#/components/schemas/SharesRejectedReason'
+        stratumDisconnects:
+          type: number
+          description: Number of stratum disconnection events since boot
+        wifiDisconnects:
+          type: number
+          description: Number of WiFi disconnection events since boot
+        txErrors:
+          type: number
+          description: Number of failed share submission sends since boot
+        rxErrors:
+          type: number
+          description: Number of failed JSON-RPC receive operations since boot
+        lastShareSeconds:
+          type: number
+          description: Seconds since the last accepted share (0 if no share yet)
         smallCoreCount:
           type: number
           description: Number of small cores

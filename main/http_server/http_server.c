@@ -902,6 +902,17 @@ static esp_err_t GET_system_info(httpd_req_t * req)
     cJSON_AddNumberToObject(root, "sharesAccepted", GLOBAL_STATE->SYSTEM_MODULE.shares_accepted);
     cJSON_AddNumberToObject(root, "sharesRejected", GLOBAL_STATE->SYSTEM_MODULE.shares_rejected);
     cJSON_AddNumberToObject(root, "workReceived", GLOBAL_STATE->SYSTEM_MODULE.work_received);
+    cJSON_AddNumberToObject(root, "stratumDisconnects", GLOBAL_STATE->SYSTEM_MODULE.stratum_disconnects);
+    cJSON_AddNumberToObject(root, "wifiDisconnects", GLOBAL_STATE->SYSTEM_MODULE.wifi_disconnects);
+    cJSON_AddNumberToObject(root, "txErrors", GLOBAL_STATE->SYSTEM_MODULE.tx_errors);
+    cJSON_AddNumberToObject(root, "rxErrors", GLOBAL_STATE->SYSTEM_MODULE.rx_errors);
+    {
+        int64_t last_share_age_sec = 0;
+        if (GLOBAL_STATE->SYSTEM_MODULE.last_share_time > 0) {
+            last_share_age_sec = (esp_timer_get_time() - GLOBAL_STATE->SYSTEM_MODULE.last_share_time) / 1000000;
+        }
+        cJSON_AddNumberToObject(root, "lastShareSeconds", (double)last_share_age_sec);
+    }
 
     cJSON *error_array = cJSON_CreateArray();
     cJSON_AddItemToObject(root, "sharesRejectedReasons", error_array);

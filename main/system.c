@@ -43,6 +43,11 @@ void SYSTEM_init_system(GlobalState * GLOBAL_STATE)
     module->screen_page = 0;
     module->shares_accepted = 0;
     module->shares_rejected = 0;
+    module->stratum_disconnects = 0;
+    module->wifi_disconnects = 0;
+    module->tx_errors = 0;
+    module->rx_errors = 0;
+    module->last_share_time = 0;
     module->best_nonce_diff = nvs_config_get_u64(NVS_CONFIG_BEST_DIFF);
     module->best_session_nonce_diff = 0;
     module->start_time = esp_timer_get_time();
@@ -188,6 +193,7 @@ void SYSTEM_notify_accepted_share(GlobalState * GLOBAL_STATE)
     SystemModule * module = &GLOBAL_STATE->SYSTEM_MODULE;
 
     module->shares_accepted++;
+    module->last_share_time = esp_timer_get_time();
 }
 
 static int compare_rejected_reason_stats(const void *a, const void *b) {

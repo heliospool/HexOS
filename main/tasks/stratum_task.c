@@ -563,6 +563,8 @@ void stratum_task(void * pvParameters)
             char * line = STRATUM_V1_receive_jsonrpc_line(GLOBAL_STATE->transport);
             if (!line) {
                 ESP_LOGE(TAG, "Failed to receive JSON-RPC line, reconnecting...");
+                GLOBAL_STATE->SYSTEM_MODULE.stratum_disconnects++;
+                GLOBAL_STATE->SYSTEM_MODULE.rx_errors++;
                 retry_attempts++;
                 stratum_close_connection(GLOBAL_STATE);
                 break;
@@ -612,6 +614,7 @@ void stratum_task(void * pvParameters)
                 STRATUM_V1_pong(GLOBAL_STATE->transport, stratum_api_v1_message.message_id);
             } else if (stratum_api_v1_message.method == CLIENT_RECONNECT) {
                 ESP_LOGE(TAG, "Pool requested client reconnect...");
+                GLOBAL_STATE->SYSTEM_MODULE.stratum_disconnects++;
                 stratum_close_connection(GLOBAL_STATE);
                 break;
             } else if (stratum_api_v1_message.method == STRATUM_RESULT) {

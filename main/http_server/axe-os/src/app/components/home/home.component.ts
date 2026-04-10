@@ -808,6 +808,20 @@ export class HomeComponent implements OnInit, OnDestroy {
     return (sharesRejectedReason.count / totalShares) * 100;
   }
 
+  public getTimeSinceLastShare(info: ISystemInfo): string {
+    const sec = info.lastShareSeconds ?? 0;
+    if (sec === 0) return (info.sharesAccepted ?? 0) > 0 ? 'Just now' : 'Never';
+    if (sec < 60) return `${sec}s ago`;
+    const min = Math.floor(sec / 60);
+    if (min < 60) return `${min}m ago`;
+    return `${Math.floor(min / 60)}h ago`;
+  }
+
+  public lastShareIsStale(info: ISystemInfo): boolean {
+    const sec = info.lastShareSeconds ?? 0;
+    return sec > 60 && (info.sharesAccepted ?? 0) > 0;
+  }
+
   public getDomainErrorPercentage(info: ISystemInfo, asic: { error: number }): number {
     return asic.error ? (asic.error * 100 / info.expectedHashrate) : 0;
   }
