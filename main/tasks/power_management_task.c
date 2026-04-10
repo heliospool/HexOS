@@ -98,7 +98,7 @@ void POWER_MANAGEMENT_task(void * pvParameters)
 
             last_known_asic_voltage = nvs_config_get_u16(NVS_CONFIG_ASIC_VOLTAGE);
             last_known_asic_frequency = nvs_config_get_float(NVS_CONFIG_ASIC_FREQUENCY);
-            nvs_config_set_bool(NVS_CONFIG_AUTO_FAN_SPEED, false);
+            nvs_config_set_u16(NVS_CONFIG_AUTO_FAN_SPEED, 0);
             nvs_config_set_u16(NVS_CONFIG_MANUAL_FAN_SPEED, 100);
             nvs_config_set_bool(NVS_CONFIG_OVERHEAT_MODE, true);
             ESP_LOGW(TAG, "Entering safe mode due to overheat condition. System operation halted.");

@@ -93,6 +93,13 @@ typedef enum {
     NVS_CONFIG_SELFTEST_POWER_MARGIN,
     NVS_CONFIG_SELFTEST_VCORE_MIN,
     NVS_CONFIG_SELFTEST_VCORE_MAX,
+
+    // Fan curve preset (0=default/upstream, 1=performance, 2=aggressive)
+    NVS_CONFIG_FAN_CURVE,
+
+    // VRR target temperature (55-86°C; 0 = disabled)
+    NVS_CONFIG_VRR_TEMP_TARGET,
+
     NVS_CONFIG_COUNT
 } NvsConfigKey;
 

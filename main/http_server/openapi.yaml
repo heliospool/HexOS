@@ -135,6 +135,7 @@ components:
         - fan2rpm
         - fanspeed
         - temptarget
+        - vrrtarget
         - rotation
         - freeHeap
         - freeHeapInternal
@@ -155,6 +156,7 @@ components:
         - manualFanSpeed
         - maxPower
         - minFanSpeed
+        - fanCurve
         - nominalVoltage
         - overheat_mode
         - overclockEnabled
@@ -215,6 +217,9 @@ components:
         autofanspeed:
           type: number
           description: Automatic fan speed control (0=manual, 1=auto)
+        fanCurve:
+          type: integer
+          description: Fan curve preset (0=default/upstream, 1=performance, 2=aggressive)
         bestDiff:
           type: number
           description: Best difficulty achieved
@@ -284,6 +289,9 @@ components:
         temptarget:
           type: number
           description: Target Temperature for the PID Controller
+        vrrtarget:
+          type: integer
+          description: VRR target temperature in °C (55-86); 0 = disabled
         responseTime:
           type: number
           description: Pool response time in ms

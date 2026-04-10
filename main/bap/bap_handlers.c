@@ -408,7 +408,7 @@ void BAP_handle_settings(const char *parameter, const char *value) {
                     return;
                 }
                 //ESP_LOGI(TAG, "Setting fan speed to %d%%", fan_speed);
-                nvs_config_set_bool(NVS_CONFIG_AUTO_FAN_SPEED, false);
+                nvs_config_set_u16(NVS_CONFIG_AUTO_FAN_SPEED, 0);
                 nvs_config_set_u16(NVS_CONFIG_MANUAL_FAN_SPEED, fan_speed);
             }
             break;
@@ -422,7 +422,7 @@ void BAP_handle_settings(const char *parameter, const char *value) {
                     return;
                 }
                 //ESP_LOGI(TAG, "Setting auto fan speed to %d", auto_fan_speed);
-                nvs_config_set_bool(NVS_CONFIG_AUTO_FAN_SPEED, auto_fan_speed);
+                nvs_config_set_u16(NVS_CONFIG_AUTO_FAN_SPEED, auto_fan_speed);
                 BAP_send_message(BAP_CMD_ACK, parameter, "auto_fan_speed_set");
                 return;
             }

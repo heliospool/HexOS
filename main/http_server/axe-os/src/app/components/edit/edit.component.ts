@@ -41,8 +41,15 @@ export class EditComponent implements OnInit, OnDestroy, OnChanges {
 
   private destroy$ = new Subject<void>();
 
+
+
   public displays = ["NONE", "SSD1306 (128x32)", "SSD1309 (128x64)", "SH1107 (64x128)", "SH1107 (128x128)"];
   public rotations = [0, 90, 180, 270];
+  public fanModeOptions = [
+    { label: 'Off', value: 0 },
+    { label: 'ASIC', value: 1 },
+    { label: 'ASIC + VRR', value: 2 },
+  ];
   public displayTimeoutControl: FormControl;
   public statsFrequencyControl: FormControl;
 
@@ -137,10 +144,12 @@ export class EditComponent implements OnInit, OnDestroy, OnChanges {
           ]],
           coreVoltage: [info.coreVoltage, [Validators.required]],
           frequency: [info.frequency, [Validators.required]],
-          autofanspeed: [info.autofanspeed == 1, [Validators.required]],
+          autofanspeed: [info.autofanspeed ?? 1, [Validators.required]],
+          fanCurve: [info.fanCurve ?? 0, [Validators.required]],
           minfanspeed: [info.minFanSpeed, [Validators.required]],
           manualFanSpeed: [info.manualFanSpeed, [Validators.required]],
           temptarget: [info.temptarget, [Validators.required]],
+          vrrtarget: [info.vrrtarget > 0 ? info.vrrtarget : 70, [Validators.required]],
           overheat_mode: [info.overheat_mode, [Validators.required]],
           statsFrequency: [info.statsFrequency, [
             Validators.required,
@@ -154,13 +163,18 @@ export class EditComponent implements OnInit, OnDestroy, OnChanges {
       this.form.controls['autofanspeed'].valueChanges.pipe(
         startWith(this.form.controls['autofanspeed'].value),
         takeUntil(this.destroy$)
-      ).subscribe(autofanspeed => {
-        if (autofanspeed) {
+      ).subscribe((mode: number) => {
+        if (mode > 0) {
           this.form.controls['manualFanSpeed'].disable();
           this.form.controls['temptarget'].enable();
         } else {
           this.form.controls['manualFanSpeed'].enable();
           this.form.controls['temptarget'].disable();
+        }
+        if (mode !== 2) {
+          this.form.patchValue({ vrrtarget: 0 });
+        } else if (!this.form.controls['vrrtarget'].value) {
+          this.form.patchValue({ vrrtarget: 70 });
         }
       });
 
@@ -312,8 +326,10 @@ export class EditComponent implements OnInit, OnDestroy, OnChanges {
       'coreVoltage',
       'frequency',
       'autofanspeed',
+      'fanCurve',
       'manualFanSpeed',
       'temptarget',
+      'vrrtarget',
       'overheat_mode',
       'statsFrequency'
     ];

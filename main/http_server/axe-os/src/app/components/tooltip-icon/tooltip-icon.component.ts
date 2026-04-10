@@ -9,6 +9,7 @@ export class TooltipIconComponent {
   @Input() tooltip: string = '';
   @Input() size: string = 'xs';
   @Input() icon: string = '';
+  @Input() tooltipPosition: string = 'top';
 
   showMobileTooltip = false;
   isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);

@@ -78,7 +78,7 @@ static Settings settings[NVS_CONFIG_COUNT] = {
     [NVS_CONFIG_DISPLAY_OFFSET]                        = {.nvs_key_name = "displayOffset",   .type = TYPE_U16,   .default_value = {.u16 = LCD_SH1107_PARAM_DEFAULT_DISP_OFFSET },       .rest_name = "displayOffset",                      .min = 0,  .max = UINT8_MAX},
     [NVS_CONFIG_DISPLAY_TIMEOUT]                       = {.nvs_key_name = "displayTimeout",  .type = TYPE_I32,   .default_value = {.i32 = -1},                                          .rest_name = "displayTimeout",                     .min = -1, .max = UINT16_MAX},
 
-    [NVS_CONFIG_AUTO_FAN_SPEED]                        = {.nvs_key_name = "autofanspeed",    .type = TYPE_BOOL,  .default_value = {.b   = true},                                        .rest_name = "autofanspeed",                       .min = 0,  .max = 1},
+    [NVS_CONFIG_AUTO_FAN_SPEED]                        = {.nvs_key_name = "autofanspeed",    .type = TYPE_U16,   .default_value = {.u16 = 1},                                           .rest_name = "autofanspeed",                       .min = 0,  .max = 2},
     [NVS_CONFIG_MANUAL_FAN_SPEED]                      = {.nvs_key_name = "manualfanspeed",  .type = TYPE_U16,   .default_value = {.u16 = 100},                                         .rest_name = "manualFanSpeed",                     .min = 0,  .max = 100},
     [NVS_CONFIG_MIN_FAN_SPEED]                         = {.nvs_key_name = "minfanspeed",     .type = TYPE_U16,   .default_value = {.u16 = 25},                                          .rest_name = "minFanSpeed",                        .min = 0,  .max = 99},
     [NVS_CONFIG_TEMP_TARGET]                           = {.nvs_key_name = "temptarget",      .type = TYPE_U16,   .default_value = {.u16 = 60},                                          .rest_name = "temptarget",                         .min = 35, .max = 66},
@@ -130,6 +130,12 @@ static Settings settings[NVS_CONFIG_COUNT] = {
     [NVS_CONFIG_SELFTEST_POWER_MARGIN]= {.nvs_key_name = "st_pwr_margin",  .type = TYPE_U16,   .default_value = {.u16 = 3}},
     [NVS_CONFIG_SELFTEST_VCORE_MIN]   = {.nvs_key_name = "st_vcore_min",   .type = TYPE_U16,   .default_value = {.u16 = 1000}},
     [NVS_CONFIG_SELFTEST_VCORE_MAX]   = {.nvs_key_name = "st_vcore_max",   .type = TYPE_U16,   .default_value = {.u16 = 1300}},
+
+    // Fan curve preset: 0=default (upstream), 1=performance, 2=aggressive
+    [NVS_CONFIG_FAN_CURVE]            = {.nvs_key_name = "fan_curve",      .type = TYPE_U16,   .default_value = {.u16 = 0},               .rest_name = "fanCurve",  .min = 0, .max = 2},
+
+    // VRR target temperature: 55-86°C; 0 = disabled
+    [NVS_CONFIG_VRR_TEMP_TARGET]      = {.nvs_key_name = "vrr_temp_target", .type = TYPE_U16,  .default_value = {.u16 = 0},               .rest_name = "vrrtarget", .min = 0, .max = 86},
 };
 
 Settings *nvs_config_get_settings(NvsConfigKey key)

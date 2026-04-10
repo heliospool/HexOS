@@ -65,24 +65,55 @@
             </small>
         </div>
 
-        <div class="field-checkbox grid my-2">
-            <div class="col-1 md:col-10 md:flex-order-2">
-                <p-checkbox name="autofanspeed" formControlName="autofanspeed" inputId="autofanspeed" [binary]="true"></p-checkbox>
+        <div class="field grid p-fluid my-2">
+            <label class="col-12 md:col-2 md:m-0 hover-next-input">Automatic Fan Control</label>
+            <div class="col-12 md:col-10">
+                <p-dropdown [options]="fanModeOptions" optionLabel="label" optionValue="value" formControlName="autofanspeed"></p-dropdown>
             </div>
-            <label for="autofanspeed" class="col-11 m-0 pl-3 md:col-2 md:flex-order-1 md:p-2">Automatic Fan Control</label>
         </div>
 
-        <div *ngIf="form.controls['autofanspeed'].value" class="grid p-fluid my-2">
-            <label class="hidden md:flex md:col-2 md:m-0 hover-next-input">Target Temperature</label>
+        <div *ngIf="form.controls['autofanspeed'].value > 0" class="grid p-fluid my-2">
+            <label class="hidden md:flex md:col-2 md:m-0 hover-next-input">Fan Curve</label>
+            <div class="col-12 md:col-10">
+                <div class="flex justify-content-between mb-1">
+                    <span class="flex align-items-center gap-1">
+                        <span class="md:hidden mr-1">Fan Curve:</span>Default
+                        <tooltip-text-icon tooltip="Stock settings, gentle reaction to temp changes, wider temp swings, prioritizes noise reduction."></tooltip-text-icon>
+                    </span>
+                    <span class="flex align-items-center gap-1">
+                        Performance
+                        <tooltip-text-icon tooltip="Faster reaction to temp changes, tighter temp swings, balanced."></tooltip-text-icon>
+                    </span>
+                    <span class="flex align-items-center gap-1">
+                        Aggressive
+                        <tooltip-text-icon tooltip="Fastest reaction to temp changes, aggressively maintains target temp, prioritizes cooling." tooltipPosition="left"></tooltip-text-icon>
+                    </span>
+                </div>
+                <p-slider [min]="0" [max]="2" formControlName="fanCurve"></p-slider>
+            </div>
+        </div>
+
+        <div *ngIf="form.controls['autofanspeed'].value > 0" class="grid p-fluid my-2">
+            <label class="hidden md:flex md:col-2 md:m-0 hover-next-input">ASIC Target Temp</label>
             <div class="col-12 md:col-10">
                 <label class="block mb-1">
-                    <span class="md:hidden mr-1">Target Temperature:</span>{{form.controls['temptarget'].value}} °C
+                    <span class="md:hidden mr-1">ASIC Target Temp:</span>{{form.controls['temptarget'].value}} °C
                 </label>
                 <p-slider [min]="35" [max]="66" formControlName="temptarget"></p-slider>
             </div>
         </div>
 
-        <div *ngIf="form.controls['autofanspeed'].value" class="grid p-fluid">
+        <div *ngIf="form.controls['autofanspeed'].value == 2" class="grid p-fluid my-2">
+            <label class="hidden md:flex md:col-2 md:m-0 hover-next-input">VRR Target Temp</label>
+            <div class="col-12 md:col-10">
+                <label class="block mb-1">
+                    <span class="md:hidden mr-1">VRR Target Temp:</span>{{form.controls['vrrtarget'].value}} °C
+                </label>
+                <p-slider [min]="55" [max]="86" formControlName="vrrtarget"></p-slider>
+            </div>
+        </div>
+
+        <div *ngIf="form.controls['autofanspeed'].value > 0" class="grid p-fluid">
             <label class="hidden md:flex md:col-2 md:m-0 hover-next-input">Minimum Fan Speed</label>
             <div class="col-12 md:col-10">
                 <label class="block mb-1">
@@ -92,7 +123,7 @@
             </div>
         </div>
 
-        <div *ngIf="!form.controls['autofanspeed'].value" class="grid p-fluid mt-2">
+        <div *ngIf="form.controls['autofanspeed'].value == 0" class="grid p-fluid mt-2">
             <label class="hidden md:flex md:col-2 md:m-0 hover-next-input">Fan Speed</label>
             <div class="col-12 md:col-10">
                 <label class="block mb-1">

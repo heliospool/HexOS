@@ -9,6 +9,7 @@ export class TooltipTextIconComponent implements OnChanges {
   @Input() icon: string = 'pi-question-circle';
   @Input() text: string | null = '';
   @Input() split: boolean = true;
+  @Input() tooltipPosition: string = 'top';
 
   preLastWords: string = '';
   lastWord: string = '';
