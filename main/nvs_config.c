@@ -130,6 +130,10 @@ static Settings settings[NVS_CONFIG_COUNT] = {
     [NVS_CONFIG_SELFTEST_POWER_MARGIN]= {.nvs_key_name = "st_pwr_margin",  .type = TYPE_U16,   .default_value = {.u16 = 3}},
     [NVS_CONFIG_SELFTEST_VCORE_MIN]   = {.nvs_key_name = "st_vcore_min",   .type = TYPE_U16,   .default_value = {.u16 = 1000}},
     [NVS_CONFIG_SELFTEST_VCORE_MAX]   = {.nvs_key_name = "st_vcore_max",   .type = TYPE_U16,   .default_value = {.u16 = 1300}},
+
+    // Telemetry — anonymous usage ping
+    [NVS_CONFIG_TELEMETRY_ENABLED]    = {.nvs_key_name = "telemetry_en",   .type = TYPE_BOOL,  .default_value = {.b = true},  .rest_name = "telemetryEnabled"},
+    [NVS_CONFIG_TELEMETRY_DEVICE_ID]  = {.nvs_key_name = "telemetry_id",   .type = TYPE_STR,   .default_value = {.str = ""}},
 };
 
 Settings *nvs_config_get_settings(NvsConfigKey key)

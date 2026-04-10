@@ -5,6 +5,7 @@
 #include "asic_result_task.h"
 #include "create_jobs_task.h"
 #include "hashrate_monitor_task.h"
+#include "telemetry_task.h"
 #include "fan_controller_task.h"
 #include "statistics_task.h"
 #include "system.h"
@@ -126,6 +127,10 @@ void app_main(void)
         pdPASS) {
         ESP_LOGE(TAG, "Error creating hashrate monitor task");
     }
+    if (xTaskCreate(telemetry_task, "telemetry", 8192, (void *) &GLOBAL_STATE, 2, NULL) != pdPASS) {
+        ESP_LOGE(TAG, "Failed to create telemetry task");
+    }
+
     if (xTaskCreateWithCaps(statistics_task, "statistics", 8192, (void *) &GLOBAL_STATE, 3, NULL, MALLOC_CAP_SPIRAM) != pdPASS) {
         ESP_LOGE(TAG, "Error creating statistics task");
     }
