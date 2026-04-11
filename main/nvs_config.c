@@ -113,8 +113,8 @@ static Settings settings[NVS_CONFIG_COUNT] = {
     [NVS_CONFIG_VIN_OFF]                               = {.nvs_key_name = "vin_off",          .type = TYPE_FLOAT, .default_value = {.f = 0}, .danger_zone_gated = true},
     [NVS_CONFIG_VIN_OV_FAULT]                          = {.nvs_key_name = "vin_ov_fault",     .type = TYPE_FLOAT, .default_value = {.f = 0}, .danger_zone_gated = true},
 
-    // Danger zone — gated by NVS_CONFIG_DANGER_ZONE; no rest_name (not REST/Web UI exposed)
-    [NVS_CONFIG_DANGER_ZONE]          = {.nvs_key_name = "dangerzone",     .type = TYPE_BOOL,  .default_value = {.b = false}},
+    // Danger zone — gate flag exposed to Web UI so the toggle persists across reboots
+    [NVS_CONFIG_DANGER_ZONE]          = {.nvs_key_name = "dangerzone",     .type = TYPE_BOOL,  .default_value = {.b = false},  .rest_name = "dangerzone",  .min = 0,  .max = 1},
     [NVS_CONFIG_PID_P]                = {.nvs_key_name = "pid_p",          .type = TYPE_FLOAT, .default_value = {.f = 15.0f},  .danger_zone_gated = true},
     [NVS_CONFIG_PID_I]                = {.nvs_key_name = "pid_i",          .type = TYPE_FLOAT, .default_value = {.f = 2.0f},   .danger_zone_gated = true},
     [NVS_CONFIG_PID_D]                = {.nvs_key_name = "pid_d",          .type = TYPE_FLOAT, .default_value = {.f = 5.0f},   .danger_zone_gated = true},
@@ -136,6 +136,9 @@ static Settings settings[NVS_CONFIG_COUNT] = {
 
     // VRR target temperature: 55-86°C; 0 = disabled
     [NVS_CONFIG_VRR_TEMP_TARGET]      = {.nvs_key_name = "vrr_temp_target", .type = TYPE_U16,  .default_value = {.u16 = 0},               .rest_name = "vrrtarget", .min = 0, .max = 86},
+
+    // Danger zone: IOUT OC fault step index (0=default, 1=+5%, 2=+10%, 3=+15%, 4=+20%)
+    [NVS_CONFIG_OC_FAULT_STEP]        = {.nvs_key_name = "oc_ovr_step",    .type = TYPE_U16,   .default_value = {.u16 = 0},               .rest_name = "ocFaultStep",  .min = 0, .max = 4, .danger_zone_gated = true},
 };
 
 Settings *nvs_config_get_settings(NvsConfigKey key)

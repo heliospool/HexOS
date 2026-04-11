@@ -861,6 +861,9 @@ static esp_err_t GET_system_info(httpd_req_t * req)
     cJSON_AddFloatToObject(root, "voltage", GLOBAL_STATE->POWER_MANAGEMENT_MODULE.voltage);
     cJSON_AddFloatToObject(root, "current", GLOBAL_STATE->POWER_MANAGEMENT_MODULE.current);
     cJSON_AddFloatToObject(root, "currentLimit", GLOBAL_STATE->POWER_MANAGEMENT_MODULE.current_limit);
+    cJSON_AddNumberToObject(root, "ocFaultStep",    nvs_config_get_u16(NVS_CONFIG_OC_FAULT_STEP));
+    cJSON_AddNumberToObject(root, "ocFaultDefault", GLOBAL_STATE->DEVICE_CONFIG.family.oc_fault_default);
+    cJSON_AddNumberToObject(root, "ocFaultMax",     GLOBAL_STATE->DEVICE_CONFIG.family.oc_fault_max);
     cJSON_AddFloatToObject(root, "temp", GLOBAL_STATE->POWER_MANAGEMENT_MODULE.chip_temp_avg);
     cJSON_AddFloatToObject(root, "temp2", GLOBAL_STATE->POWER_MANAGEMENT_MODULE.chip_temp2_avg);
     cJSON_AddFloatToObject(root, "vrTemp", GLOBAL_STATE->POWER_MANAGEMENT_MODULE.vr_temp);
@@ -968,6 +971,7 @@ static esp_err_t GET_system_info(httpd_req_t * req)
     cJSON_AddNumberToObject(root, "fanCurve", nvs_config_get_u16(NVS_CONFIG_FAN_CURVE));
     cJSON_AddNumberToObject(root, "temptarget", nvs_config_get_u16(NVS_CONFIG_TEMP_TARGET));
     cJSON_AddNumberToObject(root, "vrrtarget", nvs_config_get_u16(NVS_CONFIG_VRR_TEMP_TARGET));
+    cJSON_AddNumberToObject(root, "dangerzone", nvs_config_get_bool(NVS_CONFIG_DANGER_ZONE));
     cJSON_AddNumberToObject(root, "fanrpm", GLOBAL_STATE->POWER_MANAGEMENT_MODULE.fan_rpm);
     cJSON_AddNumberToObject(root, "fan2rpm", GLOBAL_STATE->POWER_MANAGEMENT_MODULE.fan2_rpm);
 

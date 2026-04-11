@@ -100,6 +100,10 @@ typedef enum {
     // VRR target temperature (55-86°C; 0 = disabled)
     NVS_CONFIG_VRR_TEMP_TARGET,
 
+    // Danger zone: IOUT OC fault limit in A (0 = use family default)
+    // Danger zone: IOUT OC fault limit as step index (0=family default, 1=+5%, 2=+10%, 3=+15%, 4=+20%)
+    NVS_CONFIG_OC_FAULT_STEP,
+
     NVS_CONFIG_COUNT
 } NvsConfigKey;
 

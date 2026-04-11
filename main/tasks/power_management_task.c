@@ -171,6 +171,16 @@ void POWER_MANAGEMENT_task(void * pvParameters)
         uint16_t core_voltage = nvs_config_get_u16(NVS_CONFIG_ASIC_VOLTAGE);
         float asic_frequency = nvs_config_get_float(NVS_CONFIG_ASIC_FREQUENCY);
 
+        uint16_t oc_step = nvs_config_get_u16(NVS_CONFIG_OC_FAULT_STEP);
+        static uint16_t last_oc_step = 0;
+        if (oc_step != last_oc_step) {
+            float fault = (oc_step > 0 && oc_step <= 4)
+                          ? GLOBAL_STATE->DEVICE_CONFIG.family.oc_fault_default * (1.0f + oc_step * 0.05f)
+                          : (float)GLOBAL_STATE->DEVICE_CONFIG.family.oc_fault_default;
+            VCORE_set_oc_limits(GLOBAL_STATE, fault);
+            last_oc_step = oc_step;
+        }
+
         if (core_voltage != last_core_voltage) {
             ESP_LOGI(TAG, "setting new vcore voltage to %umV", core_voltage);
             VCORE_set_voltage(GLOBAL_STATE, (double) core_voltage / 1000.0);

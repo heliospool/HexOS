@@ -150,6 +150,10 @@ export class SystemApiService {
         coinbaseOutputs: [{value: 3.125, address: "bc1q99n3pu025yyu0jlywpmwzalyhm36tg5u37w20d", isUserOutput: true}],
         coinbaseValueTotalSatoshis: 312500000,
         coinbaseValueUserSatoshis: 312500000,
+        dangerzone: 0,
+        ocFaultStep: 0,
+        ocFaultDefault: 30,
+        ocFaultMax: 36,
       }
     ).pipe(delay(1000));
   }

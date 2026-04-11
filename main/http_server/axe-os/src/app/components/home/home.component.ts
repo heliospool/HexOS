@@ -502,6 +502,7 @@ export class HomeComponent implements OnInit, OnDestroy {
         info.power = parseFloat(info.power.toFixed(1));
         info.voltage = parseFloat(info.voltage.toFixed(1));
         info.current = parseFloat(info.current.toFixed(2));
+        info.currentLimit = parseFloat(info.currentLimit.toFixed(1));
         info.coreVoltageActual = parseFloat(info.coreVoltageActual.toFixed(2));
         info.coreVoltage = parseFloat(info.coreVoltage.toFixed(2));
         info.temp = parseFloat(info.temp.toFixed(1));

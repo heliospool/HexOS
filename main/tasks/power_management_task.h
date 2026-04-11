@@ -16,6 +16,7 @@ typedef struct
     float power;
     float current;
     float current_limit;
+    uint16_t oc_fault_limit; // active IOUT_OC_FAULT_LIMIT in A
     float core_voltage;
 } PowerManagementModule;
 

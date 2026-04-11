@@ -1275,3 +1275,16 @@ esp_err_t TPS546_snapshot_status(TPS546_StatusSnapshot *s) {
     ESP_LOGE(TAG, "=================================================");
 }
 
+esp_err_t TPS546_set_iout_oc_limits(float warn_amps, float fault_amps) {
+    ESP_LOGI(TAG, "Setting IOUT_OC_WARN=%.1fA IOUT_OC_FAULT=%.1fA", warn_amps, fault_amps);
+    if (smb_write_word(PMBUS_IOUT_OC_WARN_LIMIT,  float_2_slinear11(warn_amps))  != ESP_OK) {
+        ESP_LOGE(TAG, "Could not set IOUT_OC_WARN_LIMIT");
+        return ESP_FAIL;
+    }
+    if (smb_write_word(PMBUS_IOUT_OC_FAULT_LIMIT, float_2_slinear11(fault_amps)) != ESP_OK) {
+        ESP_LOGE(TAG, "Could not set IOUT_OC_FAULT_LIMIT");
+        return ESP_FAIL;
+    }
+    return ESP_OK;
+}
+

@@ -115,6 +115,15 @@ static TPS546_CONFIG get_tps546_config(const FamilyConfig * family)
     }
     ESP_LOGI(TAG, "TPS546 VIN limits: ON=%.2fV OFF=%.2fV OV_FAULT=%.2fV", config.TPS546_INIT_VIN_ON, config.TPS546_INIT_VIN_OFF, config.TPS546_INIT_VIN_OV_FAULT_LIMIT);
 
+    // Apply danger zone OC step override (0 = use family default)
+    uint16_t oc_step = nvs_config_get_u16(NVS_CONFIG_OC_FAULT_STEP);
+    if (oc_step > 0 && oc_step <= 4) {
+        float fault = family->oc_fault_default * (1.0f + oc_step * 0.05f);
+        ESP_LOGI(TAG, "NVS OC step %u: %.2fA (family default was %.0fA)", oc_step, fault, config.TPS546_INIT_IOUT_OC_FAULT_LIMIT);
+        config.TPS546_INIT_IOUT_OC_FAULT_LIMIT = fault;
+        config.TPS546_INIT_IOUT_OC_WARN_LIMIT  = fault - 5.0f;
+    }
+
     return config;
 }
 
@@ -132,6 +141,7 @@ esp_err_t VCORE_init(GlobalState * GLOBAL_STATE)
         TPS546_CONFIG tps_config = get_tps546_config(&GLOBAL_STATE->DEVICE_CONFIG.family);
         ESP_RETURN_ON_ERROR(TPS546_init(tps_config), TAG, "TPS546 init failed!");
         GLOBAL_STATE->POWER_MANAGEMENT_MODULE.current_limit = tps_config.TPS546_INIT_IOUT_OC_FAULT_LIMIT * 1000.0f;
+        GLOBAL_STATE->POWER_MANAGEMENT_MODULE.oc_fault_limit = (uint16_t)tps_config.TPS546_INIT_IOUT_OC_FAULT_LIMIT;
     }
 
     if (GLOBAL_STATE->DEVICE_CONFIG.plug_sense) {
@@ -180,6 +190,19 @@ int16_t VCORE_get_voltage_mv(GlobalState * GLOBAL_STATE)
         return TPS546_get_vout() / GLOBAL_STATE->DEVICE_CONFIG.family.voltage_domains * 1000;
     }
     return ADC_get_vcore();
+}
+
+esp_err_t VCORE_set_oc_limits(GlobalState * GLOBAL_STATE, float fault_amps)
+{
+    if (!GLOBAL_STATE->DEVICE_CONFIG.TPS546) return ESP_OK;
+    float warn_amps = fault_amps - 5.0f;
+    ESP_LOGI(TAG, "Setting OC limits: warn=%.1fA fault=%.1fA", warn_amps, fault_amps);
+    esp_err_t r = TPS546_set_iout_oc_limits(warn_amps, fault_amps);
+    if (r == ESP_OK) {
+        GLOBAL_STATE->POWER_MANAGEMENT_MODULE.current_limit = fault_amps * 1000.0f;
+        GLOBAL_STATE->POWER_MANAGEMENT_MODULE.oc_fault_limit = (uint16_t)fault_amps;
+    }
+    return r;
 }
 
 esp_err_t VCORE_check_fault(GlobalState * GLOBAL_STATE)

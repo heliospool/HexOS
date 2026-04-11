@@ -14,23 +14,6 @@ esp_err_t device_config_init(void * pvParameters)
 
     // TODO: Read board version from eFuse
 
-    // One-time NVS migration: upstream board versions that were reused by GekkoAxe hardware
-    // must be remapped so OTA upgrades from pre-GekkoAxe firmware land on the correct family.
-    static const struct { const char *from; const char *to; } board_version_migrations[] = {
-        { "800", "gekko-800" },
-    };
-    {
-        char * bv = nvs_config_get_string(NVS_CONFIG_BOARD_VERSION);
-        for (int i = 0; i < (int)(sizeof(board_version_migrations) / sizeof(board_version_migrations[0])); i++) {
-            if (strcmp(bv, board_version_migrations[i].from) == 0) {
-                ESP_LOGW(TAG, "Migrating boardVersion '%s' -> '%s'", bv, board_version_migrations[i].to);
-                nvs_config_set_string(NVS_CONFIG_BOARD_VERSION, board_version_migrations[i].to);
-                break;
-            }
-        }
-        free(bv);
-    }
-
     char * board_version = nvs_config_get_string(NVS_CONFIG_BOARD_VERSION);
 
     for (int i = 0 ; i < ARRAY_SIZE(default_configs); i++) {

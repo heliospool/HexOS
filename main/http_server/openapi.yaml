@@ -207,6 +207,9 @@ components:
         - coinbaseValueTotalSatoshis
         - coinbaseValueUserSatoshis
         - hashrateMonitor
+        - dangerzone
+        - ocFaultStep
+        - ocFaultDefault
       properties:
         ASICModel:
           type: string
@@ -527,6 +530,15 @@ components:
               description: Hashrate register value per ASIC
               items:
                 $ref: '#/components/schemas/HashrateMonitorAsic'
+        dangerzone:
+          type: number
+          description: Danger zone enabled flag (0=disabled, 1=enabled)
+        ocFaultStep:
+          type: number
+          description: OC fault step index (0=default, 1-4 = +5% increments)
+        ocFaultDefault:
+          type: number
+          description: Default OC fault limit in amps for this board family
 
     SystemASIC:
       type: object
