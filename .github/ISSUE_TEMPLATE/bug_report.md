@@ -8,7 +8,7 @@ assignees: ''
 
 ---
 
-Note: Issues are not for customer support, configuration or discussion. For those topics please consult with your HW vendor or the OSMU Discord at: https://osmu.bitaxe.org
+Note: Issues are not for customer support, configuration or discussion. For those topics please join the HexOS Discord: https://discord.gg/Ev82a2H59h
 
 **Describe the bug**
 A clear and concise description of what the bug is.
@@ -24,12 +24,12 @@ Steps to reproduce the behavior:
 A clear and concise description of what you expected to happen.
 
 **Screenshots & Photos**
-If applicable, add AxeOS screenshots and/or photos of your Bitaxe to help explain your problem.
+If applicable, add screenshots and/or photos to help explain your problem.
 
 **Hardware (please complete the following information):**
- - Bitaxe HW version: [e.g. Ultra 205, Supra 401, etc]
- - Bitaxe HW vendor: [Where you purchased the Bitaxe, or self-built]
- - ESP-Miner FW version: [e.g. 2.1.1, etc]
+ - Board version: [e.g. gekko-800, 601, 205, etc]
+ - HW vendor: [Where you purchased the device, or self-built]
+ - HexOS FW version: [e.g. 2.13.1-hexos.1, etc]
  - Hash Frequency:
  - Voltage:
  - Pool URL, Port, User:

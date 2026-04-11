@@ -6,73 +6,51 @@
 
 HexOS is open-source firmware for Bitcoin miners, built and maintained for [HeliosPool](https://heliospool.com) by [Z3r0XG](https://github.com/Z3r0XG). It is a fork of [bitaxeorg/ESP-Miner](https://github.com/bitaxeorg/ESP-Miner), tracking upstream closely while adding hardware support, pool integration, and UI improvements.
 
-For pre-built images ready to flash, see the [latest release](https://github.com/heliospool/HexOS/releases/latest).
+For pre-built images ready to flash, see the [latest release](https://github.com/heliospool/HexOS/releases/latest). For questions and support, join the [HexOS Discord](https://discord.gg/Ev82a2H59h).
 
 ---
 
 ## Supported Hardware
 
-HexOS supports all upstream ESP-Miner hardware plus the following additional boards:
+HexOS supports all upstream ESP-Miner hardware out of the box, plus additional GekkoAxe boards.
 
-### GekkoAxe GT
+### Upstream boards
 
-| Parameter | Value |
+| Board | Board version(s) |
 |---|---|
-| Board version | `gekko-800` |
-| ASICs | 2× BM1370 |
-| Device family | `GekkoAxe-GT` |
-| Voltage regulator | TPS546 (multi-phase) |
-| Fan controller | EMC2103 |
-| MCU | ESP32-S3-WROOM-1 N16R8 (16 MB Flash, 8 MB Octal SPI PSRAM) |
-| Input voltage | 12 V |
-| Default ASIC frequency | 600 MHz |
-| Default ASIC voltage | 1100 mV |
+| Bitaxe Max | `102` |
+| Bitaxe Ultra | `201`, `203`, `205`, `207` |
+| Bitaxe Hex | `302`, `303` |
+| Bitaxe Supra | `400`, `401`, `402`, `403` |
+| Bitaxe Gamma | `601`, `602` |
+| Bitaxe Gamma Duo | `650` |
+| Bitaxe Supra Hex | `701`, `702` |
+| Bitaxe Gamma Turbo | `800`, `801` |
 
-### GekkoAxe Gamma 5 V
+### GekkoAxe boards
 
-| Parameter | Value |
+| Board | Board version |
 |---|---|
-| Board version | `gekko-601` |
-| ASICs | 1× BM1370 |
-| Device family | `GekkoAxe-γ` |
-| Voltage regulator | TPS546 |
-| Fan controller | EMC2101 |
-| MCU | ESP32-S3-WROOM-1 N16R8 (16 MB Flash, 8 MB Octal SPI PSRAM) |
-| Input voltage | 5 V |
-| Default ASIC frequency | 525 MHz |
-| Default ASIC voltage | 1150 mV |
-
-### GekkoAxe Gamma 12 V
-
-| Parameter | Value |
-|---|---|
-| Board version | `gekko-601-12` |
-| ASICs | 1× BM1370 |
-| Device family | `GekkoAxe-γ` |
-| Voltage regulator | TPS546 |
-| Fan controller | EMC2101 |
-| MCU | ESP32-S3-WROOM-1 N16R8 (16 MB Flash, 8 MB Octal SPI PSRAM) |
-| Input voltage | 12 V |
-| Default ASIC frequency | 525 MHz |
-| Default ASIC voltage | 1150 mV |
-
-> **Note:** `gekko-601` (5 V) uses the upstream ESP-Miner `601` configuration unmodified. `gekko-601-12` (12 V) adds support for 12 V input and should be considered experimental.
+| GekkoAxe GT | `gekko-800` |
+| GekkoAxe Gamma 5 V | `gekko-601` |
+| GekkoAxe Gamma 12 V | `gekko-601-12` |
 
 ---
 
 ## Changes vs upstream ESP-Miner
 
-### Helios Pool integration
+### HeliosPool integration
 
-- **Account stats banner** — home dashboard and swarm view show live hashrate, workers, and earnings from the Helios Pool API
+- **Account stats banner** — home dashboard and swarm view show live hashrate, workers, and earnings from the HeliosPool API; automatically hidden when the device is pointed at a different pool
+- **Multi-region swarm dashboard** — swarm view groups miners by region with per-region aggregate stats; only shown when mining on HeliosPool
 - **Default pool** — primary pool defaults to `btc.heliospool.com`, fallback to `bch.heliospool.com`
 
 ### Hardware & board support
 
-- **GekkoAxe hardware support** — dedicated device family entries for GekkoAxe-GT and GekkoAxe-γ with correct regulator config, fan controller, and board-specific power parameters
+- **GekkoAxe hardware support** — added as a dedicated hardware family with the correct voltage regulator, fan controller, and power configuration
 - **Bitaxe Gamma Turbo (GT) 800 device support** — support put back in for GT-800 devices (only 801 boards were supported)
-- **Self-test power ceiling corrected** — `gekko-800` `power_consumption_target` fixed from 12 W to 36 W (dormant upstream copy-paste bug; only affects devices with `selftest=1`)
-- **Fan controller improvements** — auto fan continues working if any individual ASIC temperature sensor stops reporting; fails safe to 100% if all sensors are lost; more aggressive response to rising temperatures with gradual spin-down to prevent oscillation
+- **Self-test power ceiling corrected** — `gekko-800` power budget corrected from 12 W to 36 W (upstream copy-paste bug; only affects units with the power self-test enabled)
+- **Fan controller improvements** — uses the highest valid temperature reading across all ASIC sensors; fan control stays active as long as at least one sensor is reporting (upstream would freeze at the last fan speed if the primary sensor failed); fails safe to 100% only when all sensors are lost
 
 ### Branding & identity
 
@@ -83,14 +61,27 @@ HexOS supports all upstream ESP-Miner hardware plus the following additional boa
 ### OTA
 
 - **OTA updates point to this repo** — the in-UI update checker resolves releases from `heliospool/HexOS`
-- **OTA file naming** — firmware OTA expects `hexos-firmware-*.bin`; web OTA expects `hexos-www-*.bin`
+- **OTA file naming** — firmware OTA expects `esp-miner-hexos*.bin`; web OTA expects `www-hexos*.bin`
 
 ### Web UI & dashboard
 
 - **Expert Mode toggle** — Settings page toggle replaces the `?oc` URL parameter for enabling custom ASIC frequency and voltage; persists to NVS
-- **Board temperature** — EMC fan controller internal die temperature exposed as `boardTemp` in `/api/system/info`, shown as a progress bar in the Heat card, and available as a chart series
+- **Board temperature** — fan controller's internal temperature sensor exposed as `boardTemp` in `/api/system/info`, shown as a progress bar in the Heat card, and available as a chart series
 - **Jobs counter** — stratum work received since last pool connection exposed as `workReceived` in `/api/system/info`, shown in the Shares card
 - **Last submitted share diff** — live `lastSubmittedDiff` stat in `/api/system/info` and selectable as a chart series
+- **ASIC card** — dedicated dashboard card showing ASIC status, input current, and voltage regulator current limit
+- **Network card** — home dashboard card showing Stratum Disconnects, WiFi Disconnects, and TX / RX Errors; Last Share time shown in the Shares card
+- **Dashboard card layout** — Registers and Fan cards appear before Pool and Block cards
+- **Fan curve presets** — Default / Performance / Aggressive preset selector in Settings → Fan; applies immediately without restart
+- **Automatic fan control mode** — Off / ASIC / ASIC+VRR dropdown replaces the previous on/off toggle; ASIC+VRR drives fan speed from whichever of ASIC or voltage regulator temperature is more thermally demanding
+- **VRR target temperature** — configurable VRR temperature target (55–86 °C), shown in Settings when ASIC+VRR mode is active
+- **Danger Zone** — opt-in section in Settings requiring explicit confirmation to unlock; exposes advanced controls not shown by default
+- **Overcurrent limit** — Danger Zone slider to raise the voltage regulator's overcurrent fault threshold in 5 % steps, up to +20 % above the board default; visible on boards with a TPS546 voltage regulator
+
+### Logs
+
+- **Configurable log buffer** — max log lines stored in the browser is adjustable (50–5000, default 500); upstream was hardcoded at 256
+- **Download logs** — exports the current log buffer as a plain-text file with timestamp
 
 ### Mining & protocol
 
@@ -100,7 +91,7 @@ HexOS supports all upstream ESP-Miner hardware plus the following additional boa
 
 - **Stratum connection tuning** — `strat_retry`, `strat_crit_rty`, and `strat_timeout` configurable via CVS file; see [Stratum — connection tuning](./doc/configuration.md#stratum--connection-tuning)
 - **Self-test parameter tuning** — `st_difficulty`, `st_pwr_margin`, `st_vcore_min`, and `st_vcore_max` configurable via CVS file; see [Self-test parameters](./doc/configuration.md#self-test-parameters)
-- **Danger zone NVS keys** — `dangerzone=1` in the CVS file unlocks thermal thresholds, fan PID gains, and TPS546 VIN limits without editing source code; see [Danger zone](./doc/configuration.md#danger-zone)
+- **Danger Zone NVS keys** — `dangerzone=1` in the CVS file (or the Settings UI toggle) unlocks fan PID gains, thermal shutdown thresholds, post-overheat frequency and voltage step-down, and voltage regulator input voltage limits — all previously hardcoded constants — without editing source code; see [Danger zone](./doc/configuration.md#danger-zone)
 
 ---
 
@@ -133,9 +124,9 @@ This sources ESP-IDF, builds the full firmware + Angular web UI, and produces pe
 
 | File | Use |
 |---|---|
-| `HexOS-{VERSION}-factory-{BOARD}.bin` | Full 16 MB factory image for each board, flash at `0x0` |
-| `HexOS-{VERSION}-firmware.bin` | Firmware only, for OTA Firmware update (all boards) |
-| `HexOS-{VERSION}-www.bin` | Web UI only, for OTA Web update (all boards) |
+| `esp-miner-factory-{BOARD}-{VERSION}.bin` | Full 16 MB factory image for each board, flash at `0x0` |
+| `esp-miner-hexos.bin` | Firmware only, for OTA Firmware update (all boards) |
+| `www-hexos.bin` | Web UI only, for OTA Web update (all boards) |
 | `config-{BOARD}.cvs` | NVS config used to build each factory image |
 
 ---
@@ -176,7 +167,7 @@ Pre-built images are available on the [releases page](https://github.com/heliosp
 
 ```bash
 pip install bitaxetool==0.6.1
-bitaxetool --config ./config-{BOARD}.cvs --firmware ./HexOS-{VERSION}-factory-{BOARD}.bin
+bitaxetool --config ./config-{BOARD}.cvs --firmware ./esp-miner-factory-{BOARD}-{VERSION}.bin
 ```
 
 **Option B — esptool**
@@ -184,15 +175,15 @@ bitaxetool --config ./config-{BOARD}.cvs --firmware ./HexOS-{VERSION}-factory-{B
 ```bash
 esptool.py --chip esp32s3 -b 921600 --before default_reset --after hard_reset \
   write_flash --flash_mode dio --flash_size 16MB --flash_freq 80m \
-  0x0 HexOS-{VERSION}-factory-{BOARD}.bin
+  0x0 esp-miner-factory-{BOARD}-{VERSION}.bin
 ```
 
 ### OTA update (device already running HexOS)
 
 Navigate to your device's web UI → **Settings** → **Updates**.
 
-- **Firmware update**: upload `HexOS-{VERSION}-firmware.bin`
-- **Web UI update**: upload `HexOS-{VERSION}-www.bin`
+- **Firmware update**: upload `esp-miner-hexos.bin`
+- **Web UI update**: upload `www-hexos.bin`
 
 The in-UI update checker automatically compares against the latest release on this repository.
 
@@ -225,7 +216,7 @@ curl http://<device-ip>/api/system/info
 # OTA firmware update
 curl -X POST \
      -H "Content-Type: application/octet-stream" \
-     --data-binary "@HexOS-{VERSION}-firmware.bin" \
+     --data-binary "@esp-miner-hexos.bin" \
      http://<device-ip>/api/system/OTA
 ```
 

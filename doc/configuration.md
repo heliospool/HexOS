@@ -104,10 +104,12 @@ Set via CVS file only — not accessible via the REST API or Web UI. Take effect
 
 | Key | Type | Default | Unit | Options | Notes |
 |---|---|---|---|---|---|
-| `autofanspeed` | bool | `1` | | | `0` = manual speed · `1` = automatic |
+| `autofanspeed` | u16 | `1` | | `0` = off (manual speed)<br>`1` = ASIC (PID on ASIC temp)<br>`2` = ASIC+VRR (uses whichever of ASIC or VR temperature is more demanding) | Fan control mode |
 | `manualfanspeed` | u16 | `100` | % | | Fan speed in manual mode |
 | `minfanspeed` | u16 | `25` | % | | Minimum fan speed in auto mode |
 | `temptarget` | u16 | `60` | °C | | Target ASIC temperature (35–66) |
+| `fan_curve` | u16 | `0` | | `0` = Default<br>`1` = Performance<br>`2` = Aggressive | Fan PID curve preset; applies immediately without restart |
+| `vrr_temp_target` | u16 | `0` | °C | `0` = disabled<br>`55`–`86` = active | VRR target temperature; only used when `autofanspeed` = `2`. When active, the PID uses whichever of ASIC or VR temperature is more demanding. |
 | `overheat_mode` | bool | `0` | | | Set by firmware during thermal events; set to `0` to clear |
 
 ---
@@ -170,6 +172,7 @@ No key in this section is accessible via the REST API or Web UI. Changes require
 | Key | Type | Default | Unit | Notes |
 |---|---|---|---|---|
 | `dangerzone` | bool | `0` | | Gate key. Must be `1` for any other key in this section to take effect |
+| `oc_ovr_step` | u16 | `0` | | Raises the voltage regulator's overcurrent fault threshold by this many 5 % steps above the board default (0–4, so 0–20 % above default). 0 = use board default. Only applicable to TPS546-equipped boards. |
 | `pid_p` | float | `15.0` | | Fan PID proportional gain |
 | `pid_i` | float | `2.0` | | Fan PID integral gain |
 | `pid_d` | float | `5.0` | | Fan PID derivative gain |
