@@ -138,6 +138,7 @@ void statistics_task(void * pvParameters)
                 statsData.errorPercentage = sys_module->error_percentage;
                 statsData.chipTemperature = power_management->chip_temp_avg;
                 statsData.vrTemperature = power_management->vr_temp;
+                statsData.boardTemperature = power_management->board_temp;
                 statsData.power = power_management->power;
                 statsData.voltage = power_management->voltage;
                 statsData.current = power_management->current;
@@ -148,6 +149,7 @@ void statistics_task(void * pvParameters)
                 statsData.wifiRSSI = wifiRSSI;
                 statsData.freeHeap = esp_get_free_heap_size();
                 statsData.responseTime = sys_module->response_time;
+                statsData.shareDiff = sys_module->last_submitted_diff;
 
                 addStatisticData(&statsData);
             }

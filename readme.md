@@ -1,214 +1,232 @@
-[![](https://dcbadge.vercel.app/api/server/3E8ca2dkcC)](https://discord.gg/osmu)
+![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/heliospool/HexOS/total?include_prereleases)
+![GitHub Release](https://img.shields.io/github/v/release/heliospool/HexOS?include_prereleases)
+![GitHub commit activity](https://img.shields.io/github/commit-activity/t/heliospool/HexOS)
 
-![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/bitaxeorg/esp-miner/total)
-![GitHub commit activity](https://img.shields.io/github/commit-activity/t/bitaxeorg/esp-miner)
-![GitHub contributors](https://img.shields.io/github/contributors/bitaxeorg/esp-miner)
-![Alt](https://repobeats.axiom.co/api/embed/70889479b1e002c18a184b05bc5cbf2ed3718579.svg "Repobeats analytics image")
+# HexOS
 
-# ESP-Miner
-esp-miner is open source ESP32 firmware for the [Bitaxe](https://github.com/bitaxeorg/bitaxe)
+HexOS is open-source firmware for Bitcoin miners, built and maintained for [HeliosPool](https://heliospool.com) by [Z3r0XG](https://github.com/Z3r0XG). It is a fork of [bitaxeorg/ESP-Miner](https://github.com/bitaxeorg/ESP-Miner), tracking upstream closely while adding hardware support, pool integration, and UI improvements.
 
-If you are looking for premade images to load on your Bitaxe, check out the [latest release](https://github.com/bitaxeorg/ESP-Miner/releases/latest) page. Maybe you want [instructions](https://github.com/bitaxeorg/ESP-Miner/blob/master/flashing.md) for loading factory images.
+For pre-built images ready to flash, see the [latest release](https://github.com/heliospool/HexOS/releases/latest). For questions and support, join the [HexOS Discord](https://discord.gg/Ev82a2H59h).
 
-# Bitaxetool
-We also have a command line python tool for flashing Bitaxe and updating the config called Bitaxetool 
+---
 
-**Bitaxetool Requires Python3.4 or later and pip**
+## Supported Hardware
 
-Install bitaxetool from pip. pip is included with Python 3.4 but if you need to install it check <https://pip.pypa.io/en/stable/installation/>
+HexOS supports all upstream ESP-Miner hardware out of the box, plus additional GekkoAxe boards.
 
-```
-pip install --upgrade bitaxetool
-```
-The bitaxetool includes all necessary library for flashing the binaries to the Bitaxe Hardware.
+### Upstream boards
 
-**Notes**
- - The bitaxetool does not work properly with esptool v5.x.x, esptool v4.9.0 or earlier is required.
- - Bitaxetool v0.6.1 - locked to using esptool v4.9.0
+| Board | Board version(s) |
+|---|---|
+| Bitaxe Max | `102` |
+| Bitaxe Ultra | `201`, `203`, `205`, `207` |
+| Bitaxe Hex | `302`, `303` |
+| Bitaxe Supra | `400`, `401`, `402`, `403` |
+| Bitaxe Gamma | `601`, `602` |
+| Bitaxe Gamma Duo | `650` |
+| Bitaxe Supra Hex | `701`, `702` |
+| Bitaxe Gamma Turbo | `800`, `801` |
 
-```
-pip install bitaxetool==0.6.1
-```
+### GekkoAxe boards
 
-- Flash a "factory" image to a Bitaxe to reset to factory settings. Make sure to choose an image built for your hardware version (401) in this case:
+| Board | Board version |
+|---|---|
+| GekkoAxe GT | `gekko-800` |
+| GekkoAxe Gamma 5 V | `gekko-601` |
+| GekkoAxe Gamma 12 V | `gekko-601-12` |
 
-```
-bitaxetool --firmware ./esp-miner-factory-401-v2.4.2.bin
-```
-- Flash just the NVS config to a bitaxe:
+---
 
-```
-bitaxetool --config ./config-401.cvs
-```
-- Flash both a factory image _and_ a config to your Bitaxe: note the settings in the config file will overwrite the config already baked into the factory image:
+## Changes vs upstream ESP-Miner
 
-```
-bitaxetool --config ./config-401.cvs --firmware ./esp-miner-factory-401-v2.4.2.bin
-```
+### HeliosPool integration
 
-## AxeOS API
-The esp-miner UI is called AxeOS and provides an API to expose actions and information.
+- **Account stats banner** — home dashboard and swarm view show live hashrate, workers, and earnings from the HeliosPool API; automatically hidden when the device is pointed at a different pool
+- **Multi-region swarm dashboard** — swarm view groups miners by region with per-region aggregate stats; only shown when mining on HeliosPool
+- **Default pool** — primary pool defaults to `btc.heliospool.com`, fallback to `bch.heliospool.com`
 
-For more details take a look at [`main/http_server/openapi.yaml`](./main/http_server/openapi.yaml).
+### Hardware & board support
 
-Available API endpoints:
-  
-**GET**
+- **GekkoAxe hardware support** — added as a dedicated hardware family with the correct voltage regulator, fan controller, and power configuration
+- **Bitaxe Gamma Turbo (GT) 800 device support** — support put back in for GT-800 devices (only 801 boards were supported)
+- **Self-test power ceiling corrected** — `gekko-800` power budget corrected from 12 W to 36 W (upstream copy-paste bug; only affects units with the power self-test enabled)
+- **Fan controller improvements** — uses the highest valid temperature reading across all ASIC sensors; fan control stays active as long as at least one sensor is reporting (upstream would freeze at the last fan speed if the primary sensor failed); fails safe to 100% only when all sensors are lost
 
-* `/api/system/info` Get system information
-* `/api/system/asic` Get ASIC settings information
-* `/api/system/statistics` Get system statistics (data logging should be activated)
-* `/api/system/statistics/dashboard` Get system statistics for dashboard
-* `/api/system/wifi/scan` Scan for available Wi-Fi networks
+### Branding & identity
 
-**POST**
+- **HexOS branding** — UI title, page labels, topbar, and favicon reflect HexOS
+- **Boot logo screens** — HexOS gothic logo on first boot splash; HeliosPool logo on second boot splash
+- **WiFi AP renamed** — setup-mode access point shows as `HexOS_XXYY` instead of `Bitaxe_XXYY`
 
-* `/api/system/restart` Restart the system
-* `/api/system/identify` Identify the device
-* `/api/system/OTA` Update system firmware
-* `/api/system/OTAWWW` Update AxeOS
+### OTA
 
-**PATCH**
+- **OTA updates point to this repo** — the in-UI update checker resolves releases from `heliospool/HexOS`
+- **OTA file naming** — firmware OTA expects `esp-miner-hexos*.bin`; web OTA expects `www-hexos*.bin`
 
-* `/api/system` Update system settings
+### Web UI & dashboard
 
-### API examples in `curl`:
+- **Expert Mode toggle** — Settings page toggle replaces the `?oc` URL parameter for enabling custom ASIC frequency and voltage; persists to NVS
+- **Board temperature** — fan controller's internal temperature sensor exposed as `boardTemp` in `/api/system/info`, shown as a progress bar in the Heat card, and available as a chart series
+- **Jobs counter** — stratum work received since last pool connection exposed as `workReceived` in `/api/system/info`, shown in the Shares card
+- **Last submitted share diff** — live `lastSubmittedDiff` stat in `/api/system/info` and selectable as a chart series
+- **ASIC card** — dedicated dashboard card showing ASIC status, input current, and voltage regulator current limit
+- **Network card** — home dashboard card showing Stratum Disconnects, WiFi Disconnects, and TX / RX Errors; Last Share time shown in the Shares card
+- **Dashboard card layout** — Registers and Fan cards appear before Pool and Block cards
+- **Fan curve presets** — Default / Performance / Aggressive preset selector in Settings → Fan; applies immediately without restart
+- **Automatic fan control mode** — Off / ASIC / ASIC+VRR dropdown replaces the previous on/off toggle; ASIC+VRR drives fan speed from whichever of ASIC or voltage regulator temperature is more thermally demanding
+- **VRR target temperature** — configurable VRR temperature target (55–86 °C), shown in Settings when ASIC+VRR mode is active
+- **Danger Zone** — opt-in section in Settings requiring explicit confirmation to unlock; exposes advanced controls not shown by default
+- **Overcurrent limit** — Danger Zone slider to raise the voltage regulator's overcurrent fault threshold in 5 % steps, up to +20 % above the board default; visible on boards with a TPS546 voltage regulator
+
+### Logs
+
+- **Configurable log buffer** — max log lines stored in the browser is adjustable (50–5000, default 500); upstream was hardcoded at 256
+- **Download logs** — exports the current log buffer as a plain-text file with timestamp
+
+### Mining & protocol
+
+- **BCH coinbase decoding** — "Decode Coinbase Tx" is now a dropdown: Auto / BTC / BCH / Disabled. Auto detects the coin from your payout address. BCH outputs decode to correct CashAddr
+
+### Configuration & tuning
+
+- **Stratum connection tuning** — `strat_retry`, `strat_crit_rty`, and `strat_timeout` configurable via CVS file; see [Stratum — connection tuning](./doc/configuration.md#stratum--connection-tuning)
+- **Self-test parameter tuning** — `st_difficulty`, `st_pwr_margin`, `st_vcore_min`, and `st_vcore_max` configurable via CVS file; see [Self-test parameters](./doc/configuration.md#self-test-parameters)
+- **Danger Zone NVS keys** — `dangerzone=1` in the CVS file (or the Settings UI toggle) unlocks fan PID gains, thermal shutdown thresholds, post-overheat frequency and voltage step-down, and voltage regulator input voltage limits — all previously hardcoded constants — without editing source code; see [Danger zone](./doc/configuration.md#danger-zone)
+
+---
+
+## Building from source
+
+### Prerequisites
+
+- [ESP-IDF v5.5](https://docs.espressif.com/projects/esp-idf/en/v5.5/esp32s3/get-started/) targeting `esp32s3`
+- Node.js ≥ 22 and npm (for the Angular web UI)
+- Linux or macOS recommended
+
+### Quick setup
 
 ```bash
-# Get system information
-curl http://YOUR-BITAXE-IP/api/system/info
+git clone https://github.com/heliospool/HexOS.git
+cd HexOS
 
-# Get ASIC settings information
-curl http://YOUR-BITAXE-IP/api/system/asic
+# Install ESP-IDF v5.5
+git clone --branch v5.5 --depth 1 --recursive https://github.com/espressif/esp-idf.git ~/esp/idf
+~/esp/idf/install.sh esp32s3
+```
 
-# Get system statistics
-curl http://YOUR-BITAXE-IP/api/system/statistics
+### Build
 
-# Get dashboard statistics
-curl http://YOUR-BITAXE-IP/api/system/statistics/dashboard
+```bash
+bash build_release.sh
+```
 
-# Get available Wi-Fi networks
-curl http://YOUR-BITAXE-IP/api/system/wifi/scan
+This sources ESP-IDF, builds the full firmware + Angular web UI, and produces per-board factory images plus shared firmware/www artifacts in `releases/{VERSION}/`:
 
+| File | Use |
+|---|---|
+| `esp-miner-factory-{BOARD}-{VERSION}.bin` | Full 16 MB factory image for each board, flash at `0x0` |
+| `esp-miner-hexos.bin` | Firmware only, for OTA Firmware update (all boards) |
+| `www-hexos.bin` | Web UI only, for OTA Web update (all boards) |
+| `config-{BOARD}.cvs` | NVS config used to build each factory image |
 
-# Restart the system
-curl -X POST http://YOUR-BITAXE-IP/api/system/restart
+---
 
-# Let the device say Hi!
-curl -X POST http://YOUR-BITAXE-IP/api/system/identify
+## Board configuration
 
-# Update system firmware
+CVS files define the initial NVS configuration baked into factory images. Keys absent from the file use firmware defaults. Pool, WiFi, fan, and ASIC settings can also be changed through the web UI after flashing.
+
+The file format is documented in `config.cvs.example`.
+
+### Required keys
+
+| Key | Type | Default | Notes |
+|---|---|---|---|
+| `boardversion` | string | — | e.g. `gekko-800`, `601`, `201` |
+| `asicfrequency_f` | string | — | MHz |
+| `asicvoltage` | u16 | — | mV |
+| `stratumurl` | string | `btc.heliospool.com` | Primary pool host |
+| `stratumport` | u16 | `3333` | Primary pool port |
+| `stratumuser` | string | — | Payout address and worker name |
+| `fbstratumurl` | string | `bch.heliospool.com` | Fallback pool host |
+| `fbstratumport` | u16 | `3333` | Fallback pool port |
+| `fbstratumuser` | string | — | Fallback payout address and worker name |
+
+For all available NVS keys, see [`doc/configuration.md`](./doc/configuration.md).
+
+---
+
+## Flashing
+
+Pre-built images are available on the [releases page](https://github.com/heliospool/HexOS/releases/latest).
+
+### Factory flash (first-time or full reset)
+
+**Option A — bitaxetool**
+
+> bitaxetool v0.6.1 is required (locked to esptool v4.9.0). esptool v5.x is not compatible.
+
+```bash
+pip install bitaxetool==0.6.1
+bitaxetool --config ./config-{BOARD}.cvs --firmware ./esp-miner-factory-{BOARD}-{VERSION}.bin
+```
+
+**Option B — esptool**
+
+```bash
+esptool.py --chip esp32s3 -b 921600 --before default_reset --after hard_reset \
+  write_flash --flash_mode dio --flash_size 16MB --flash_freq 80m \
+  0x0 esp-miner-factory-{BOARD}-{VERSION}.bin
+```
+
+### OTA update (device already running HexOS)
+
+Navigate to your device's web UI → **Settings** → **Updates**.
+
+- **Firmware update**: upload `esp-miner-hexos.bin`
+- **Web UI update**: upload `www-hexos.bin`
+
+The in-UI update checker automatically compares against the latest release on this repository.
+
+---
+
+## API
+
+The web server on port 80 exposes a REST API. Full spec: [`main/http_server/openapi.yaml`](./main/http_server/openapi.yaml).
+
+**GET**
+- `/api/system/info` — system information (hashrate, temps, uptime, pool, `lastSubmittedDiff`, `workReceived`, `boardTemp`, etc.)
+- `/api/system/asic` — ASIC settings
+- `/api/system/statistics?columns=...` — historical stats ring buffer (720 entries)
+- `/api/system/statistics/dashboard` — dashboard stats
+- `/api/system/wifi/scan` — available Wi-Fi networks
+
+**POST**
+- `/api/system/restart` — restart the device
+- `/api/system/identify` — flash LEDs / beep
+- `/api/system/OTA` — upload firmware binary
+- `/api/system/OTAWWW` — upload web UI binary
+
+**PATCH**
+- `/api/system` — update settings (pool, Wi-Fi, fan speed, voltage, frequency, etc.)
+
+```bash
+# Current system info
+curl http://<device-ip>/api/system/info
+
+# OTA firmware update
 curl -X POST \
      -H "Content-Type: application/octet-stream" \
-     --data-binary "@esp-miner.bin" \
-     http://YOUR-BITAXE-IP/api/system/OTA
-
-# Update AxeOS
-curl -X POST \
-     -H "Content-Type: application/octet-stream" \
-     --data-binary "@www.bin" \
-     http://YOUR-BITAXE-IP/api/system/OTAWWW
-
-
-# Update system settings
-curl -X PATCH http://YOUR-BITAXE-IP/api/system \
-     -H "Content-Type: application/json" \
-     -d '{"fanspeed": "desired_speed_value"}'
+     --data-binary "@esp-miner-hexos.bin" \
+     http://<device-ip>/api/system/OTA
 ```
 
-## Administration
+---
 
-The firmware hosts a small web server on port 80 for administrative purposes. Once the Bitaxe device is connected to the local network, the admin web front end may be accessed via a web browser connected to the same network at `http://<IP>`, replacing `IP` with the LAN IP address of the Bitaxe device, or `http://bitaxe`, provided your network supports mDNS configuration.
+## Credits
 
-### Recovery
-
-In the event that the admin web front end is inaccessible, for example because of an unsuccessful firmware update (`www.bin`), a recovery page can be accessed at `http://<IP>/recovery`.
-
-### Unlock Settings
-
-In order to unlock the Input fields for ASIC Frequency and ASIC Core Voltage you need to append `?oc` to the end of the settings tab URL in your browser. Be aware that without additional cooling overclocking can overheat and/or damage your Bitaxe.
-
-## Development using esp-miner/devcontainer
-
-This configuration allows you to edit locally and compile the source code using a docker container so you don't have to install the ESP-IDF toolchain and other supporting software on your computer to compile the firmware.
-
-### Prerequisites
-
-- Docker server
-
-### Local PC Setup
-
-These instructions will assume an installation to your home directory.
-```
-cd ~
-git clone https://github.com/bitaxeorg/ESP-MINER.git
-cd ESP-MINER
-git checkout <the branch you want>
-# The next step builds the docker container that will compile the source code
-# This will take several minutes to finish
-docker build -t espminer-build .devcontainer
-```
-### Building
-
-```
-cd ~/ESP-MINER
-docker run --rm -it -v $PWD:/workspace espminer-build /bin/bash
-git config --global --add safe.directory /workspace    # set git permissions or build will fail; only done once
-cd /workspace
-idf.py build
-```	
-Once the build is done exit out of the docker session and flash the new firmware.
-
-## Development
-
-### Prerequisites
-
-- Install the ESP-IDF toolchain from https://docs.espressif.com/projects/esp-idf/en/stable/esp32/get-started/
-- Install nodejs/npm from https://nodejs.org/en/download
-- (Optional) Install the ESP-IDF extension for VSCode from https://marketplace.visualstudio.com/items?itemName=espressif.esp-idf-extension
-
-### Building
-
-At the root of the repository, run:
-```
-idf.py build && ./merge_bin.sh ./esp-miner-merged.bin
-```
-
-Note: the merge_bin.sh script is a custom script that merges the bootloader, partition table, and the application binary into a single file.
-
-Note: if using VSCode, you may have to configure the settings.json file to match your esp hardware version. For example, if your bitaxe has something other than an esp32-s3, you will need to change the version in the `.vscode/settings.json` file.
-
-### Flashing
-
-With the bitaxe connected to your computer via USB, run:
-
-```
-bitaxetool --config ./config-xxx.cvs --firmware ./esp-miner-merged.bin
-```
-
-where xxx is the config file for your hardware version. You can see the list of available config files in the root of the repository.
-
-A custom board version is also possible with `config-custom.cvs`. A custom board needs to be based on an existing `devicemodel` and `asicmodel`.
-
-**Notes:** 
-  - If you are developing within a dev container, you will need to run the bitaxetool command from outside the container. Otherwise, you will get an error about the device not being found.
-  - Some Bitaxe versions can't directly connect to a USB-C port. If yours is affected use a USB-A adapter as a workaround. More about it [here](https://github.com/bitaxeorg/bitaxeGamma/issues/37).
-  - Only ESP32-S3-WROOM-1 module type N16R8 (16MB Flash, 8MB Octal SPI PSRAM) is supported. This model number should be visible on the ESP32 module. Other module types without PSRAM or with Quad SPI PSRAM will not work with the normal firmware. More about it [here](https://github.com/bitaxeorg/ESP-Miner/issues/826).
-
-### Wi-Fi routers
-
-There are some Wi-Fi routers that will block mining, ASUS Wi-Fi routers & some TP-Link Wi-Fi routers for example.
-If you find that your not able to mine / have no hash rate you will need to check the Wi-Fi routers settings and disable the following;
-
-1/ AiProtection
-
-2/ IoT 
-
-If your Wi-Fi router has both of these options you might have to disable them both.
-
-If your still having problems here, check other settings within the Wi-Fi router and the bitaxe device, this includes the URL for
-the Stratum Host and Stratum Port.
+HexOS is built on [ESP-Miner](https://github.com/bitaxeorg/ESP-Miner) by the Bitaxe community. All upstream contributors retain their credit.
 
 ## Attributions
 
 The display font is Portfolio 6x8 from https://int10h.org/oldschool-pc-fonts/ by VileR.
+

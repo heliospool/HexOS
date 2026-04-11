@@ -56,7 +56,7 @@ static Settings settings[NVS_CONFIG_COUNT] = {
     [NVS_CONFIG_STRATUM_EXTRANONCE_SUBSCRIBE]          = {.nvs_key_name = "stratumxnsub",    .type = TYPE_BOOL,  .default_value = {.b   = (bool)STRATUM_EXTRANONCE_SUBSCRIBE},          .rest_name = "stratumExtranonceSubscribe",         .min = 0,  .max = 1},
     [NVS_CONFIG_STRATUM_TLS]                           = {.nvs_key_name = "stratumtls",      .type = TYPE_U16,   .default_value = {.u16 = (uint16_t)CONFIG_STRATUM_TLS},                .rest_name = "stratumTLS",                         .min = 0,  .max = 3},
     [NVS_CONFIG_STRATUM_CERT]                          = {.nvs_key_name = "stratumcert",     .type = TYPE_STR,   .default_value = {.str = (char *)CONFIG_STRATUM_CERT},                 .rest_name = "stratumCert",                        .min = 0,  .max = NVS_STR_LIMIT},
-    [NVS_CONFIG_STRATUM_DECODE_COINBASE]               = {.nvs_key_name = "stratumdecode",   .type = TYPE_BOOL,  .default_value = {.b   = true},                                        .rest_name = "stratumDecodeCoinbase",              .min = 0,  .max = 1},
+    [NVS_CONFIG_STRATUM_DECODE_COINBASE]               = {.nvs_key_name = "stratumdecode2",  .type = TYPE_U16,   .default_value = {.u16 = 3},                                           .rest_name = "stratumDecodeCoinbase",              .min = 0,  .max = 3},
     [NVS_CONFIG_FALLBACK_STRATUM_URL]                  = {.nvs_key_name = "fbstratumurl",    .type = TYPE_STR,   .default_value = {.str = (char *)CONFIG_FALLBACK_STRATUM_URL},         .rest_name = "fallbackStratumURL",                 .min = 0,  .max = NVS_STR_LIMIT},
     [NVS_CONFIG_FALLBACK_STRATUM_PORT]                 = {.nvs_key_name = "fbstratumport",   .type = TYPE_U16,   .default_value = {.u16 = CONFIG_FALLBACK_STRATUM_PORT},                .rest_name = "fallbackStratumPort",                .min = 0,  .max = UINT16_MAX},
     [NVS_CONFIG_FALLBACK_STRATUM_USER]                 = {.nvs_key_name = "fbstratumuser",   .type = TYPE_STR,   .default_value = {.str = (char *)CONFIG_FALLBACK_STRATUM_USER},        .rest_name = "fallbackStratumUser",                .min = 0,  .max = NVS_STR_LIMIT},
@@ -65,7 +65,7 @@ static Settings settings[NVS_CONFIG_COUNT] = {
     [NVS_CONFIG_FALLBACK_STRATUM_EXTRANONCE_SUBSCRIBE] = {.nvs_key_name = "stratumfbxnsub",  .type = TYPE_BOOL,  .default_value = {.b   = (bool)FALLBACK_STRATUM_EXTRANONCE_SUBSCRIBE}, .rest_name = "fallbackStratumExtranonceSubscribe", .min = 0,  .max = 1},
     [NVS_CONFIG_FALLBACK_STRATUM_TLS]                  = {.nvs_key_name = "fbstratumtls",    .type = TYPE_U16,   .default_value = {.u16 = (uint16_t)CONFIG_FALLBACK_STRATUM_TLS},       .rest_name = "fallbackStratumTLS",                 .min = 0,  .max = 3},
     [NVS_CONFIG_FALLBACK_STRATUM_CERT]                 = {.nvs_key_name = "fbstratumcert",   .type = TYPE_STR,   .default_value = {.str = (char *)CONFIG_FALLBACK_STRATUM_CERT},        .rest_name = "fallbackStratumCert",                .min = 0,  .max = NVS_STR_LIMIT},
-    [NVS_CONFIG_FALLBACK_STRATUM_DECODE_COINBASE]      = {.nvs_key_name = "fbstratumdecode", .type = TYPE_BOOL,  .default_value = {.b   = true},                                        .rest_name = "fallbackStratumDecodeCoinbase",      .min = 0,  .max = 1},
+    [NVS_CONFIG_FALLBACK_STRATUM_DECODE_COINBASE]      = {.nvs_key_name = "fbstratumdec2",.type = TYPE_U16,   .default_value = {.u16 = 3},                                           .rest_name = "fallbackStratumDecodeCoinbase",      .min = 0,  .max = 3},
     [NVS_CONFIG_USE_FALLBACK_STRATUM]                  = {.nvs_key_name = "usefbstartum",    .type = TYPE_BOOL,                                                                         .rest_name = "useFallbackStratum",                 .min = 0,  .max = 1},
 
     [NVS_CONFIG_ASIC_FREQUENCY]                        = {.nvs_key_name = "asicfrequency_f", .type = TYPE_FLOAT, .default_value = {.f   = CONFIG_ASIC_FREQUENCY},                       .rest_name = "frequency",                          .min = 1,  .max = UINT16_MAX},
@@ -78,7 +78,7 @@ static Settings settings[NVS_CONFIG_COUNT] = {
     [NVS_CONFIG_DISPLAY_OFFSET]                        = {.nvs_key_name = "displayOffset",   .type = TYPE_U16,   .default_value = {.u16 = LCD_SH1107_PARAM_DEFAULT_DISP_OFFSET },       .rest_name = "displayOffset",                      .min = 0,  .max = UINT8_MAX},
     [NVS_CONFIG_DISPLAY_TIMEOUT]                       = {.nvs_key_name = "displayTimeout",  .type = TYPE_I32,   .default_value = {.i32 = -1},                                          .rest_name = "displayTimeout",                     .min = -1, .max = UINT16_MAX},
 
-    [NVS_CONFIG_AUTO_FAN_SPEED]                        = {.nvs_key_name = "autofanspeed",    .type = TYPE_BOOL,  .default_value = {.b   = true},                                        .rest_name = "autofanspeed",                       .min = 0,  .max = 1},
+    [NVS_CONFIG_AUTO_FAN_SPEED]                        = {.nvs_key_name = "autofanspeed",    .type = TYPE_U16,   .default_value = {.u16 = 1},                                           .rest_name = "autofanspeed",                       .min = 0,  .max = 2},
     [NVS_CONFIG_MANUAL_FAN_SPEED]                      = {.nvs_key_name = "manualfanspeed",  .type = TYPE_U16,   .default_value = {.u16 = 100},                                         .rest_name = "manualFanSpeed",                     .min = 0,  .max = 100},
     [NVS_CONFIG_MIN_FAN_SPEED]                         = {.nvs_key_name = "minfanspeed",     .type = TYPE_U16,   .default_value = {.u16 = 25},                                          .rest_name = "minFanSpeed",                        .min = 0,  .max = 99},
     [NVS_CONFIG_TEMP_TARGET]                           = {.nvs_key_name = "temptarget",      .type = TYPE_U16,   .default_value = {.u16 = 60},                                          .rest_name = "temptarget",                         .min = 35, .max = 66},
@@ -109,6 +109,36 @@ static Settings settings[NVS_CONFIG_COUNT] = {
     [NVS_CONFIG_TPS546]                                = {.nvs_key_name = "TPS546",          .type = TYPE_BOOL},
     [NVS_CONFIG_TMP1075]                               = {.nvs_key_name = "TMP1075",         .type = TYPE_BOOL},
     [NVS_CONFIG_POWER_CONSUMPTION_TARGET]              = {.nvs_key_name = "power_cons_tgt",  .type = TYPE_U16},
+    [NVS_CONFIG_VIN_ON]                                = {.nvs_key_name = "vin_on",           .type = TYPE_FLOAT, .default_value = {.f = 0}, .danger_zone_gated = true},
+    [NVS_CONFIG_VIN_OFF]                               = {.nvs_key_name = "vin_off",          .type = TYPE_FLOAT, .default_value = {.f = 0}, .danger_zone_gated = true},
+    [NVS_CONFIG_VIN_OV_FAULT]                          = {.nvs_key_name = "vin_ov_fault",     .type = TYPE_FLOAT, .default_value = {.f = 0}, .danger_zone_gated = true},
+
+    // Danger zone — gate flag exposed to Web UI so the toggle persists across reboots
+    [NVS_CONFIG_DANGER_ZONE]          = {.nvs_key_name = "dangerzone",     .type = TYPE_BOOL,  .default_value = {.b = false},  .rest_name = "dangerzone",  .min = 0,  .max = 1},
+    [NVS_CONFIG_PID_P]                = {.nvs_key_name = "pid_p",          .type = TYPE_FLOAT, .default_value = {.f = 15.0f},  .danger_zone_gated = true},
+    [NVS_CONFIG_PID_I]                = {.nvs_key_name = "pid_i",          .type = TYPE_FLOAT, .default_value = {.f = 2.0f},   .danger_zone_gated = true},
+    [NVS_CONFIG_PID_D]                = {.nvs_key_name = "pid_d",          .type = TYPE_FLOAT, .default_value = {.f = 5.0f},   .danger_zone_gated = true},
+    [NVS_CONFIG_FAN_DECREASE_RATE]    = {.nvs_key_name = "fan_dec_rate",   .type = TYPE_FLOAT, .default_value = {.f = 1.0f},   .danger_zone_gated = true},
+    [NVS_CONFIG_THROTTLE_TEMP]        = {.nvs_key_name = "throttle_temp",  .type = TYPE_FLOAT, .default_value = {.f = 75.0f},  .danger_zone_gated = true},
+    [NVS_CONFIG_SAFE_TEMP]            = {.nvs_key_name = "safe_temp",      .type = TYPE_FLOAT, .default_value = {.f = 45.0f},  .danger_zone_gated = true},
+    [NVS_CONFIG_VR_THROTTLE_TEMP]     = {.nvs_key_name = "vr_thr_temp",    .type = TYPE_FLOAT, .default_value = {.f = 105.0f}, .danger_zone_gated = true},
+    [NVS_CONFIG_ASIC_REDUCTION]       = {.nvs_key_name = "asic_reduction", .type = TYPE_FLOAT, .default_value = {.f = 100.0f}, .danger_zone_gated = true},
+    [NVS_CONFIG_STRATUM_RETRY_MAX]    = {.nvs_key_name = "strat_retry",    .type = TYPE_U16,   .default_value = {.u16 = 3}},
+    [NVS_CONFIG_STRATUM_CRIT_RETRY_MAX] = {.nvs_key_name = "strat_crit_rty", .type = TYPE_U16, .default_value = {.u16 = 5}},
+    [NVS_CONFIG_STRATUM_TIMEOUT_MS]   = {.nvs_key_name = "strat_timeout",  .type = TYPE_U16,   .default_value = {.u16 = 5000}},
+    [NVS_CONFIG_SELFTEST_DIFF]        = {.nvs_key_name = "st_difficulty",  .type = TYPE_U16,   .default_value = {.u16 = 16}},
+    [NVS_CONFIG_SELFTEST_POWER_MARGIN]= {.nvs_key_name = "st_pwr_margin",  .type = TYPE_U16,   .default_value = {.u16 = 3}},
+    [NVS_CONFIG_SELFTEST_VCORE_MIN]   = {.nvs_key_name = "st_vcore_min",   .type = TYPE_U16,   .default_value = {.u16 = 1000}},
+    [NVS_CONFIG_SELFTEST_VCORE_MAX]   = {.nvs_key_name = "st_vcore_max",   .type = TYPE_U16,   .default_value = {.u16 = 1300}},
+
+    // Fan curve preset: 0=default (upstream), 1=performance, 2=aggressive
+    [NVS_CONFIG_FAN_CURVE]            = {.nvs_key_name = "fan_curve",      .type = TYPE_U16,   .default_value = {.u16 = 0},               .rest_name = "fanCurve",  .min = 0, .max = 2},
+
+    // VRR target temperature: 55-86°C; 0 = disabled
+    [NVS_CONFIG_VRR_TEMP_TARGET]      = {.nvs_key_name = "vrr_temp_target", .type = TYPE_U16,  .default_value = {.u16 = 0},               .rest_name = "vrrtarget", .min = 0, .max = 86},
+
+    // Danger zone: IOUT OC fault step index (0=default, 1=+5%, 2=+10%, 3=+15%, 4=+20%)
+    [NVS_CONFIG_OC_FAULT_STEP]        = {.nvs_key_name = "oc_ovr_step",    .type = TYPE_U16,   .default_value = {.u16 = 0},               .rest_name = "ocFaultStep",  .min = 0, .max = 4, .danger_zone_gated = true},
 };
 
 Settings *nvs_config_get_settings(NvsConfigKey key)
@@ -227,13 +257,31 @@ esp_err_t nvs_config_init(void)
         return err;
     }
 
+    // Pre-load the danger_zone gate key before anything else
+    {
+        Settings *dz = &settings[NVS_CONFIG_DANGER_ZONE];
+        uint16_t val;
+        esp_err_t ret = nvs_get_u16(handle, dz->nvs_key_name, &val);
+        dz->value.b = (ret == ESP_OK) ? (val != 0) : dz->default_value.b;
+        ESP_LOGI(TAG, "danger_zone: %s", dz->value.b ? "enabled" : "disabled");
+    }
+
     // Load all
     for (NvsConfigKey key = 0; key < NVS_CONFIG_COUNT; key++) {
         Settings *setting = &settings[key];
 
+        if (key == NVS_CONFIG_DANGER_ZONE) continue; // already loaded above
+
+        if (setting->danger_zone_gated && !settings[NVS_CONFIG_DANGER_ZONE].value.b) {
+            setting->value = setting->default_value;
+            ESP_LOGD(TAG, "%-20s = (danger-zone gated, using default)", setting->nvs_key_name);
+            continue;
+        }
+
         nvs_config_init_fallback(key, setting);
 
         esp_err_t ret;
+        bool from_nvs = false;
         switch (setting->type) {
             case TYPE_STR: {
                 size_t len = 0;
@@ -246,24 +294,28 @@ esp_err_t nvs_config_init(void)
                 } else {
                     setting->value.str = strdup(setting->default_value.str);
                 }
+                from_nvs = (ret == ESP_OK);
                 break;
             }
             case TYPE_U16: {
                 uint16_t val;
                 ret = nvs_get_u16(handle, setting->nvs_key_name, &val);
                 setting->value.u16 = (ret == ESP_OK) ? val : setting->default_value.u16;
+                from_nvs = (ret == ESP_OK);
                 break;
             }
             case TYPE_I32: {
                 int32_t val;
                 ret = nvs_get_i32(handle, setting->nvs_key_name, &val);
                 setting->value.i32 = (ret == ESP_OK) ? val : setting->default_value.i32;
+                from_nvs = (ret == ESP_OK);
                 break;
             }
             case TYPE_U64: {
                 uint64_t val;
                 ret = nvs_get_u64(handle, setting->nvs_key_name, &val);
                 setting->value.u64 = (ret == ESP_OK) ? val : setting->default_value.u64;
+                from_nvs = (ret == ESP_OK);
                 break;
             }
             case TYPE_FLOAT: {
@@ -271,14 +323,29 @@ esp_err_t nvs_config_init(void)
                 size_t len = sizeof(buf);
                 ret = nvs_get_str(handle, setting->nvs_key_name, buf, &len);
                 setting->value.f = (ret == ESP_OK) ? atof(buf) : setting->default_value.f;
+                from_nvs = (ret == ESP_OK);
                 break;
             }
             case TYPE_BOOL: {
                 uint16_t val;
                 ret = nvs_get_u16(handle, setting->nvs_key_name, &val);
                 setting->value.b = (ret == ESP_OK) ? (val != 0) : setting->default_value.b;
+                from_nvs = (ret == ESP_OK);
                 break;
             }
+        }
+
+        if (from_nvs) {
+            switch (setting->type) {
+                case TYPE_STR:   ESP_LOGD(TAG, "%-20s = \"%s\" (NVS)", setting->nvs_key_name, setting->value.str); break;
+                case TYPE_U16:   ESP_LOGD(TAG, "%-20s = %u (NVS)",     setting->nvs_key_name, setting->value.u16); break;
+                case TYPE_I32:   ESP_LOGD(TAG, "%-20s = %d (NVS)",     setting->nvs_key_name, setting->value.i32); break;
+                case TYPE_U64:   ESP_LOGD(TAG, "%-20s = %llu (NVS)",   setting->nvs_key_name, setting->value.u64); break;
+                case TYPE_FLOAT: ESP_LOGD(TAG, "%-20s = %.4f (NVS)",   setting->nvs_key_name, setting->value.f);   break;
+                case TYPE_BOOL:  ESP_LOGD(TAG, "%-20s = %s (NVS)",     setting->nvs_key_name, setting->value.b ? "true" : "false"); break;
+            }
+        } else {
+            ESP_LOGD(TAG, "%-20s = (default)", setting->nvs_key_name);
         }
     }
 

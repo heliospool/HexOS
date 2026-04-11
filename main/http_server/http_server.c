@@ -57,6 +57,7 @@ static const char * STATS_LABEL_HASHRATE_1h = "hashrate_1h";
 static const char * STATS_LABEL_ERROR_PERCENTAGE = "errorPercentage";
 static const char * STATS_LABEL_ASIC_TEMP = "asicTemp";
 static const char * STATS_LABEL_VR_TEMP = "vrTemp";
+static const char * STATS_LABEL_BOARD_TEMP = "boardTemp";
 static const char * STATS_LABEL_ASIC_VOLTAGE = "asicVoltage";
 static const char * STATS_LABEL_VOLTAGE = "voltage";
 static const char * STATS_LABEL_POWER = "power";
@@ -67,6 +68,7 @@ static const char * STATS_LABEL_FAN2_RPM = "fan2Rpm";
 static const char * STATS_LABEL_WIFI_RSSI = "wifiRssi";
 static const char * STATS_LABEL_FREE_HEAP = "freeHeap";
 static const char * STATS_LABEL_RESPONSE_TIME = "responseTime";
+static const char * STATS_LABEL_SHARE_DIFF = "shareDiff";
 
 static const char * STATS_LABEL_TIMESTAMP = "timestamp";
 
@@ -84,6 +86,7 @@ typedef enum
     SRC_ERROR_PERCENTAGE,
     SRC_ASIC_TEMP,
     SRC_VR_TEMP,
+    SRC_BOARD_TEMP,
     SRC_ASIC_VOLTAGE,
     SRC_VOLTAGE,
     SRC_POWER,
@@ -94,6 +97,7 @@ typedef enum
     SRC_WIFI_RSSI,
     SRC_FREE_HEAP,
     SRC_RESPONSE_TIME,
+    SRC_SHARE_DIFF,
     SRC_NONE // last
 } DataSource;
 
@@ -110,6 +114,7 @@ DataSource strToDataSource(const char * sourceStr)
         if (strcmp(sourceStr, STATS_LABEL_CURRENT) == 0)      return SRC_CURRENT;
         if (strcmp(sourceStr, STATS_LABEL_ASIC_TEMP) == 0)    return SRC_ASIC_TEMP;
         if (strcmp(sourceStr, STATS_LABEL_VR_TEMP) == 0)      return SRC_VR_TEMP;
+        if (strcmp(sourceStr, STATS_LABEL_BOARD_TEMP) == 0)   return SRC_BOARD_TEMP;
         if (strcmp(sourceStr, STATS_LABEL_ASIC_VOLTAGE) == 0) return SRC_ASIC_VOLTAGE;
         if (strcmp(sourceStr, STATS_LABEL_FAN_SPEED) == 0)    return SRC_FAN_SPEED;
         if (strcmp(sourceStr, STATS_LABEL_FAN_RPM) == 0)      return SRC_FAN_RPM;
@@ -117,6 +122,7 @@ DataSource strToDataSource(const char * sourceStr)
         if (strcmp(sourceStr, STATS_LABEL_WIFI_RSSI) == 0)    return SRC_WIFI_RSSI;
         if (strcmp(sourceStr, STATS_LABEL_FREE_HEAP) == 0)    return SRC_FREE_HEAP;
         if (strcmp(sourceStr, STATS_LABEL_RESPONSE_TIME) == 0) return SRC_RESPONSE_TIME;
+        if (strcmp(sourceStr, STATS_LABEL_SHARE_DIFF) == 0)    return SRC_SHARE_DIFF;
     }
     return SRC_NONE;
 }
@@ -854,9 +860,14 @@ static esp_err_t GET_system_info(httpd_req_t * req)
     cJSON_AddFloatToObject(root, "power", GLOBAL_STATE->POWER_MANAGEMENT_MODULE.power);
     cJSON_AddFloatToObject(root, "voltage", GLOBAL_STATE->POWER_MANAGEMENT_MODULE.voltage);
     cJSON_AddFloatToObject(root, "current", GLOBAL_STATE->POWER_MANAGEMENT_MODULE.current);
+    cJSON_AddFloatToObject(root, "currentLimit", GLOBAL_STATE->POWER_MANAGEMENT_MODULE.current_limit);
+    cJSON_AddNumberToObject(root, "ocFaultStep",    nvs_config_get_u16(NVS_CONFIG_OC_FAULT_STEP));
+    cJSON_AddNumberToObject(root, "ocFaultDefault", GLOBAL_STATE->DEVICE_CONFIG.family.oc_fault_default);
+    cJSON_AddNumberToObject(root, "ocFaultMax",     GLOBAL_STATE->DEVICE_CONFIG.family.oc_fault_max);
     cJSON_AddFloatToObject(root, "temp", GLOBAL_STATE->POWER_MANAGEMENT_MODULE.chip_temp_avg);
     cJSON_AddFloatToObject(root, "temp2", GLOBAL_STATE->POWER_MANAGEMENT_MODULE.chip_temp2_avg);
     cJSON_AddFloatToObject(root, "vrTemp", GLOBAL_STATE->POWER_MANAGEMENT_MODULE.vr_temp);
+    cJSON_AddFloatToObject(root, "boardTemp", GLOBAL_STATE->POWER_MANAGEMENT_MODULE.board_temp);
     cJSON_AddNumberToObject(root, "maxPower", GLOBAL_STATE->DEVICE_CONFIG.family.max_power);
     cJSON_AddNumberToObject(root, "nominalVoltage", GLOBAL_STATE->DEVICE_CONFIG.family.nominal_voltage);
     cJSON_AddFloatToObject(root, "hashRate", GLOBAL_STATE->SYSTEM_MODULE.current_hashrate);
@@ -868,6 +879,7 @@ static esp_err_t GET_system_info(httpd_req_t * req)
     cJSON_AddNumberToObject(root, "bestDiff", GLOBAL_STATE->SYSTEM_MODULE.best_nonce_diff);
     cJSON_AddNumberToObject(root, "bestSessionDiff", GLOBAL_STATE->SYSTEM_MODULE.best_session_nonce_diff);
     cJSON_AddNumberToObject(root, "poolDifficulty", GLOBAL_STATE->pool_difficulty);
+    cJSON_AddNumberToObject(root, "lastSubmittedDiff", GLOBAL_STATE->SYSTEM_MODULE.last_submitted_diff);
 
     cJSON_AddNumberToObject(root, "isUsingFallbackStratum", GLOBAL_STATE->SYSTEM_MODULE.is_using_fallback);
     cJSON_AddStringToObject(root, "poolConnectionInfo", GLOBAL_STATE->SYSTEM_MODULE.pool_connection_info);
@@ -892,6 +904,18 @@ static esp_err_t GET_system_info(httpd_req_t * req)
     cJSON_AddNumberToObject(root, "apEnabled", GLOBAL_STATE->SYSTEM_MODULE.ap_enabled);
     cJSON_AddNumberToObject(root, "sharesAccepted", GLOBAL_STATE->SYSTEM_MODULE.shares_accepted);
     cJSON_AddNumberToObject(root, "sharesRejected", GLOBAL_STATE->SYSTEM_MODULE.shares_rejected);
+    cJSON_AddNumberToObject(root, "workReceived", GLOBAL_STATE->SYSTEM_MODULE.work_received);
+    cJSON_AddNumberToObject(root, "stratumDisconnects", GLOBAL_STATE->SYSTEM_MODULE.stratum_disconnects);
+    cJSON_AddNumberToObject(root, "wifiDisconnects", GLOBAL_STATE->SYSTEM_MODULE.wifi_disconnects);
+    cJSON_AddNumberToObject(root, "txErrors", GLOBAL_STATE->SYSTEM_MODULE.tx_errors);
+    cJSON_AddNumberToObject(root, "rxErrors", GLOBAL_STATE->SYSTEM_MODULE.rx_errors);
+    {
+        int64_t last_share_age_sec = 0;
+        if (GLOBAL_STATE->SYSTEM_MODULE.last_share_time > 0) {
+            last_share_age_sec = (esp_timer_get_time() - GLOBAL_STATE->SYSTEM_MODULE.last_share_time) / 1000000;
+        }
+        cJSON_AddNumberToObject(root, "lastShareSeconds", (double)last_share_age_sec);
+    }
 
     cJSON *error_array = cJSON_CreateArray();
     cJSON_AddItemToObject(root, "sharesRejectedReasons", error_array);
@@ -913,7 +937,7 @@ static esp_err_t GET_system_info(httpd_req_t * req)
     cJSON_AddNumberToObject(root, "stratumExtranonceSubscribe", nvs_config_get_bool(NVS_CONFIG_STRATUM_EXTRANONCE_SUBSCRIBE));
     cJSON_AddNumberToObject(root, "stratumTLS", nvs_config_get_u16(NVS_CONFIG_STRATUM_TLS));
     cJSON_AddStringToObject(root, "stratumCert", stratumCert);
-    cJSON_AddNumberToObject(root, "stratumDecodeCoinbase", nvs_config_get_bool(NVS_CONFIG_STRATUM_DECODE_COINBASE));
+    cJSON_AddNumberToObject(root, "stratumDecodeCoinbase", nvs_config_get_u16(NVS_CONFIG_STRATUM_DECODE_COINBASE));
     cJSON_AddStringToObject(root, "fallbackStratumURL", fallbackStratumURL);
     cJSON_AddNumberToObject(root, "fallbackStratumPort", nvs_config_get_u16(NVS_CONFIG_FALLBACK_STRATUM_PORT));
     cJSON_AddStringToObject(root, "fallbackStratumUser", fallbackStratumUser);
@@ -921,7 +945,7 @@ static esp_err_t GET_system_info(httpd_req_t * req)
     cJSON_AddNumberToObject(root, "fallbackStratumExtranonceSubscribe", nvs_config_get_bool(NVS_CONFIG_FALLBACK_STRATUM_EXTRANONCE_SUBSCRIBE));
     cJSON_AddNumberToObject(root, "fallbackStratumTLS", nvs_config_get_u16(NVS_CONFIG_FALLBACK_STRATUM_TLS));
     cJSON_AddStringToObject(root, "fallbackStratumCert", fallbackStratumCert);
-    cJSON_AddNumberToObject(root, "fallbackStratumDecodeCoinbase", nvs_config_get_bool(NVS_CONFIG_FALLBACK_STRATUM_DECODE_COINBASE));
+    cJSON_AddNumberToObject(root, "fallbackStratumDecodeCoinbase", nvs_config_get_u16(NVS_CONFIG_FALLBACK_STRATUM_DECODE_COINBASE));
     cJSON_AddFloatToObject(root, "responseTime", GLOBAL_STATE->SYSTEM_MODULE.response_time);
 
     cJSON_AddStringToObject(root, "version", GLOBAL_STATE->SYSTEM_MODULE.version);
@@ -939,12 +963,15 @@ static esp_err_t GET_system_info(httpd_req_t * req)
     cJSON_AddNumberToObject(root, "invertscreen", nvs_config_get_bool(NVS_CONFIG_INVERT_SCREEN));
     cJSON_AddNumberToObject(root, "displayTimeout", nvs_config_get_i32(NVS_CONFIG_DISPLAY_TIMEOUT));
 
-    cJSON_AddNumberToObject(root, "autofanspeed", nvs_config_get_bool(NVS_CONFIG_AUTO_FAN_SPEED));
+    cJSON_AddNumberToObject(root, "autofanspeed", nvs_config_get_u16(NVS_CONFIG_AUTO_FAN_SPEED));
 
     cJSON_AddFloatToObject(root, "fanspeed", GLOBAL_STATE->POWER_MANAGEMENT_MODULE.fan_perc);
     cJSON_AddNumberToObject(root, "manualFanSpeed", nvs_config_get_u16(NVS_CONFIG_MANUAL_FAN_SPEED));
     cJSON_AddNumberToObject(root, "minFanSpeed", nvs_config_get_u16(NVS_CONFIG_MIN_FAN_SPEED));
+    cJSON_AddNumberToObject(root, "fanCurve", nvs_config_get_u16(NVS_CONFIG_FAN_CURVE));
     cJSON_AddNumberToObject(root, "temptarget", nvs_config_get_u16(NVS_CONFIG_TEMP_TARGET));
+    cJSON_AddNumberToObject(root, "vrrtarget", nvs_config_get_u16(NVS_CONFIG_VRR_TEMP_TARGET));
+    cJSON_AddNumberToObject(root, "dangerzone", nvs_config_get_bool(NVS_CONFIG_DANGER_ZONE));
     cJSON_AddNumberToObject(root, "fanrpm", GLOBAL_STATE->POWER_MANAGEMENT_MODULE.fan_rpm);
     cJSON_AddNumberToObject(root, "fan2rpm", GLOBAL_STATE->POWER_MANAGEMENT_MODULE.fan2_rpm);
 
@@ -967,6 +994,7 @@ static esp_err_t GET_system_info(httpd_req_t * req)
             cJSON *output_obj = cJSON_CreateObject();
             cJSON_AddNumberToObject(output_obj, "value", GLOBAL_STATE->coinbase_outputs[i].value_satoshis);
             cJSON_AddStringToObject(output_obj, "address", GLOBAL_STATE->coinbase_outputs[i].address);
+            cJSON_AddBoolToObject(output_obj, "isUserOutput", GLOBAL_STATE->coinbase_outputs[i].is_user_output);
             cJSON_AddItemToArray(outputs_array, output_obj);
         }
         cJSON_AddItemToObject(root, "coinbaseOutputs", outputs_array);
@@ -1071,6 +1099,7 @@ static esp_err_t GET_system_statistics(httpd_req_t * req)
     if (dataSelection[SRC_ERROR_PERCENTAGE]) { cJSON_AddItemToArray(labelArray, cJSON_CreateString(STATS_LABEL_ERROR_PERCENTAGE)); }
     if (dataSelection[SRC_ASIC_TEMP]) { cJSON_AddItemToArray(labelArray, cJSON_CreateString(STATS_LABEL_ASIC_TEMP)); }
     if (dataSelection[SRC_VR_TEMP]) { cJSON_AddItemToArray(labelArray, cJSON_CreateString(STATS_LABEL_VR_TEMP)); }
+    if (dataSelection[SRC_BOARD_TEMP]) { cJSON_AddItemToArray(labelArray, cJSON_CreateString(STATS_LABEL_BOARD_TEMP)); }
     if (dataSelection[SRC_ASIC_VOLTAGE]) { cJSON_AddItemToArray(labelArray, cJSON_CreateString(STATS_LABEL_ASIC_VOLTAGE)); }
     if (dataSelection[SRC_VOLTAGE]) { cJSON_AddItemToArray(labelArray, cJSON_CreateString(STATS_LABEL_VOLTAGE)); }
     if (dataSelection[SRC_POWER]) { cJSON_AddItemToArray(labelArray, cJSON_CreateString(STATS_LABEL_POWER)); }
@@ -1081,6 +1110,7 @@ static esp_err_t GET_system_statistics(httpd_req_t * req)
     if (dataSelection[SRC_WIFI_RSSI]) { cJSON_AddItemToArray(labelArray, cJSON_CreateString(STATS_LABEL_WIFI_RSSI)); }
     if (dataSelection[SRC_FREE_HEAP]) { cJSON_AddItemToArray(labelArray, cJSON_CreateString(STATS_LABEL_FREE_HEAP)); }
     if (dataSelection[SRC_RESPONSE_TIME]) { cJSON_AddItemToArray(labelArray, cJSON_CreateString(STATS_LABEL_RESPONSE_TIME)); }
+    if (dataSelection[SRC_SHARE_DIFF]) { cJSON_AddItemToArray(labelArray, cJSON_CreateString(STATS_LABEL_SHARE_DIFF)); }
     cJSON_AddItemToArray(labelArray, cJSON_CreateString(STATS_LABEL_TIMESTAMP));
 
     cJSON_AddItemToObject(root, "labels", labelArray);
@@ -1098,6 +1128,7 @@ static esp_err_t GET_system_statistics(httpd_req_t * req)
         if (dataSelection[SRC_ERROR_PERCENTAGE]) { cJSON_AddItemToArray(valueArray, cJSON_CreateFloat(statsData.errorPercentage)); }
         if (dataSelection[SRC_ASIC_TEMP]) { cJSON_AddItemToArray(valueArray, cJSON_CreateFloat(statsData.chipTemperature)); }
         if (dataSelection[SRC_VR_TEMP]) { cJSON_AddItemToArray(valueArray, cJSON_CreateFloat(statsData.vrTemperature)); }
+        if (dataSelection[SRC_BOARD_TEMP]) { cJSON_AddItemToArray(valueArray, cJSON_CreateFloat(statsData.boardTemperature)); }
         if (dataSelection[SRC_ASIC_VOLTAGE]) { cJSON_AddItemToArray(valueArray, cJSON_CreateNumber(statsData.coreVoltageActual)); }
         if (dataSelection[SRC_VOLTAGE]) { cJSON_AddItemToArray(valueArray, cJSON_CreateFloat(statsData.voltage)); }
         if (dataSelection[SRC_POWER]) { cJSON_AddItemToArray(valueArray, cJSON_CreateFloat(statsData.power)); }
@@ -1108,6 +1139,7 @@ static esp_err_t GET_system_statistics(httpd_req_t * req)
         if (dataSelection[SRC_WIFI_RSSI]) { cJSON_AddItemToArray(valueArray, cJSON_CreateNumber(statsData.wifiRSSI)); }
         if (dataSelection[SRC_FREE_HEAP]) { cJSON_AddItemToArray(valueArray, cJSON_CreateNumber(statsData.freeHeap)); }
         if (dataSelection[SRC_RESPONSE_TIME]) { cJSON_AddItemToArray(valueArray, cJSON_CreateFloat(statsData.responseTime)); }
+        if (dataSelection[SRC_SHARE_DIFF]) { cJSON_AddItemToArray(valueArray, cJSON_CreateFloat(statsData.shareDiff)); }
         cJSON_AddItemToArray(valueArray, cJSON_CreateNumber(statsData.timestamp));
 
         cJSON_AddItemToArray(statsArray, valueArray);

@@ -377,3 +377,103 @@
         <app-edit *ngIf="selectedAxeOs" [uri]="'http://' + selectedAxeOs.IP"></app-edit>
     </app-modal>
 </div>
+
+<div class="card mt-3" *ngIf="heliosPoolWorkers$ | async as hp">
+    <h2>HeliosPool Workers</h2>
+
+    <!-- Combined totals across all pools and regions -->
+    <ng-container *ngIf="heliosTotals(hp) as t">
+        <div class="grid">
+            <div class="col-6 xl:col-3">
+                <div class="card flex flex-column mb-0">
+                    <span class="text-500 font-medium mb-3">Total Workers</span>
+                    <div class="text-900 font-medium text-2xl">{{ t.workers }}</div>
+                </div>
+            </div>
+            <div class="col-6 xl:col-3">
+                <div class="card flex flex-column mb-0">
+                    <span class="text-500 font-medium mb-3">Total Hashrate (1m)</span>
+                    <div class="text-900 font-medium text-2xl">{{ formatHeliosHash(t.hashrate1m) }}</div>
+                </div>
+            </div>
+            <div class="col-6 xl:col-3">
+                <div class="card flex flex-column mb-0">
+                    <span class="text-500 font-medium mb-3">Total Shares</span>
+                    <ng-container *ngIf="t.sharesByCoin.length === 1; else sharesMulti">
+                        <div class="text-900 font-medium text-2xl">{{ t.shares | diffSuffix }}</div>
+                    </ng-container>
+                    <ng-template #sharesMulti>
+                        <div class="flex justify-content-between w-full">
+                            <div *ngFor="let s of t.sharesByCoin" class="flex align-items-baseline gap-1">
+                                <div class="text-900 font-medium text-2xl">{{ s.shares | diffSuffix }}</div>
+                                <span class="text-500 text-xs">{{ s.coin }}</span>
+                            </div>
+                        </div>
+                    </ng-template>
+                </div>
+            </div>
+            <div class="col-6 xl:col-3">
+                <div class="card flex flex-column mb-0">
+                    <span class="text-500 font-medium mb-3">Best Ever</span>
+                    <ng-container *ngIf="t.besteverByCoin.length === 1; else besteverMulti">
+                        <div class="text-900 font-medium text-2xl">{{ t.bestever | diffSuffix }}</div>
+                    </ng-container>
+                    <ng-template #besteverMulti>
+                        <div class="flex justify-content-between w-full">
+                            <div *ngFor="let b of t.besteverByCoin" class="flex align-items-baseline gap-1">
+                                <div class="text-900 font-medium text-2xl">{{ b.bestever | diffSuffix }}</div>
+                                <span class="text-500 text-xs">{{ b.coin }}</span>
+                            </div>
+                        </div>
+                    </ng-template>
+                </div>
+            </div>
+        </div>
+    </ng-container>
+
+    <!-- Single unified sortable table for all workers across all pools/regions -->
+    <div class="card overflow-x-auto mt-3 mb-0">
+        <table class="w-full">
+            <thead>
+                <tr>
+                    <th *ngFor="let col of [
+                        { label: 'Server',       field: 'server'     },
+                        { label: 'Name',         field: 'name'       },
+                        { label: 'Client',       field: 'useragent'  },
+                        { label: 'Hashrate (5m)', field: 'hashrate5m'  },
+                        { label: 'Hashrate (1hr)', field: 'hashrate1hr' },
+                        { label: 'Hashrate (1d)',  field: 'hashrate1d'  },
+                        { label: 'Total Shares', field: 'shares'     },
+                        { label: 'Best Ever',    field: 'bestever'   },
+                        { label: 'Last Update',  field: 'lastshare'  },
+                        { label: 'Uptime',       field: 'started'    }
+                    ]" class="text-500 font-medium text-left">
+                        <div class="flex align-items-center select-none"
+                             [class.cursor-pointer]="col.field"
+                             (click)="col.field && sortHeliosBy(col.field)">
+                            <span class="pr-2">{{ col.label }}</span>
+                            <i *ngIf="col.field" class="pi text-xs" [ngClass]="{
+                                'pi-sort-up-fill':   heliosWorkerSort.field === col.field && heliosWorkerSort.dir === 'asc',
+                                'pi-sort-down-fill': heliosWorkerSort.field === col.field && heliosWorkerSort.dir === 'desc'
+                            }"></i>
+                        </div>
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr *ngFor="let w of heliosFlatWorkers(hp)">
+                    <td class="white-space-nowrap text-500">{{ w.server }}</td>
+                    <td class="text-900 white-space-nowrap">{{ w.workername.includes('.') ? w.workername.split('.').pop() : w.workername }}</td>
+                    <td class="text-500">{{ w.useragent }}</td>
+                    <td [ngClass]="w.hashrate5m !== '0' ? 'text-orange-400' : 'text-500'">{{ formatHeliosHash(w.hashrate5m) }}</td>
+                    <td>{{ formatHeliosHash(w.hashrate1hr) }}</td>
+                    <td>{{ formatHeliosHash(w.hashrate1d) }}</td>
+                    <td>{{ w.shares | diffSuffix }}</td>
+                    <td>{{ w.bestever | diffSuffix }}</td>
+                    <td>{{ formatHeliosElapsed(nowSecs - w.lastshare) }}</td>
+                    <td class="text-green-500">{{ formatHeliosElapsed(nowSecs - w.started) }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>

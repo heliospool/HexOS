@@ -6,8 +6,8 @@
                 Realtime Logs
             </h2>
 
-            <nav class="flex gap-3 w-full md:w-6">
-                <span class="w-full p-input-icon-left">
+            <nav class="flex flex-wrap gap-3 w-full md:w-6">
+                <span class="flex-1 p-input-icon-left" style="min-width: 8rem;">
                     <i class="pi pi-filter"></i>
                     <input
                         pInputText
@@ -18,27 +18,51 @@
                         id="filter"
                         formControlName="filter"/>
                 </span>
-                <p-button
-                    pp-button
-                    icon="pi pi-{{stopScroll ? 'play' : 'pause'}}"
-                    (click)="stopScroll = !stopScroll"
-                    pTooltip="{{stopScroll ? 'Start' : 'Stop'}} Scrolling"
+                <p-inputNumber
+                    formControlName="maxLogs"
+                    [min]="50"
+                    [max]="5000"
+                    [step]="50"
+                    [showButtons]="true"
+                    buttonLayout="horizontal"
+                    decrementButtonClass="p-button-secondary"
+                    incrementButtonClass="p-button-secondary"
+                    incrementButtonIcon="pi pi-plus"
+                    decrementButtonIcon="pi pi-minus"
+                    inputStyleClass="w-5rem text-center"
+                    pTooltip="Max number of log lines to keep in the browser"
                     tooltipPosition="left">
-                </p-button>
-                <p-button
-                    pp-button
-                    icon="pi pi-trash"
-                    (click)="clearLogs()"
-                    pTooltip="Clear Logs"
-                    tooltipPosition="left">
-                </p-button>
-                <p-button
-                    pp-button
-                    icon="pi pi-window-{{isExpanded ? 'minimize' : 'maximize'}}"
-                    (click)="isExpanded = !isExpanded"
-                    pTooltip="{{isExpanded ? 'Minimize' : 'Maximize'}} Logs"
-                    tooltipPosition="left">
-                </p-button>
+                </p-inputNumber>
+                <div class="flex gap-3 ml-auto">
+                    <p-button
+                        pp-button
+                        icon="pi pi-{{stopScroll ? 'play' : 'pause'}}"
+                        (click)="stopScroll = !stopScroll"
+                        pTooltip="{{stopScroll ? 'Start' : 'Stop'}} Scrolling"
+                        tooltipPosition="left">
+                    </p-button>
+                    <p-button
+                        pp-button
+                        icon="pi pi-download"
+                        (click)="downloadLogs()"
+                        pTooltip="Download Logs"
+                        tooltipPosition="left">
+                    </p-button>
+                    <p-button
+                        pp-button
+                        icon="pi pi-trash"
+                        (click)="clearLogs()"
+                        pTooltip="Clear Logs"
+                        tooltipPosition="left">
+                    </p-button>
+                    <p-button
+                        pp-button
+                        icon="pi pi-window-{{isExpanded ? 'minimize' : 'maximize'}}"
+                        (click)="isExpanded = !isExpanded"
+                        pTooltip="{{isExpanded ? 'Minimize' : 'Maximize'}} Logs"
+                        tooltipPosition="left">
+                    </p-button>
+                </div>
             </nav>
         </div>
 

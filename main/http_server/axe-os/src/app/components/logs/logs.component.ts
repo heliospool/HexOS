@@ -21,6 +21,8 @@ export class LogsComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   public isExpanded: boolean = false;
 
+  public maxLogs: number = 500;
+
   @ViewChild('scrollContainer') private scrollContainer!: ElementRef;
 
   @HostListener('document:keydown.esc', ['$event'])
@@ -42,7 +44,8 @@ export class LogsComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.subscribeLogs();
 
     this.form = this.fb.group({
-      filter: ["", [Validators.required]]
+      filter: ["", [Validators.required]],
+      maxLogs: [500, [Validators.required, Validators.min(50), Validators.max(5000)]]
     });
   }
 
@@ -77,7 +80,8 @@ export class LogsComponent implements OnInit, OnDestroy, AfterViewChecked {
             this.logs.push({ className: `max-w-full text-monospace ${className}`, text: val });
           }
 
-          if (this.logs.length > 256) {
+          const maxLogs = this.form?.get('maxLogs')?.value || 500;
+          if (this.logs.length > maxLogs) {
             this.logs.shift();
           }
         },
@@ -89,6 +93,19 @@ export class LogsComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   public clearLogs() {
     this.logs.length = 0;
+  }
+
+  public downloadLogs() {
+    const ansiRegex = /\x1B+\[[0-9;]*m/g;
+    const content = this.logs.map(l => l.text.replace(ansiRegex, '').trimEnd()).join('\n');
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const ts = new Date().toISOString().replace(/[:.]/g, '-');
+    a.href = url;
+    a.download = `hexos-logs-${ts}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   ngAfterViewChecked(): void {

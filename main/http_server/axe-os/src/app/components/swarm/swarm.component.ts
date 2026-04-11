@@ -1,13 +1,13 @@
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Component, OnDestroy, OnInit, ViewChild, HostListener } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, FormControl } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
-import { forkJoin, catchError, from, map, mergeMap, of, take, timeout, toArray, Observable, Subscription } from 'rxjs';
+import { forkJoin, catchError, from, map, mergeMap, of, take, timeout, toArray, Observable, Subscription, interval, startWith, switchMap, distinctUntilChanged, shareReplay } from 'rxjs';
 import { LocalStorageService } from 'src/app/local-storage.service';
 import { LayoutService } from "../../layout/service/app.layout.service";
 import { SystemApiService } from 'src/app/services/system.service';
+import { HeliosPoolService, HeliosRegionData, TaggedHeliosWorker } from 'src/app/services/helios-pool.service';
 import { ModalComponent } from '../modal/modal.component';
-import { SystemInfo as ISystemInfo } from 'src/app/generated';
 
 const SWARM_DATA = 'SWARM_DATA';
 const SWARM_REFRESH_TIME = 'SWARM_REFRESH_TIME';
@@ -51,6 +51,8 @@ export class SwarmComponent implements OnInit, OnDestroy {
 
   public filterText = '';
 
+  public heliosPoolWorkers$: Observable<{ coin: string; regions: HeliosRegionData[] }[] | null> = of(null);
+
   @HostListener('document:keydown.esc', ['$event'])
   onEscKey() {
     if (this.filterText) {
@@ -64,6 +66,7 @@ export class SwarmComponent implements OnInit, OnDestroy {
     private localStorageService: LocalStorageService,
     public layoutService: LayoutService,
     private systemService: SystemApiService,
+    private heliosPoolService: HeliosPoolService,
     private httpClient: HttpClient
   ) {
 
@@ -93,6 +96,52 @@ export class SwarmComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    const detectCoin = (url: string): 'btc' | 'bch' | null => {
+      const h = url.toLowerCase();
+      if (h.includes('bch.heliospool') || h.includes('solo-bch.heliospool')) return 'bch';
+      if (h.includes('btc.heliospool') || h.includes('solo.heliospool'))     return 'btc';
+      return null;
+    };
+
+    this.heliosPoolWorkers$ = this.systemService.getInfo().pipe(
+      map(info => {
+        const pools: { coin: 'btc' | 'bch'; address: string }[] = [];
+        for (const [url, user] of [
+          [info.stratumURL ?? '',         info.stratumUser ?? ''],
+          [info.fallbackStratumURL ?? '', info.fallbackStratumUser ?? ''],
+        ] as [string, string][]) {
+          const coin = detectCoin(url);
+          if (!coin) continue;
+          const address = this.getHeliosAddress(user);
+          if (address && !pools.some(p => p.coin === coin && p.address === address)) {
+            pools.push({ coin, address });
+          }
+        }
+        return pools;
+      }),
+      distinctUntilChanged((a, b) => JSON.stringify(a) === JSON.stringify(b)),
+      switchMap(pools => {
+        if (!pools.length) return of(null);
+        return interval(60000).pipe(
+          startWith(0),
+          switchMap(() =>
+            forkJoin(pools.map(({ coin, address }) =>
+              this.heliosPoolService.getAccountStatsAllRegions(coin, address).pipe(
+                map(regions => regions.length ? { coin: coin.toUpperCase(), regions } : null),
+                catchError(() => of(null))
+              )
+            )).pipe(
+              map(results => {
+                const valid = results.filter((r): r is { coin: string; regions: HeliosRegionData[] } => r !== null);
+                return valid.length ? valid : null;
+              })
+            )
+          )
+        );
+      }),
+      shareReplay({ refCount: true, bufferSize: 1 })
+    );
+
     const swarmData = this.localStorageService.getObject(SWARM_DATA);
 
     if (swarmData == null) {
@@ -485,5 +534,106 @@ export class SwarmComponent implements OnInit, OnDestroy {
 
   isThisDevice(IP: string): boolean {
     return IP === window.location.hostname;
+  }
+
+  getHeliosAddress(user: string): string {
+    const dotIndex = user.lastIndexOf('.');
+    return dotIndex !== -1 ? user.substring(0, dotIndex) : user;
+  }
+
+  formatHeliosElapsed(secs: number): string {
+    if (secs < 60) return 'Recently';
+    const steps: [string, number][] = [['y', 31536000], ['mo', 2592000], ['w', 604800], ['d', 86400], ['h', 3600], ['m', 60]];
+    for (const [label, s] of steps) { const c = Math.floor(secs / s); if (c > 0) return `${c}${label}`; }
+    return 'Recently';
+  }
+
+  formatHeliosHash(v: string): string {
+    return v && v !== '0' ? v.slice(0, -1) + ' ' + v.slice(-1) + 'h/s' : v;
+  }
+
+  get nowSecs(): number {
+    return Math.floor(Date.now() / 1000);
+  }
+
+  private parseHeliosHashToTH(v: string): number {
+    if (!v || v === '0') return 0;
+    const num = parseFloat(v.slice(0, -1));
+    if (isNaN(num)) return 0;
+    const unit = v.slice(-1).toUpperCase();
+    const factors: Record<string, number> = { K: 1e-9, M: 1e-6, G: 1e-3, T: 1, P: 1e3, E: 1e6 };
+    return num * (factors[unit] ?? 0);
+  }
+
+  private formatTHToHeliosHash(th: number): string {
+    if (th <= 0) return '0';
+    const tiers: [string, number][] = [['E', 1e6], ['P', 1e3], ['T', 1], ['G', 1e-3], ['M', 1e-6], ['K', 1e-9]];
+    for (const [unit, factor] of tiers) {
+      if (th >= factor) return (th / factor).toFixed(2) + unit;
+    }
+    return th.toFixed(2) + 'T';
+  }
+
+  heliosTotals(hp: { coin: string; regions: HeliosRegionData[] }[]): {
+    workers: number; hashrate1m: string;
+    shares: number; sharesByCoin: { coin: string; shares: number }[];
+    bestever: number; besteverByCoin: { coin: string; bestever: number }[];
+  } {
+    let workers = 0, shares = 0, bestever = 0, totalTH = 0;
+    const sharesByCoin: { coin: string; shares: number }[] = [];
+    const besteverByCoin: { coin: string; bestever: number }[] = [];
+    for (const ce of hp) {
+      let coinShares = 0, coinBest = 0;
+      for (const rd of ce.regions) {
+        workers += rd.stats.workers;
+        shares += rd.stats.shares;
+        coinShares += rd.stats.shares;
+        if (rd.stats.bestever > bestever) bestever = rd.stats.bestever;
+        if (rd.stats.bestever > coinBest) coinBest = rd.stats.bestever;
+        totalTH += this.parseHeliosHashToTH(rd.stats.hashrate1m);
+      }
+      if (coinShares > 0) sharesByCoin.push({ coin: ce.coin, shares: coinShares });
+      if (coinBest > 0) besteverByCoin.push({ coin: ce.coin, bestever: coinBest });
+    }
+    return { workers, hashrate1m: this.formatTHToHeliosHash(totalTH), shares, sharesByCoin, bestever, besteverByCoin };
+  }
+
+  public heliosWorkerSort: { field: string; dir: 'asc' | 'desc' } = { field: 'server', dir: 'asc' };
+
+  sortHeliosBy(field: string) {
+    if (this.heliosWorkerSort.field === field) {
+      this.heliosWorkerSort = { field, dir: this.heliosWorkerSort.dir === 'asc' ? 'desc' : 'asc' };
+    } else {
+      this.heliosWorkerSort = { field, dir: 'asc' };
+    }
+  }
+
+  heliosFlatWorkers(hp: { coin: string; regions: HeliosRegionData[] }[]): (TaggedHeliosWorker & { server: string })[] {
+    const rows: (TaggedHeliosWorker & { server: string })[] = [];
+    for (const ce of hp) {
+      for (const rd of ce.regions) {
+        for (const w of rd.workers) {
+          rows.push({ ...w, server: `${ce.coin}-${rd.region}` });
+        }
+      }
+    }
+    const { field, dir } = this.heliosWorkerSort;
+    rows.sort((a, b) => {
+      let cmp = 0;
+      switch (field) {
+        case 'server':    cmp = a.server.localeCompare(b.server); break;
+        case 'name':      cmp = a.workername.localeCompare(b.workername); break;
+        case 'hashrate5m':  cmp = this.parseHeliosHashToTH(a.hashrate5m)  - this.parseHeliosHashToTH(b.hashrate5m);  break;
+        case 'hashrate1hr': cmp = this.parseHeliosHashToTH(a.hashrate1hr) - this.parseHeliosHashToTH(b.hashrate1hr); break;
+        case 'hashrate1d':  cmp = this.parseHeliosHashToTH(a.hashrate1d)  - this.parseHeliosHashToTH(b.hashrate1d);  break;
+        case 'useragent':   cmp = (a.useragent ?? '').localeCompare(b.useragent ?? ''); break;
+        case 'shares':    cmp = a.shares - b.shares; break;
+        case 'bestever':  cmp = a.bestever - b.bestever; break;
+        case 'lastshare': cmp = a.lastshare - b.lastshare; break;
+        case 'started':   cmp = a.started - b.started; break;
+      }
+      return dir === 'asc' ? cmp : -cmp;
+    });
+    return rows;
   }
 }

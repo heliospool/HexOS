@@ -9,11 +9,14 @@ typedef struct
     float chip_temp_avg;
     float chip_temp2_avg;
     float vr_temp;
+    float board_temp;
     float voltage;
     float frequency_value;
     float expected_hashrate;
     float power;
     float current;
+    float current_limit;
+    uint16_t oc_fault_limit; // active IOUT_OC_FAULT_LIMIT in A
     float core_voltage;
 } PowerManagementModule;
 

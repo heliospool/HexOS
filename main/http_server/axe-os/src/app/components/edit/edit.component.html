@@ -1,5 +1,14 @@
 <form *ngIf="form" [formGroup]="form">
     <div class="card">
+        <div class="flex align-items-center justify-content-end gap-2 mb-2">
+            <label for="expertModeToggle" class="text-sm cursor-pointer" style="user-select:none">Expert Mode</label>
+            <p-inputSwitch inputId="expertModeToggle"
+                [(ngModel)]="settingsUnlocked"
+                [ngModelOptions]="{standalone: true}"
+                (onChange)="toggleOverclockMode($event.checked)"
+                pTooltip="Enable custom frequency and voltage settings">
+            </p-inputSwitch>
+        </div>
         <p-message *ngIf="settingsUnlocked" severity="warn" styleClass="w-full mb-3 py-4 border-round-xl"
             text="Custom settings can cause damage & system instability. Only modify these settings if you understand the risks of running outside designed parameters.">
         </p-message>
@@ -56,24 +65,55 @@
             </small>
         </div>
 
-        <div class="field-checkbox grid my-2">
-            <div class="col-1 md:col-10 md:flex-order-2">
-                <p-checkbox name="autofanspeed" formControlName="autofanspeed" inputId="autofanspeed" [binary]="true"></p-checkbox>
+        <div class="field grid p-fluid my-2">
+            <label class="col-12 md:col-2 md:m-0 hover-next-input">Automatic Fan Control</label>
+            <div class="col-12 md:col-10">
+                <p-dropdown [options]="fanModeOptions" optionLabel="label" optionValue="value" formControlName="autofanspeed"></p-dropdown>
             </div>
-            <label for="autofanspeed" class="col-11 m-0 pl-3 md:col-2 md:flex-order-1 md:p-2">Automatic Fan Control</label>
         </div>
 
-        <div *ngIf="form.controls['autofanspeed'].value" class="grid p-fluid my-2">
-            <label class="hidden md:flex md:col-2 md:m-0 hover-next-input">Target Temperature</label>
+        <div *ngIf="form.controls['autofanspeed'].value > 0" class="grid p-fluid my-2">
+            <label class="hidden md:flex md:col-2 md:m-0 hover-next-input">Fan Curve</label>
+            <div class="col-12 md:col-10">
+                <div class="flex justify-content-between mb-1">
+                    <span class="flex align-items-center gap-1">
+                        <span class="md:hidden mr-1">Fan Curve:</span>Default
+                        <tooltip-text-icon tooltip="Stock settings, gentle reaction to temp changes, wider temp swings, prioritizes noise reduction."></tooltip-text-icon>
+                    </span>
+                    <span class="flex align-items-center gap-1">
+                        Performance
+                        <tooltip-text-icon tooltip="Faster reaction to temp changes, tighter temp swings, balanced."></tooltip-text-icon>
+                    </span>
+                    <span class="flex align-items-center gap-1">
+                        Aggressive
+                        <tooltip-text-icon tooltip="Fastest reaction to temp changes, aggressively maintains target temp, prioritizes cooling." tooltipPosition="left"></tooltip-text-icon>
+                    </span>
+                </div>
+                <p-slider [min]="0" [max]="2" formControlName="fanCurve"></p-slider>
+            </div>
+        </div>
+
+        <div *ngIf="form.controls['autofanspeed'].value > 0" class="grid p-fluid my-2">
+            <label class="hidden md:flex md:col-2 md:m-0 hover-next-input">ASIC Target Temp</label>
             <div class="col-12 md:col-10">
                 <label class="block mb-1">
-                    <span class="md:hidden mr-1">Target Temperature:</span>{{form.controls['temptarget'].value}} °C
+                    <span class="md:hidden mr-1">ASIC Target Temp:</span>{{form.controls['temptarget'].value}} °C
                 </label>
                 <p-slider [min]="35" [max]="66" formControlName="temptarget"></p-slider>
             </div>
         </div>
 
-        <div *ngIf="form.controls['autofanspeed'].value" class="grid p-fluid">
+        <div *ngIf="form.controls['autofanspeed'].value == 2" class="grid p-fluid my-2">
+            <label class="hidden md:flex md:col-2 md:m-0 hover-next-input">VRR Target Temp</label>
+            <div class="col-12 md:col-10">
+                <label class="block mb-1">
+                    <span class="md:hidden mr-1">VRR Target Temp:</span>{{form.controls['vrrtarget'].value}} °C
+                </label>
+                <p-slider [min]="55" [max]="86" formControlName="vrrtarget"></p-slider>
+            </div>
+        </div>
+
+        <div *ngIf="form.controls['autofanspeed'].value > 0" class="grid p-fluid">
             <label class="hidden md:flex md:col-2 md:m-0 hover-next-input">Minimum Fan Speed</label>
             <div class="col-12 md:col-10">
                 <label class="block mb-1">
@@ -83,7 +123,7 @@
             </div>
         </div>
 
-        <div *ngIf="!form.controls['autofanspeed'].value" class="grid p-fluid mt-2">
+        <div *ngIf="form.controls['autofanspeed'].value == 0" class="grid p-fluid mt-2">
             <label class="hidden md:flex md:col-2 md:m-0 hover-next-input">Fan Speed</label>
             <div class="col-12 md:col-10">
                 <label class="block mb-1">
@@ -100,7 +140,68 @@
         </div>
     </div>
 
-    <h3 class="mt-5">Display</h3>
+    <h3 class="mt-5 text-red-500">⚠ Danger Zone</h3>
+
+    <!-- Confirmation dialog -->
+    <p-dialog header="Here be dragons." [(visible)]="dangerZoneConfirmVisible" [modal]="true" [closable]="false" [style]="{width:'440px'}">
+        <p class="mb-3">These settings allow you to exceed safety limits put in place to protect your hardware. The results range from reduced lifespan to literal fire. This section is for people who know and understand the risks, or who have made peace with what might happen if they don't. <strong>The fire part is not a metaphor.</strong> Proceed?</p>
+        <div class="flex align-items-center gap-2 mb-4">
+            <p-checkbox [(ngModel)]="dangerZoneAcknowledged" [ngModelOptions]="{standalone: true}" inputId="dangerAck" [binary]="true"></p-checkbox>
+            <label for="dangerAck" class="cursor-pointer">I understand the risks and accept full responsibility.</label>
+        </div>
+        <ng-template pTemplate="footer">
+            <button pButton label="Cancel" class="p-button-text" (click)="onDangerZoneCancel()"></button>
+            <button pButton label="Unlock" class="p-button-danger" [disabled]="!dangerZoneAcknowledged" (click)="onDangerZoneConfirm()"></button>
+        </ng-template>
+    </p-dialog>
+
+    <div class="card">
+        <!-- Toggle row -->
+        <div class="flex align-items-center justify-content-end gap-2 mb-3">
+            <label for="dangerZoneToggle" class="text-sm cursor-pointer" style="user-select:none">Enable Danger Zone</label>
+            <p-inputSwitch inputId="dangerZoneToggle"
+                [(ngModel)]="dangerZoneEnabled"
+                [ngModelOptions]="{standalone: true}"
+                (onChange)="toggleDangerZone($event.checked)">
+            </p-inputSwitch>
+        </div>
+
+        <p-message *ngIf="dangerZoneEnabled" severity="warn" styleClass="w-full mb-3 py-4 border-round-xl"
+            text="Danger Zone settings allow you to adjust normally hidden parameters and bypass internal safety limits. Only modify these settings if you understand the extreme risks of running outside designed parameters.">\n
+        </p-message>
+
+        <!-- Settings — opaque and non-interactive until unlocked -->
+        <div [class.pointer-events-none]="!dangerZoneEnabled" [style.opacity]="dangerZoneEnabled ? '1' : '0.35'">
+
+            <div class="grid p-fluid my-2">
+                <label class="hidden md:flex md:col-2 md:m-0 align-items-center">
+                    Overcurrent Limit
+                    <tooltip-icon tooltip="The overcurrent fault threshold of the voltage regulator. Changes take effect on Save." icon="pi-question-circle"></tooltip-icon>
+                </label>
+                <div class="col-12 md:col-10">
+                    <ng-container *ngIf="deviceInfo && (deviceInfo.currentLimit ?? 0) > 0; else ocNotApplicable">
+                        <label class="block mb-1">
+                            <span class="md:hidden mr-1">Overcurrent Limit:</span>
+                            {{ocStepLabel(form.controls['ocFaultStep'].value)}}
+                        </label>
+                        <p-slider [min]="0" [max]="4" [step]="1" formControlName="ocFaultStep"></p-slider>
+                        <div class="flex justify-content-between mt-1 text-sm">
+                            <span *ngFor="let i of [0,1,2,3,4]">{{ocStepLabel(i)}}</span>
+                        </div>
+                    </ng-container>
+                    <ng-template #ocNotApplicable>
+                        <span class="text-color-secondary text-sm">Not applicable on this device.</span>
+                    </ng-template>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <h3 class="mt-5 flex align-items-center">
+        Display
+        <tooltip-icon tooltip="Changes to display type, rotation, and invert require a restart to take effect." icon="pi-question-circle"></tooltip-icon>
+    </h3>
 
     <div class="card">
         <div class="field grid p-fluid">
@@ -173,8 +274,5 @@
             class="btn btn-primary">Save</button>
 
         <button pButton [disabled]="!savedChanges" (click)="restart()">Restart</button>
-
-        <button *ngIf="settingsUnlocked" pButton pButton="p-button-danger" (click)="toggleOverclockMode(false)"
-            class="p-button-danger" pTooltip="Return to safe preset values only">Disable Overclock Mode</button>
     </div>
 </form>

@@ -25,6 +25,125 @@
     </div>
 
     <div class="grid">
+    <ng-container *ngIf="heliosPool$ | async as hp">
+            <div class="col-12 md:col-6 xl:col-3">
+                <div class="card mb-0">
+                    <div class="flex flex-column justify-content-between">
+                        <div class="flex align-items-center justify-content-between mb-3">
+                            <span class="text-900 font-medium text-lg white-space-nowrap">HeliosPool {{ hp.coin }} ({{ hp.region }})</span>
+                            <span class="text-sm white-space-nowrap text-400">Joined <span class="text-800">{{ hp.joined * 1000 | date:'mediumDate' }}</span></span>
+                        </div>
+                        <div class="flex align-items-start justify-content-between">
+                            <div class="flex flex-column">
+                                <span class="text-color-secondary text-sm mb-1">Client</span>
+                                <span class="text-900 font-medium text-2xl">{{ hp.workerClient }}</span>
+                            </div>
+                            <div class="flex flex-column">
+                                <span class="text-color-secondary text-sm mb-1">Uptime</span>
+                                <span class="text-900 font-medium text-2xl white-space-nowrap">{{ hp.uptimeDisplay }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 md:col-6 xl:col-3">
+                <div class="card mb-0">
+                    <div class="flex flex-column justify-content-between">
+                        <div class="flex align-items-center justify-content-between mb-3">
+                            <span class="block text-lg font-medium">Status</span>
+                            <div class="flex align-items-center gap-2">
+                                <span class="text-sm font-medium white-space-nowrap" [ngClass]="hp.workerActive ? 'text-green-500' : 'text-red-500'">{{ hp.workerActive ? 'Connected' : 'Disconnected' }}</span>
+                                <i class="pi pi-circle-fill text-xs" [ngClass]="hp.workerActive ? 'text-green-500' : 'text-red-500'"></i>
+                            </div>
+                        </div>
+                        <div class="flex align-items-center justify-content-between">
+                            <div class="flex flex-column">
+                                <span class="text-color-secondary text-sm mb-1">Last Update</span>
+                                <span class="text-900 font-medium text-2xl white-space-nowrap">{{ hp.lastShareDisplay }}</span>
+                            </div>
+                            <div class="flex flex-column">
+                                <span class="text-color-secondary text-sm mb-1">Workers</span>
+                                <span class="text-900 font-medium text-2xl">{{ hp.activeWorkers }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 md:col-6 xl:col-3">
+                <div class="card mb-0">
+                    <div class="flex flex-column justify-content-between">
+                        <span class="block text-lg font-medium mb-3">Account</span>
+                        <div class="flex align-items-center justify-content-between mb-3">
+                            <table class="text-sm">
+                                <thead><tr><th class="p-0 text-400 font-normal line-height-1">Shares</th></tr></thead>
+                                <tbody><tr><td class="p-0 text-center text-800 line-height-1">{{ hp.accountShares | diffSuffix }}</td></tr></tbody>
+                            </table>
+                            <table class="text-sm">
+                                <thead><tr><th class="p-0 text-400 font-normal line-height-1">Best Share</th></tr></thead>
+                                <tbody><tr><td class="p-0 text-center text-800 line-height-1">{{ hp.bestShare | diffSuffix }}</td></tr></tbody>
+                            </table>
+                            <table class="text-sm">
+                                <thead><tr><th class="p-0 text-400 font-normal line-height-1">Best Ever</th></tr></thead>
+                                <tbody><tr><td class="p-0 text-center text-800 line-height-1">{{ hp.bestEver | diffSuffix }}</td></tr></tbody>
+                            </table>
+                        </div>
+                        <table class="px-1 border-1 border-50 border-round-xs">
+                            <thead>
+                                <tr>
+                                    <th class="p-0 text-500 font-normal line-height-1">1m</th>
+                                    <th class="p-0 text-500 font-normal line-height-1">5m</th>
+                                    <th class="p-0 text-500 font-normal line-height-1">1hr</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="p-0 text-center text-green-500 font-medium">{{ hp.accountHashrate1m }}</td>
+                                    <td class="p-0 text-center text-green-500 font-medium">{{ hp.accountHashrate5m }}</td>
+                                    <td class="p-0 text-center text-green-500 font-medium">{{ hp.accountHashrate1hr }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 md:col-6 xl:col-3">
+                <div class="card mb-0">
+                    <div class="flex flex-column justify-content-between">
+                        <span class="block text-lg font-medium mb-3">Worker</span>
+                        <div class="flex align-items-center justify-content-between mb-3">
+                            <table class="text-sm">
+                                <thead><tr><th class="p-0 text-400 font-normal line-height-1">Shares</th></tr></thead>
+                                <tbody><tr><td class="p-0 text-center text-800 line-height-1">{{ hp.workerShares | diffSuffix }}</td></tr></tbody>
+                            </table>
+                            <table class="text-sm">
+                                <thead><tr><th class="p-0 text-400 font-normal line-height-1">Best Share</th></tr></thead>
+                                <tbody><tr><td class="p-0 text-center text-800 line-height-1">{{ hp.workerBestShare | diffSuffix }}</td></tr></tbody>
+                            </table>
+                            <table class="text-sm">
+                                <thead><tr><th class="p-0 text-400 font-normal line-height-1">Best Ever</th></tr></thead>
+                                <tbody><tr><td class="p-0 text-center text-800 line-height-1">{{ hp.workerBestEver | diffSuffix }}</td></tr></tbody>
+                            </table>
+                        </div>
+                        <table class="px-1 border-1 border-50 border-round-xs">
+                            <thead>
+                                <tr>
+                                    <th class="p-0 text-500 font-normal line-height-1">1m</th>
+                                    <th class="p-0 text-500 font-normal line-height-1">5m</th>
+                                    <th class="p-0 text-500 font-normal line-height-1">1hr</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="p-0 text-center text-green-500 font-medium">{{ hp.workerHashrate1m }}</td>
+                                    <td class="p-0 text-center text-green-500 font-medium">{{ hp.workerHashrate5m }}</td>
+                                    <td class="p-0 text-center text-green-500 font-medium">{{ hp.workerHashrate1hr }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+    </ng-container>
         <div class="col-12 md:col-6 xl:col-3">
             <div class="card mb-0">
                 <div class="flex flex-column justify-content-between">
@@ -124,32 +243,63 @@
         </div>
         <div class="col-12 md:col-6 xl:col-3">
             <div class="card mb-0">
-                <div class="flex justify-content-between mb-3">
-                    <div>
-                        <span class="block text-lg font-medium mb-3">Shares</span>
-                        <div class="text-900 font-medium text-2xl">
+                <div class="flex flex-column justify-content-between">
+                    <span class="block text-lg font-medium mb-3">Shares</span>
+
+                    <div class="flex align-items-center justify-content-between gap-2 mb-3">
+                        <span class="text-900 font-medium text-2xl">
                             {{info.sharesAccepted | number: '1.0-0'}}
+                        </span>
+                        <div class="flex gap-3">
+                            <table class="text-sm">
+                                <thead>
+                                    <tr>
+                                        <th class="p-0 text-400 font-normal line-height-1">Last Share</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td class="p-0 text-center line-height-1"
+                                            [ngClass]="lastShareIsStale(info) ? 'text-red-500' : 'text-800'">
+                                            {{getTimeSinceLastShare(info)}}
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <table class="text-sm" *ngIf="(info.workReceived ?? 0) > 0">
+                                <thead>
+                                    <tr>
+                                        <th class="p-0 text-400 font-normal line-height-1">Jobs</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td class="p-0 text-center text-800 line-height-1">{{info.workReceived | number: '1.0-0'}}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
-                </div>
-                <div *ngIf="info.sharesRejected === 0">
-                    <span class="text-red-500 font-medium">0 </span>
-                    <span class="text-500">rejected</span>
-                </div>
-                <ng-container *ngIf="info.sharesRejected > 0">
-                    <div *ngFor="let sharesRejectedReason of getSortedRejectionReasons(info); trackBy: trackByReason">
-                        <span class="text-red-500 font-medium">
-                            {{ sharesRejectedReason.count | number: '1.0-0' }}
-                        </span>
-                        <span class="text-500">
-                            {{ sharesRejectedReason.message }}
-                        </span>
-                        <tooltip-text-icon
-                            [text]="'(' + (getShareRejectionPercentage(sharesRejectedReason, info) | number:'1.2-2') + ' %)'"
-                            [tooltip]="getRejectionExplanation(sharesRejectedReason.message)"
-                            [split]=false />
+
+                    <div *ngIf="info.sharesRejected === 0">
+                        <span class="text-red-500 font-medium">0 </span>
+                        <span class="text-500">rejected</span>
                     </div>
-                </ng-container>
+                    <ng-container *ngIf="info.sharesRejected > 0">
+                        <div *ngFor="let sharesRejectedReason of getSortedRejectionReasons(info); trackBy: trackByReason">
+                            <span class="text-red-500 font-medium">
+                                {{ sharesRejectedReason.count | number: '1.0-0' }}
+                            </span>
+                            <span class="text-500">
+                                {{ sharesRejectedReason.message }}
+                            </span>
+                            <tooltip-text-icon
+                                [text]="'(' + (getShareRejectionPercentage(sharesRejectedReason, info) | number:'1.2-2') + ' %)'"
+                                [tooltip]="getRejectionExplanation(sharesRejectedReason.message)"
+                                [split]=false />
+                        </div>
+                    </ng-container>
+                </div>
             </div>
         </div>
 
@@ -174,11 +324,17 @@
                     </div>
                 </div>
                 <div>
-                    <span class="text-900 font-medium cursor-pointer" pTooltip="{{info.bestSessionDiff | number:'1.0-0'}}" tooltipPosition="bottom">
+                    <span class="text-900 font-medium text-xl cursor-pointer" pTooltip="{{info.bestSessionDiff | number:'1.0-0'}}" tooltipPosition="bottom">
                         {{info.bestSessionDiff | diffSuffix}}
                     </span>
                     <span class="text-500 text-lg">session best</span>
                     <span class="text-sm font-medium mb-3"> ({{ info.uptimeSeconds | dateAgo: { intervals: 2, strict:true, short:true } }})</span>
+                </div>
+                <div>
+                    <span class="text-900 font-medium text-xl cursor-pointer" pTooltip="{{info.lastSubmittedDiff | number:'1.0-0'}}" tooltipPosition="bottom">
+                        {{info.lastSubmittedDiff | diffSuffix}}
+                    </span>
+                    <span class="text-500 text-lg">last submitted</span>
                 </div>
             </div>
         </div>
@@ -248,6 +404,22 @@
 
                 <div class="mb-3">
                     <h6 class="flex justify-content-between mb-1">
+                        Input Current<span>{{(info.power / info.voltage).toFixed(1)}} A</span>
+                    </h6>
+                    <p-progressBar [value]="(info.power / info.voltage / (info.nominalVoltage >= 12 ? 12 : 5)) * 100"
+                        [styleClass]="'p-progressbar--thin'">
+                        <ng-template pTemplate="content" let-value></ng-template>
+                    </p-progressBar>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 md:col-4">
+            <div class="card">
+                <h4 class="text-center">ASIC</h4>
+
+                <div class="mb-3">
+                    <h6 class="flex justify-content-between mb-1">
                         ASIC Frequency<span>{{info.frequency}} MHz</span>
                     </h6>
                     <p-progressBar [value]="(info.frequency / maxFrequency) * 100" [styleClass]="'p-progressbar--thin'">
@@ -255,7 +427,7 @@
                     </p-progressBar>
                 </div>
 
-                <div>
+                <div class="mb-3">
                     <h6 class="flex justify-content-between mb-1">
                         Measured ASIC Voltage<span>{{info.coreVoltageActual}} V</span>
                     </h6>
@@ -263,6 +435,60 @@
                         <ng-template pTemplate="content" let-value></ng-template>
                     </p-progressBar>
                 </div>
+
+                <div class="mb-3">
+                    <h6 class="flex justify-content-between mb-1">
+                        Measured ASIC Current<span>{{info.current.toFixed(2)}} A</span>
+                    </h6>
+                    <div *ngIf="(info.currentLimit ?? 0) > 0" class="relative">
+                        <p-progressBar [value]="(info.current / info.currentLimit) * 100" [styleClass]="'p-progressbar--thin'">
+                            <ng-template pTemplate="content" let-value></ng-template>
+                        </p-progressBar>
+                        <div class="absolute bg-white h-full top-0"
+                            style="right: 0; width: 3px;">
+                            <small class="absolute text-white white-space-nowrap text-xs"
+                                style="bottom: -1rem; right: 0;">
+                                {{info.currentLimit | number:'1.1-1'}} A
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 md:col-4">
+            <div class="card">
+                <h4 class="white-space-nowrap overflow-hidden text-overflow-ellipsis">Hashrate Registers</h4>
+
+                <ng-container *ngIf="getAsicsAmount(info) as asicAmount">
+                    <table class="heatmap text-{{asicAmount <= 2 ? 'sm' : 'xs'}}">
+                        <thead>
+                            <tr>
+                                <th *ngIf="asicAmount > 1" class="text-left">ASIC</th>
+                                <ng-container *ngIf="getAsicDomainsAmount(info) as asicDomainsAmount">
+                                    <th *ngIf="asicDomainsAmount > 0" [attr.colspan]="asicDomainsAmount">
+                                        {{ asicDomainsAmount == 1 ? "Domain" : "Domains" }}
+                                    </th>
+                                </ng-container>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="cursor-pointer" *ngFor="let asic of info.hashrateMonitor.asics; let i = index"
+                                    [pTooltip]="(asicAmount > 1 ? 'ASIC ' + (i + 1) + ' - ' : '') + 'Error count: ' + asic.errorCount"
+                                    tooltipPosition="bottom">
+                                <td *ngIf="asicAmount > 1" class="text-500 text-left">
+                                    {{ i + 1 }}
+                                </td>
+                                <td *ngFor="let domain of asic.domains"
+                                    [style.background]="getHeatmapColor(info, domain)"
+                                    [style.height]="(asicAmount <= 2 ? '2rem' : null)"
+                                    class="text-center">
+                                    <span class="text-xs">{{ domain | hashSuffix }}</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </ng-container>
             </div>
         </div>
 
@@ -321,6 +547,23 @@
                         Danger: High Temperature
                     </strong>
                 </div>
+
+                <div *ngIf="(info.boardTemp ?? 0) > 0">
+                    <h6 class="flex justify-content-between mb-1">
+                        <tooltip-text-icon
+                            text="Board Temperature"
+                            tooltip="Fan controller internal sensor (board ambient)."
+                        />
+                        <span>{{info.boardTemp! | number: '1.0-1'}} &deg;C</span>
+                    </h6>
+                    <p-progressBar [value]="(info.boardTemp! / 60) * 100" [styleClass]="'p-progressbar--thin'">
+                        <ng-template pTemplate="content" let-value></ng-template>
+                    </p-progressBar>
+
+                    <strong class="text-red-500" *ngIf="(info.boardTemp ?? 0) >= 55">
+                        Warning: High Board Temperature
+                    </strong>
+                </div>
             </div>
         </div>
 
@@ -329,21 +572,64 @@
                 <h4 class="text-center">Fan</h4>
 
                 <div class="mb-3">
-                    <h6 class="flex justify-content-between mb-1" tooltipPosition="top"
-                            pTooltip="{{info.fan2rpm > 0 ? 'Fan 1: ' : ''}}{{info.fanrpm}} RPM{{info.fan2rpm > 0 ? '<br>Fan 2: ' + info.fan2rpm + ' RPM' : ''}}">
-
-                        <ng-container *ngIf="info.fan2rpm > 0; else singleFan">
-                            Fan Speeds
-                        </ng-container>
-                        <ng-template #singleFan>
-                            Fan Speed
-                        </ng-template>
-
-                        <span>{{info.fanspeed.toFixed(1)}} %</span>
+                    <h6 class="flex justify-content-between mb-1">
+                        Fan Speed<span>{{info.fanspeed.toFixed(1)}} %</span>
                     </h6>
                     <p-progressBar [value]="info.fanspeed" [styleClass]="'p-progressbar--thin'">
                         <ng-template pTemplate="content" let-value></ng-template>
                     </p-progressBar>
+                </div>
+
+                <div class="mb-3">
+                    <h6 class="flex justify-content-between mb-1">
+                        <ng-container *ngIf="info.fan2rpm > 0; else singleFan">
+                            Fan 1 RPM
+                        </ng-container>
+                        <ng-template #singleFan>
+                            Fan RPM
+                        </ng-template>
+                        <span>
+                            <ng-container *ngIf="info.fanrpm > 0; else noValue">
+                                {{info.fanrpm}} RPM
+                            </ng-container>
+                        </span>
+                    </h6>
+                    <p-progressBar [value]="(info.fanrpm / maxRpm) * 100" [styleClass]="'p-progressbar--thin'">
+                        <ng-template pTemplate="content" let-value></ng-template>
+                    </p-progressBar>
+                </div>
+
+                <div *ngIf="info.fan2rpm > 0">
+                    <h6 class="flex justify-content-between mb-1">
+                        Fan 2 RPM
+                        <span>
+                            <ng-container *ngIf="info.fan2rpm > 0; else noValue">
+                                {{info.fan2rpm}} RPM
+                            </ng-container>
+                        </span>
+                    </h6>
+                    <p-progressBar [value]="(info.fan2rpm / maxRpm) * 100" [styleClass]="'p-progressbar--thin'">
+                        <ng-template pTemplate="content" let-value></ng-template>
+                    </p-progressBar>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 md:col-4">
+            <div class="card">
+                <h4>Network</h4>
+
+                <div class="flex align-items-center justify-content-between gap-2 mb-2">
+                    <span class="text-500">Stratum Disconnects</span>
+                    <span class="text-900 font-medium">{{info.stratumDisconnects | number: '1.0-0'}}</span>
+                </div>
+                <div class="flex align-items-center justify-content-between gap-2 mb-2">
+                    <span class="text-500">WiFi Disconnects</span>
+                    <span class="text-900 font-medium">{{info.wifiDisconnects | number: '1.0-0'}}</span>
+                </div>
+                <div class="flex align-items-center justify-content-between gap-2">
+                    <span class="text-500">TX / RX Errors</span>
+                    <span class="text-900 font-medium">{{info.txErrors | number: '1.0-0'}} / {{info.rxErrors | number: '1.0-0'}}</span>
                 </div>
             </div>
         </div>
@@ -471,10 +757,10 @@
                 </div>
                 <div class="flex flex-nowrap justify-content-between" *ngIf="info.coinbaseOutputs.length > 0">
                     <div class="col-fixed-width text-500">
-                        <tooltip-text-icon text="Value" tooltip="Total value of transaction outputs in BTC. For non-bitcoin chains, disable 'Decode Coinbase Tx' in Advanced Pool Options." />
+                        <tooltip-text-icon text="Value" [tooltip]="'Total value of transaction outputs in ' + getCoinLabel(info)" />
                     </div>
                     <ng-container *ngIf="info.coinbaseValueTotalSatoshis && info.coinbaseValueTotalSatoshis > 0">
-                        {{ info.coinbaseValueTotalSatoshis | sats }}
+                        {{ info.coinbaseValueTotalSatoshis | sats:getCoinLabel(info) }}
                     </ng-container>
                 </div>                
                 <div class="flex flex-nowrap align-items-baseline" *ngIf="info.coinbaseOutputs.length > 0">
@@ -484,12 +770,12 @@
                     <div class="w-full">
                         <div *ngFor="let output of info.coinbaseOutputs; let i = index" class="flex justify-content-between">
                             @if (output.value > 0) {
-                                @if (output.address === getAddressPart(activePoolUser)) {
+                                @if (output.isUserOutput) {
                                     <span><span class="text-monospace text-sm font-bold" pTooltip="Your payout address" tooltipPosition="top" sensitive-data>{{ output.address | address }}</span>&nbsp;<i class="pi pi-star-fill text-xs"></i></span>
                                 } @else {
                                     <span class="text-monospace text-sm" pTooltip="{{ output.address }}" tooltipPosition="top">{{ output.address | address }}</span>
                                 }
-                                <span class="text-sm">{{ output.value | sats }}</span>
+                                <span class="text-sm">{{ output.value | sats:getCoinLabel(info) }}</span>
                             } @else {
                                 <span class="text-monospace text-xs">{{ output.address }}</span>
                             }
@@ -504,42 +790,6 @@
                         {{ info.coinbaseValueTotalSatoshis / 100_000_000 }}
                     </ng-container>
                 </div>
-            </div>
-        </div>
-
-        <div class="col-12 md:col-4">
-            <div class="card">
-                <h4 class="white-space-nowrap overflow-hidden text-overflow-ellipsis">Hashrate Registers</h4>
-
-                <ng-container *ngIf="getAsicsAmount(info) as asicAmount">
-                    <table class="heatmap text-{{asicAmount <= 2 ? 'sm' : 'xs'}}">
-                        <thead>
-                            <tr>
-                                <th *ngIf="asicAmount > 1" class="text-left">ASIC</th>
-                                <ng-container *ngIf="getAsicDomainsAmount(info) as asicDomainsAmount">
-                                    <th *ngIf="asicDomainsAmount > 0" [attr.colspan]="asicDomainsAmount">
-                                        {{ asicDomainsAmount == 1 ? "Domain" : "Domains" }}
-                                    </th>
-                                </ng-container>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr class="cursor-pointer" *ngFor="let asic of info.hashrateMonitor.asics; let i = index"
-                                    [pTooltip]="(asicAmount > 1 ? 'ASIC ' + (i + 1) + ' - ' : '') + 'Error count: ' + asic.errorCount"
-                                    tooltipPosition="bottom">
-                                <td *ngIf="asicAmount > 1" class="text-500 text-left">
-                                    {{ i + 1 }}
-                                </td>
-                                <td *ngFor="let domain of asic.domains"
-                                    [style.background]="getHeatmapColor(info, domain)"
-                                    [style.height]="(asicAmount <= 2 ? '2rem' : null)"
-                                    class="text-center">
-                                    <span class="text-xs">{{ domain | hashSuffix }}</span>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </ng-container>
             </div>
         </div>
     </div>

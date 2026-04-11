@@ -194,6 +194,9 @@ static void event_handler(void * arg, esp_event_base_t event_base, int32_t event
                 return;
             }
 
+            if (GLOBAL_STATE->SYSTEM_MODULE.is_connected) {
+                GLOBAL_STATE->SYSTEM_MODULE.wifi_disconnects++;
+            }
             GLOBAL_STATE->SYSTEM_MODULE.is_connected = false;
             wifi_softap_on();
 
@@ -296,7 +299,7 @@ esp_netif_t * wifi_init_softap(GlobalState * GLOBAL_STATE)
     uint8_t mac[6];
     esp_wifi_get_mac(ESP_IF_WIFI_AP, mac);
     // Format the last 4 bytes of the MAC address as a hexadecimal string
-    snprintf(GLOBAL_STATE->SYSTEM_MODULE.ap_ssid, sizeof(GLOBAL_STATE->SYSTEM_MODULE.ap_ssid), "Bitaxe_%02X%02X", mac[4], mac[5]);
+    snprintf(GLOBAL_STATE->SYSTEM_MODULE.ap_ssid, sizeof(GLOBAL_STATE->SYSTEM_MODULE.ap_ssid), "HexOS_%02X%02X", mac[4], mac[5]);
 
     wifi_config_t wifi_ap_config = { 0 };
     wifi_ap_config.ap.ssid_len = strlen(GLOBAL_STATE->SYSTEM_MODULE.ap_ssid);

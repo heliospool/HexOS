@@ -121,6 +121,7 @@ components:
         - coreVoltage
         - coreVoltageActual
         - current
+        - currentLimit
         - display
         - fallbackStratumExtranonceSubscribe
         - fallbackStratumPort
@@ -134,6 +135,7 @@ components:
         - fan2rpm
         - fanspeed
         - temptarget
+        - vrrtarget
         - rotation
         - freeHeap
         - freeHeapInternal
@@ -154,6 +156,7 @@ components:
         - manualFanSpeed
         - maxPower
         - minFanSpeed
+        - fanCurve
         - nominalVoltage
         - overheat_mode
         - overclockEnabled
@@ -163,9 +166,16 @@ components:
         - resetReason
         - responseTime
         - runningPartition
+        - lastSubmittedDiff
+        - workReceived
         - sharesAccepted
         - sharesRejected
         - sharesRejectedReasons
+        - stratumDisconnects
+        - wifiDisconnects
+        - txErrors
+        - rxErrors
+        - lastShareSeconds
         - smallCoreCount
         - ssid
         - ipv4
@@ -197,6 +207,9 @@ components:
         - coinbaseValueTotalSatoshis
         - coinbaseValueUserSatoshis
         - hashrateMonitor
+        - dangerzone
+        - ocFaultStep
+        - ocFaultDefault
       properties:
         ASICModel:
           type: string
@@ -207,12 +220,24 @@ components:
         autofanspeed:
           type: number
           description: Automatic fan speed control (0=manual, 1=auto)
+        fanCurve:
+          type: integer
+          description: Fan curve preset (0=default/upstream, 1=performance, 2=aggressive)
         bestDiff:
           type: number
           description: Best difficulty achieved
         bestSessionDiff:
           type: number
           description: Best difficulty achieved in current session
+        lastSubmittedDiff:
+          type: number
+          description: Difficulty of the last submitted share
+        workReceived:
+          type: integer
+          description: Stratum work units received since last pool connection
+        boardTemp:
+          type: number
+          description: EMC fan controller internal die temperature (board temperature)
         boardVersion:
           type: string
           description: Hardware board version
@@ -225,6 +250,9 @@ components:
         current:
           type: number
           description: Current draw in milliamps
+        currentLimit:
+          type: number
+          description: Current limit in milliamps
         display:
           type: string
           description: The configured display
@@ -250,8 +278,8 @@ components:
           type: string
           description: Fallback stratum TLS cert
         fallbackStratumDecodeCoinbase:
-          type: boolean
-          description: Enable fallback pool coinbase transaction decoding
+          type: integer
+          description: Coinbase decode mode for fallback pool (0=off, 1=BTC, 2=BCH, 3=Auto)
         fanrpm:
           type: number
           description: Current fan speed in RPM
@@ -264,6 +292,9 @@ components:
         temptarget:
           type: number
           description: Target Temperature for the PID Controller
+        vrrtarget:
+          type: integer
+          description: VRR target temperature in °C (55-86); 0 = disabled
         responseTime:
           type: number
           description: Pool response time in ms
@@ -365,6 +396,21 @@ components:
           description: Reason(s) shares were rejected
           items:
             $ref: '#/components/schemas/SharesRejectedReason'
+        stratumDisconnects:
+          type: number
+          description: Number of stratum disconnection events since boot
+        wifiDisconnects:
+          type: number
+          description: Number of WiFi disconnection events since boot
+        txErrors:
+          type: number
+          description: Number of failed share submission sends since boot
+        rxErrors:
+          type: number
+          description: Number of failed JSON-RPC receive operations since boot
+        lastShareSeconds:
+          type: number
+          description: Seconds since the last accepted share (0 if no share yet)
         smallCoreCount:
           type: number
           description: Number of small cores
@@ -399,8 +445,8 @@ components:
           type: string
           description: Primary stratum TLS cert
         stratumDecodeCoinbase:
-          type: boolean
-          description: Enable primary pool coinbase transaction decoding
+          type: integer
+          description: Coinbase decode mode for primary pool (0=off, 1=BTC, 2=BCH, 3=Auto)
         temp:
           type: number
           description: Average chip temperature
@@ -465,6 +511,9 @@ components:
               address:
                 type: string
                 description: Output address
+              isUserOutput:
+                type: boolean
+                description: True if this output pays the configured user address
         coinbaseValueTotalSatoshis:
           type: integer
           description: Total value of coinbase transaction in satoshis
@@ -481,6 +530,15 @@ components:
               description: Hashrate register value per ASIC
               items:
                 $ref: '#/components/schemas/HashrateMonitorAsic'
+        dangerzone:
+          type: number
+          description: Danger zone enabled flag (0=disabled, 1=enabled)
+        ocFaultStep:
+          type: number
+          description: OC fault step index (0=default, 1-4 = +5% increments)
+        ocFaultDefault:
+          type: number
+          description: Default OC fault limit in amps for this board family
 
     SystemASIC:
       type: object

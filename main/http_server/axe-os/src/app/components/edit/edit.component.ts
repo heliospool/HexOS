@@ -5,7 +5,7 @@ import { ToastrService } from 'ngx-toastr';
 import { forkJoin, startWith, Subject, takeUntil, pairwise, BehaviorSubject, Observable } from 'rxjs';
 import { LoadingService } from 'src/app/services/loading.service';
 import { SystemApiService } from 'src/app/services/system.service';
-import { ActivatedRoute } from '@angular/router';
+import { SystemInfo } from 'src/app/generated';
 
 type Dropdown = {
   name: string;
@@ -42,8 +42,53 @@ export class EditComponent implements OnInit, OnDestroy, OnChanges {
 
   private destroy$ = new Subject<void>();
 
+
+
   public displays = ["NONE", "SSD1306 (128x32)", "SSD1309 (128x64)", "SH1107 (64x128)", "SH1107 (128x128)"];
   public rotations = [0, 90, 180, 270];
+  public fanModeOptions = [
+    { label: 'Off', value: 0 },
+    { label: 'ASIC', value: 1 },
+    { label: 'ASIC + VRR', value: 2 },
+  ];
+
+  public dangerZoneEnabled = false;
+  public dangerZoneConfirmVisible = false;
+  public dangerZoneAcknowledged = false;
+  public deviceInfo: SystemInfo | null = null;
+
+  private saveDangerZoneSetting(enabled: number) {
+    const deviceUri = this.uri || '';
+    this.systemService.updateSystem(deviceUri, { dangerzone: enabled })
+      .subscribe({
+        next: () => {},
+        error: (err) => { console.error(`Failed to save danger zone setting: ${err.message}`); }
+      });
+  }
+
+  toggleDangerZone(enabled: boolean): void {
+    if (!enabled) {
+      this.dangerZoneEnabled = false;
+      this.dangerZoneAcknowledged = false;
+      this.saveDangerZoneSetting(0);
+      return;
+    }
+    this.dangerZoneConfirmVisible = true;
+  }
+
+  onDangerZoneConfirm(): void {
+    if (this.dangerZoneAcknowledged) {
+      this.dangerZoneConfirmVisible = false;
+      this.dangerZoneEnabled = true;
+      this.saveDangerZoneSetting(1);
+    }
+  }
+
+  onDangerZoneCancel(): void {
+    this.dangerZoneConfirmVisible = false;
+    this.dangerZoneAcknowledged = false;
+    this.dangerZoneEnabled = false;
+  }
   public displayTimeoutControl: FormControl;
   public statsFrequencyControl: FormControl;
 
@@ -52,32 +97,7 @@ export class EditComponent implements OnInit, OnDestroy, OnChanges {
     private systemService: SystemApiService,
     private toastr: ToastrService,
     private loadingService: LoadingService,
-    private route: ActivatedRoute,
   ) {
-    // Check URL parameter for settings unlock
-    this.route.queryParams.subscribe(params => {
-      const urlOcParam = params['oc'] !== undefined;
-      if (urlOcParam) {
-        // If ?oc is in URL, enable overclock and save to NVS
-        this.settingsUnlocked = true;
-        this.saveOverclockSetting(1);
-        console.log(
-          '🎉 The ancient seals have been broken!\n' +
-          '⚡ Unlimited power flows through your miner...\n' +
-          '🔧 You can now set custom frequency and voltage values.\n' +
-          '⚠️ Remember: with great power comes great responsibility!'
-        );
-      } else {
-        // If ?oc is not in URL, check NVS setting (will be loaded in ngOnInit)
-        console.log('🔒 Here be dragons! Advanced settings are locked for your protection. \n' +
-          'Only the bravest miners dare to venture forth... \n' +
-          'If you wish to unlock dangerous overclocking powers, add: %c?oc',
-          'color: #ff4400; text-decoration: underline; cursor: pointer; font-weight: bold;',
-          'to the current URL'
-        );
-      }
-    });
-
     this.displayTimeoutControl = new FormControl();
     this.displayTimeoutControl.valueChanges.pipe(pairwise()).subscribe(([prev, next]) => {
       if (prev === next) {
@@ -137,6 +157,7 @@ export class EditComponent implements OnInit, OnDestroy, OnChanges {
       takeUntil(this.destroy$)
     )
     .subscribe(({ info, asic }) => {
+        this.deviceInfo = info;
       // Store the frequency and voltage options from the API
       this.defaultFrequency = asic.defaultFrequency;
       this.frequencyOptions = asic.frequencyOptions;
@@ -163,10 +184,14 @@ export class EditComponent implements OnInit, OnDestroy, OnChanges {
           ]],
           coreVoltage: [info.coreVoltage, [Validators.required]],
           frequency: [info.frequency, [Validators.required]],
-          autofanspeed: [info.autofanspeed == 1, [Validators.required]],
+          autofanspeed: [info.autofanspeed ?? 1, [Validators.required]],
+          fanCurve: [info.fanCurve ?? 0, [Validators.required]],
           minfanspeed: [info.minFanSpeed, [Validators.required]],
           manualFanSpeed: [info.manualFanSpeed, [Validators.required]],
           temptarget: [info.temptarget, [Validators.required]],
+          vrrtarget: [info.vrrtarget > 0 ? info.vrrtarget : 70, [Validators.required]],
+          ocFaultStep: [info.ocFaultStep ?? 0],
+          dangerzone: [info.dangerzone ?? 0],
           overheat_mode: [info.overheat_mode, [Validators.required]],
           statsFrequency: [info.statsFrequency, [
             Validators.required,
@@ -176,17 +201,23 @@ export class EditComponent implements OnInit, OnDestroy, OnChanges {
         });
 
         this.formSubject.next(this.form);
+        this.dangerZoneEnabled = !!info.dangerzone;
 
       this.form.controls['autofanspeed'].valueChanges.pipe(
         startWith(this.form.controls['autofanspeed'].value),
         takeUntil(this.destroy$)
-      ).subscribe(autofanspeed => {
-        if (autofanspeed) {
+      ).subscribe((mode: number) => {
+        if (mode > 0) {
           this.form.controls['manualFanSpeed'].disable();
           this.form.controls['temptarget'].enable();
         } else {
           this.form.controls['manualFanSpeed'].enable();
           this.form.controls['temptarget'].disable();
+        }
+        if (mode !== 2) {
+          this.form.patchValue({ vrrtarget: 0 });
+        } else if (!this.form.controls['vrrtarget'].value) {
+          this.form.patchValue({ vrrtarget: 70 });
         }
       });
 
@@ -218,8 +249,18 @@ export class EditComponent implements OnInit, OnDestroy, OnChanges {
     this.destroy$.complete();
   }
 
+  public ocStepLabel(step: number): string {
+    if (!this.deviceInfo) return '';
+    if (step === 0) return `Default (${this.deviceInfo.ocFaultDefault}A)`;
+    const pct = step * 5;
+    const amps = parseFloat((this.deviceInfo.ocFaultDefault * (1 + step * 0.05)).toFixed(2));
+    return `+${pct}% (${amps}A)`;
+  }
+
   public updateSystem() {
     const form = this.form.getRawValue();
+
+    // ocFaultStep is already a step index (0-4) — sent directly to API
 
     if (form.stratumPassword === '*****') {
       delete form.stratumPassword;
@@ -338,9 +379,14 @@ export class EditComponent implements OnInit, OnDestroy, OnChanges {
       'coreVoltage',
       'frequency',
       'autofanspeed',
+      'fanCurve',
+      'minfanspeed',
       'manualFanSpeed',
       'temptarget',
+      'vrrtarget',
       'overheat_mode',
+      'dangerzone',
+      'ocFaultStep',
       'statsFrequency'
     ];
   }

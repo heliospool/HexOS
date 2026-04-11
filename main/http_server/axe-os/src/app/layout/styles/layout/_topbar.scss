@@ -35,10 +35,10 @@
         transition:
             background-color $transitionDuration,
             color $transitionDuration;
-        margin-left: 2rem;
+        margin-left: 0.5rem;
 
         @media screen and (min-width: 576px) {
-            margin-left: 5rem;
+            margin-left: 0.5rem;
         }
 
         &:hover {

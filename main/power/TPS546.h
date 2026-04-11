@@ -199,6 +199,7 @@ float TPS546_get_vin(void);
 float TPS546_get_iout(void);
 float TPS546_get_vout(void);
 esp_err_t TPS546_set_vout(float volts);
+esp_err_t TPS546_set_iout_oc_limits(float warn_amps, float fault_amps);
 void TPS546_show_voltage_settings(void);
 void TPS546_print_status(void);
 

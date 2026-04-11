@@ -32,18 +32,39 @@
 uint64_t coinbase_decode_varint(const uint8_t *data, int *offset);
 
 /**
+ * @brief Coinbase decoding network selection
+ */
+typedef enum {
+    COINBASE_NETWORK_DISABLED = 0,
+    COINBASE_NETWORK_BTC      = 1,
+    COINBASE_NETWORK_BCH      = 2,
+    COINBASE_NETWORK_AUTO     = 3,  // detect from payout address format
+} coinbase_network_t;
+
+/**
  * @brief Decode Bitcoin address from scriptPubKey
- * 
+ *
  * Supports P2PKH, P2SH, P2WPKH, P2WSH, and P2TR address types.
- * Output format: "<TYPE>:<HEX_HASH>"
- * 
+ * For BCH, P2PKH and P2SH use CashAddr encoding; segwit types fall through to hex.
+ *
  * @param script ScriptPubKey binary data
  * @param script_len Length of scriptPubKey
+ * @param network Network to encode address for (BTC or BCH)
  * @param output Output buffer for address string
  * @param output_len Size of output buffer (should be at least MAX_ADDRESS_STRING_LEN)
  */
-void coinbase_decode_address_from_scriptpubkey(const uint8_t *script, size_t script_len, 
+void coinbase_decode_address_from_scriptpubkey(const uint8_t *script, size_t script_len,
+                                                coinbase_network_t network,
                                                 char *output, size_t output_len);
+
+/**
+ * @brief Check whether a scriptPubKey pays to the given user address.
+ *        Compares by hash160 bytes for BCH (handles legacy, CashAddr with/without prefix).
+ *        Compares by string prefix for BTC.
+ *        Strips ".workername" suffix from user_address before comparing.
+ */
+bool coinbase_is_user_output(const uint8_t *script, size_t script_len,
+                              coinbase_network_t network, const char *user_address);
 
 /**
  * @brief Structure representing a decoded coinbase transaction output
@@ -62,17 +83,6 @@ typedef struct {
  * @return Decoded integer value
  */
 uint64_t coinbase_decode_varint(const uint8_t *data, int *offset);
-
-/**
- * @brief Decode a Bitcoin address from a scriptPubKey
- * 
- * @param script Binary scriptPubKey data
- * @param script_len Length of scriptPubKey
- * @param output Buffer to store the decoded address string
- * @param output_len Size of output buffer
- */
-void coinbase_decode_address_from_scriptpubkey(const uint8_t *script, size_t script_len, 
-                                                char *output, size_t output_len);
 
 /**
  * @brief Result structure for full mining notification processing
@@ -95,7 +105,7 @@ typedef struct {
  * @param extranonce1 Hex string of extranonce1
  * @param extranonce2_len Length of extranonce2 in bytes
  * @param user_address Payout address of the user
- * @param decode_outputs Enable coinbase tx decoding
+ * @param coinbase_network Network for address encoding (COINBASE_NETWORK_DISABLED/BTC/BCH)
  * @param result Pointer to store the results
  * @return esp_err_t
  */
@@ -103,7 +113,7 @@ esp_err_t coinbase_process_notification(const mining_notify *notification,
                                  const char *extranonce1,
                                  int extranonce2_len,
                                  const char *user_address,
-                                 bool decode_outputs,
+                                 coinbase_network_t coinbase_network,
                                  mining_notification_result_t *result);
 
 #endif // COINBASE_DECODER_H

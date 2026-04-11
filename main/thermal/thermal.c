@@ -93,6 +93,17 @@ float Thermal_get_chip_temp(GlobalState * GLOBAL_STATE)
     return -1;
 }
 
+float Thermal_get_board_temp(GlobalState * GLOBAL_STATE)
+{
+    if (GLOBAL_STATE->DEVICE_CONFIG.EMC2101) {
+        return EMC2101_get_internal_temp();
+    }
+    if (GLOBAL_STATE->DEVICE_CONFIG.EMC2103) {
+        return EMC2103_get_internal_temp();
+    }
+    return -1;
+}
+
 float Thermal_get_chip_temp2(GlobalState * GLOBAL_STATE)
 {
     if (!GLOBAL_STATE->ASIC_initalized) {

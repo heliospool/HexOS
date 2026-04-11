@@ -50,7 +50,7 @@ TEST_CASE("Decode P2PKH address", "[coinbase_decoder]")
     };
     char output[MAX_ADDRESS_STRING_LEN];
     
-    coinbase_decode_address_from_scriptpubkey(script, sizeof(script), output, sizeof(output));
+    coinbase_decode_address_from_scriptpubkey(script, sizeof(script), COINBASE_NETWORK_BTC, output, sizeof(output));
     
     TEST_ASSERT_EQUAL_STRING("1DYwPTnC4NgEmoqbLbcRqoSzVeH3ehmGbV", output);
 }
@@ -66,7 +66,7 @@ TEST_CASE("Decode P2SH address", "[coinbase_decoder]")
     };
     char output[MAX_ADDRESS_STRING_LEN];
     
-    coinbase_decode_address_from_scriptpubkey(script, sizeof(script), output, sizeof(output));
+    coinbase_decode_address_from_scriptpubkey(script, sizeof(script), COINBASE_NETWORK_BTC, output, sizeof(output));
     
     TEST_ASSERT_EQUAL_STRING("33MGnVL6rnKqt6Jjt3HbRqWJrhwy65dMhS", output);
 }
@@ -81,7 +81,7 @@ TEST_CASE("Decode P2WPKH address", "[coinbase_decoder]")
     };
     char output[MAX_ADDRESS_STRING_LEN];
     
-    coinbase_decode_address_from_scriptpubkey(script, sizeof(script), output, sizeof(output));
+    coinbase_decode_address_from_scriptpubkey(script, sizeof(script), COINBASE_NETWORK_BTC, output, sizeof(output));
     
     TEST_ASSERT_EQUAL_STRING("bc1q42aueh0wluqpzg3ng32kvaugnx4thnxa7y625x", output);
 }
@@ -98,7 +98,7 @@ TEST_CASE("Decode P2WSH address", "[coinbase_decoder]")
     };
     char output[MAX_ADDRESS_STRING_LEN];
     
-    coinbase_decode_address_from_scriptpubkey(script, sizeof(script), output, sizeof(output));
+    coinbase_decode_address_from_scriptpubkey(script, sizeof(script), COINBASE_NETWORK_BTC, output, sizeof(output));
     
     TEST_ASSERT_EQUAL_STRING("bc1qqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7rusqyp0mu0", output);
 }
@@ -115,7 +115,131 @@ TEST_CASE("Decode P2TR address", "[coinbase_decoder]")
     };
     char output[MAX_ADDRESS_STRING_LEN];
     
-    coinbase_decode_address_from_scriptpubkey(script, sizeof(script), output, sizeof(output));
+    coinbase_decode_address_from_scriptpubkey(script, sizeof(script), COINBASE_NETWORK_BTC, output, sizeof(output));
     
     TEST_ASSERT_EQUAL_STRING("bc1pllhdmn9m42vcsamx24zrxgs3qrl7ahwvhw4fnzrhve25gvezzyqqc0cgpt", output);
+}
+
+// ── BCH CashAddr encoding ─────────────────────────────────────────────────────
+// hash160: 89abcdef0123456789abcdef0123456789abcdef
+// P2PKH CashAddr (bare):        qzy6hn00qy352euf40x77qfrg4ncn27dauczwde82y
+// P2SH  CashAddr (bare):        pqfrg4ncn27dauqjx3t83x4ummcpydzk0qsmfajjh3
+// P2PKH legacy base58:          1DYwPTnC4NgEmoqbLbcRqoSzVeH3ehmGbV  (same key)
+// P2SH  legacy base58:          33MGnVL6rnKqt6Jjt3HbRqWJrhwy65dMhS  (same key)
+
+TEST_CASE("BCH: Decode P2PKH to CashAddr", "[coinbase_decoder]")
+{
+    uint8_t script[] = {
+        0x76, 0xa9, 0x14,
+        0x89, 0xab, 0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab,
+        0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+        0x88, 0xac
+    };
+    char output[MAX_ADDRESS_STRING_LEN];
+    coinbase_decode_address_from_scriptpubkey(script, sizeof(script), COINBASE_NETWORK_BCH, output, sizeof(output));
+    TEST_ASSERT_EQUAL_STRING("qzy6hn00qy352euf40x77qfrg4ncn27dauczwde82y", output);
+}
+
+TEST_CASE("BCH: Decode P2SH to CashAddr", "[coinbase_decoder]")
+{
+    uint8_t script[] = {
+        0xa9, 0x14,
+        0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0, 0x12, 0x34,
+        0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0, 0x12, 0x34, 0x56, 0x78,
+        0x87
+    };
+    char output[MAX_ADDRESS_STRING_LEN];
+    coinbase_decode_address_from_scriptpubkey(script, sizeof(script), COINBASE_NETWORK_BCH, output, sizeof(output));
+    TEST_ASSERT_EQUAL_STRING("pqfrg4ncn27dauqjx3t83x4ummcpydzk0qsmfajjh3", output);
+}
+
+// ── BCH address comparison (is_user_output hash160 matching) ─────────────────
+
+TEST_CASE("BCH: Match bare CashAddr P2PKH", "[coinbase_decoder]")
+{
+    // Script paying to hash160 89abcdef...
+    uint8_t script[] = {
+        0x76, 0xa9, 0x14,
+        0x89, 0xab, 0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab,
+        0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+        0x88, 0xac
+    };
+    // User entered bare CashAddr (no prefix)
+    const char *user = "qzy6hn00qy352euf40x77qfrg4ncn27dauczwde82y";
+    TEST_ASSERT_TRUE(coinbase_is_user_output(script, sizeof(script), COINBASE_NETWORK_BCH, user));
+}
+
+TEST_CASE("BCH: Match prefixed CashAddr P2PKH", "[coinbase_decoder]")
+{
+    uint8_t script[] = {
+        0x76, 0xa9, 0x14,
+        0x89, 0xab, 0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab,
+        0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+        0x88, 0xac
+    };
+    // User entered full CashAddr with prefix
+    const char *user = "bitcoincash:qzy6hn00qy352euf40x77qfrg4ncn27dauczwde82y";
+    TEST_ASSERT_TRUE(coinbase_is_user_output(script, sizeof(script), COINBASE_NETWORK_BCH, user));
+}
+
+TEST_CASE("BCH: Match legacy base58 P2PKH", "[coinbase_decoder]")
+{
+    uint8_t script[] = {
+        0x76, 0xa9, 0x14,
+        0x89, 0xab, 0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab,
+        0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+        0x88, 0xac
+    };
+    // User entered legacy base58check — same hash160 as above
+    const char *user = "1DYwPTnC4NgEmoqbLbcRqoSzVeH3ehmGbV";
+    TEST_ASSERT_TRUE(coinbase_is_user_output(script, sizeof(script), COINBASE_NETWORK_BCH, user));
+}
+
+TEST_CASE("BCH: Match bare CashAddr P2SH", "[coinbase_decoder]")
+{
+    uint8_t script[] = {
+        0xa9, 0x14,
+        0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0, 0x12, 0x34,
+        0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0, 0x12, 0x34, 0x56, 0x78,
+        0x87
+    };
+    const char *user = "pqfrg4ncn27dauqjx3t83x4ummcpydzk0qsmfajjh3";
+    TEST_ASSERT_TRUE(coinbase_is_user_output(script, sizeof(script), COINBASE_NETWORK_BCH, user));
+}
+
+TEST_CASE("BCH: Match legacy base58 P2SH", "[coinbase_decoder]")
+{
+    uint8_t script[] = {
+        0xa9, 0x14,
+        0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0, 0x12, 0x34,
+        0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0, 0x12, 0x34, 0x56, 0x78,
+        0x87
+    };
+    const char *user = "33MGnVL6rnKqt6Jjt3HbRqWJrhwy65dMhS";
+    TEST_ASSERT_TRUE(coinbase_is_user_output(script, sizeof(script), COINBASE_NETWORK_BCH, user));
+}
+
+TEST_CASE("BCH: No match wrong address", "[coinbase_decoder]")
+{
+    uint8_t script[] = {
+        0x76, 0xa9, 0x14,
+        0x89, 0xab, 0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab,
+        0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+        0x88, 0xac
+    };
+    // Different P2SH address — should not match
+    const char *user = "pqfrg4ncn27dauqjx3t83x4ummcpydzk0qsmfajjh3";
+    TEST_ASSERT_FALSE(coinbase_is_user_output(script, sizeof(script), COINBASE_NETWORK_BCH, user));
+}
+
+TEST_CASE("BCH: Match with workername suffix stripped", "[coinbase_decoder]")
+{
+    uint8_t script[] = {
+        0x76, 0xa9, 0x14,
+        0x89, 0xab, 0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab,
+        0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+        0x88, 0xac
+    };
+    const char *user = "qzy6hn00qy352euf40x77qfrg4ncn27dauczwde82y.worker1";
+    TEST_ASSERT_TRUE(coinbase_is_user_output(script, sizeof(script), COINBASE_NETWORK_BCH, user));
 }

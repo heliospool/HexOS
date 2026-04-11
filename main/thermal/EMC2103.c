@@ -164,3 +164,8 @@ float EMC2103_get_external_temp2(void)
 {
     return get_external_temp(2, EMC2103_EXTERNAL_TEMP2_MSB, EMC2103_EXTERNAL_TEMP2_LSB);
 }
+
+float EMC2103_get_internal_temp(void)
+{
+    return get_external_temp(0, EMC2103_INTERNAL_TEMP_MSB, EMC2103_INTERNAL_TEMP_LSB);
+}

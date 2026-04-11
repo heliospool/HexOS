@@ -15,6 +15,7 @@ struct StatisticsData
     float errorPercentage;
     float chipTemperature;
     float vrTemperature;
+    float boardTemperature;
     float power;
     float voltage;
     float current;
@@ -25,6 +26,7 @@ struct StatisticsData
     int8_t wifiRSSI;
     uint32_t freeHeap;
     float responseTime;
+    float shareDiff;
 };
 
 bool getStatisticData(uint16_t index, StatisticsDataPtr dataOut);

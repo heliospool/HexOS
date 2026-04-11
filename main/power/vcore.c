@@ -6,6 +6,7 @@
 #include "INA260.h"
 #include "TPS546.h"
 #include "adc.h"
+#include "nvs_config.h"
 #include "driver/gpio.h"
 #include "vcore.h"
 
@@ -21,6 +22,7 @@ static TPS546_CONFIG get_tps546_config(const FamilyConfig * family)
     // Set family-specific parameters
     switch (family->id) {
     case GAMMA_TURBO:
+    case GEKKO_GT:
         config.TPS546_INIT_PHASE = TPS546_INIT_PHASE_MULTI;
         config.TPS546_INIT_VIN_ON = 11.0;
         config.TPS546_INIT_VIN_OFF = 10.5;
@@ -60,7 +62,24 @@ static TPS546_CONFIG get_tps546_config(const FamilyConfig * family)
         config.TPS546_INIT_SYNC_CONFIG = 0x10;    // Disable SYNC
         break;
 
-    default: // MAX, ULTRA, SUPRA, GAMMA
+    case GEKKO_GAMMA_12V: // Single-phase, 12V input, 1 ASIC
+        config.TPS546_INIT_PHASE = TPS546_INIT_PHASE_SINGLE;
+        config.TPS546_INIT_VIN_ON = 11.0;
+        config.TPS546_INIT_VIN_OFF = 10.5;
+        config.TPS546_INIT_VIN_UV_WARN_LIMIT = 11.0;
+        config.TPS546_INIT_VIN_OV_FAULT_LIMIT = 14.0;
+        config.TPS546_INIT_SCALE_LOOP = 0.25;
+        config.TPS546_INIT_VOUT_MIN = 1;
+        config.TPS546_INIT_VOUT_MAX = 3;
+        config.TPS546_INIT_VOUT_COMMAND = 1.2;
+        config.TPS546_INIT_IOUT_OC_WARN_LIMIT = 25.00;
+        config.TPS546_INIT_IOUT_OC_FAULT_LIMIT = 30.00;
+        // Single-phase configuration
+        config.TPS546_INIT_STACK_CONFIG = 0x0000; // 1 module
+        config.TPS546_INIT_SYNC_CONFIG = 0x10;    // Disable SYNC
+        break;
+
+    default: // MAX, ULTRA, SUPRA, GAMMA, GEKKO_GAMMA (5V)
         config.TPS546_INIT_PHASE = TPS546_INIT_PHASE_SINGLE;
         config.TPS546_INIT_VIN_ON = 4.8;
         config.TPS546_INIT_VIN_OFF = 4.5;
@@ -76,6 +95,33 @@ static TPS546_CONFIG get_tps546_config(const FamilyConfig * family)
         config.TPS546_INIT_STACK_CONFIG = 0x0000; // 1 module
         config.TPS546_INIT_SYNC_CONFIG = 0x10;    // Disable SYNC
         break;
+    }
+
+    // Apply NVS overrides if set (non-zero = user-configured)
+    float vin_on = nvs_config_get_float(NVS_CONFIG_VIN_ON);
+    float vin_off = nvs_config_get_float(NVS_CONFIG_VIN_OFF);
+    float vin_ov_fault = nvs_config_get_float(NVS_CONFIG_VIN_OV_FAULT);
+    if (vin_on > 0) {
+        ESP_LOGI(TAG, "NVS VIN_ON override: %.2fV (family default was %.2fV)", vin_on, config.TPS546_INIT_VIN_ON);
+        config.TPS546_INIT_VIN_ON = vin_on;
+    }
+    if (vin_off > 0) {
+        ESP_LOGI(TAG, "NVS VIN_OFF override: %.2fV (family default was %.2fV)", vin_off, config.TPS546_INIT_VIN_OFF);
+        config.TPS546_INIT_VIN_OFF = vin_off;
+    }
+    if (vin_ov_fault > 0) {
+        ESP_LOGI(TAG, "NVS VIN_OV_FAULT override: %.2fV (family default was %.2fV)", vin_ov_fault, config.TPS546_INIT_VIN_OV_FAULT_LIMIT);
+        config.TPS546_INIT_VIN_OV_FAULT_LIMIT = vin_ov_fault;
+    }
+    ESP_LOGI(TAG, "TPS546 VIN limits: ON=%.2fV OFF=%.2fV OV_FAULT=%.2fV", config.TPS546_INIT_VIN_ON, config.TPS546_INIT_VIN_OFF, config.TPS546_INIT_VIN_OV_FAULT_LIMIT);
+
+    // Apply danger zone OC step override (0 = use family default)
+    uint16_t oc_step = nvs_config_get_u16(NVS_CONFIG_OC_FAULT_STEP);
+    if (oc_step > 0 && oc_step <= 4) {
+        float fault = family->oc_fault_default * (1.0f + oc_step * 0.05f);
+        ESP_LOGI(TAG, "NVS OC step %u: %.2fA (family default was %.0fA)", oc_step, fault, config.TPS546_INIT_IOUT_OC_FAULT_LIMIT);
+        config.TPS546_INIT_IOUT_OC_FAULT_LIMIT = fault;
+        config.TPS546_INIT_IOUT_OC_WARN_LIMIT  = fault - 5.0f;
     }
 
     return config;
@@ -94,6 +140,8 @@ esp_err_t VCORE_init(GlobalState * GLOBAL_STATE)
     if (GLOBAL_STATE->DEVICE_CONFIG.TPS546) {
         TPS546_CONFIG tps_config = get_tps546_config(&GLOBAL_STATE->DEVICE_CONFIG.family);
         ESP_RETURN_ON_ERROR(TPS546_init(tps_config), TAG, "TPS546 init failed!");
+        GLOBAL_STATE->POWER_MANAGEMENT_MODULE.current_limit = tps_config.TPS546_INIT_IOUT_OC_FAULT_LIMIT * 1000.0f;
+        GLOBAL_STATE->POWER_MANAGEMENT_MODULE.oc_fault_limit = (uint16_t)tps_config.TPS546_INIT_IOUT_OC_FAULT_LIMIT;
     }
 
     if (GLOBAL_STATE->DEVICE_CONFIG.plug_sense) {
@@ -142,6 +190,19 @@ int16_t VCORE_get_voltage_mv(GlobalState * GLOBAL_STATE)
         return TPS546_get_vout() / GLOBAL_STATE->DEVICE_CONFIG.family.voltage_domains * 1000;
     }
     return ADC_get_vcore();
+}
+
+esp_err_t VCORE_set_oc_limits(GlobalState * GLOBAL_STATE, float fault_amps)
+{
+    if (!GLOBAL_STATE->DEVICE_CONFIG.TPS546) return ESP_OK;
+    float warn_amps = fault_amps - 5.0f;
+    ESP_LOGI(TAG, "Setting OC limits: warn=%.1fA fault=%.1fA", warn_amps, fault_amps);
+    esp_err_t r = TPS546_set_iout_oc_limits(warn_amps, fault_amps);
+    if (r == ESP_OK) {
+        GLOBAL_STATE->POWER_MANAGEMENT_MODULE.current_limit = fault_amps * 1000.0f;
+        GLOBAL_STATE->POWER_MANAGEMENT_MODULE.oc_fault_limit = (uint16_t)fault_amps;
+    }
+    return r;
 }
 
 esp_err_t VCORE_check_fault(GlobalState * GLOBAL_STATE)

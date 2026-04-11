@@ -1,5 +1,5 @@
 import { Component, OnInit, ViewChild, Input, OnDestroy } from '@angular/core';
-import { interval, map, Observable, shareReplay, startWith, Subscription, switchMap, tap, first, Subject, takeUntil, BehaviorSubject, filter, catchError, of, combineLatest } from 'rxjs';
+import { interval, map, Observable, shareReplay, startWith, Subscription, switchMap, tap, first, Subject, takeUntil, BehaviorSubject, filter, catchError, of, combineLatest, distinctUntilChanged } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormBuilder, FormGroup } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
@@ -20,8 +20,36 @@ import { eChartLabel } from 'src/models/enum/eChartLabel';
 import { chartLabelValue } from 'src/models/enum/eChartLabel';
 import { chartLabelKey } from 'src/models/enum/eChartLabel';
 import { LocalStorageService } from 'src/app/local-storage.service';
+import { HeliosPoolService } from 'src/app/services/helios-pool.service';
 
 type PoolLabel = 'Primary' | 'Fallback';
+
+interface HeliosPoolView {
+  coin: string;
+  region: string;
+  joined: number;
+  activeWorkers: number;
+  accountHashrate1m: string;
+  accountHashrate5m: string;
+  accountHashrate1hr: string;
+  accountHashrate1d: string;
+  accountHashrate7d: string;
+  workerActive: boolean;
+  workerHashrate1m: string;
+  workerHashrate5m: string;
+  workerHashrate1hr: string;
+  workerHashrate1d: string;
+  workerHashrate7d: string;
+  uptimeDisplay: string;
+  lastShareDisplay: string;
+  bestShare: number;
+  bestEver: number;
+  accountShares: number;
+  workerBestShare: number;
+  workerBestEver: number;
+  workerShares: number;
+  workerClient: string;
+}
 type MessageType =
   | 'SYSTEM_INFO_ERROR'
   | 'DEVICE_OVERHEAT'
@@ -55,6 +83,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   public info$!: Observable<ISystemInfo>;
   public stats$!: Observable<ISystemStatistics>;
   public pools$!: Observable<SelectItem<PoolLabel>[]>;
+  public heliosPool$!: Observable<HeliosPoolView | null>;
 
   public chartOptions: any;
   public dataLabel: number[] = [];
@@ -108,7 +137,8 @@ export class HomeComponent implements OnInit, OnDestroy {
     private loadingService: LoadingService,
     private toastr: ToastrService,
     private shareRejectReasonsService: ShareRejectionExplanationService,
-    private storageService: LocalStorageService
+    private storageService: LocalStorageService,
+    private heliosPoolService: HeliosPoolService
   ) {
     this.initializeChart();
   }
@@ -412,6 +442,7 @@ export class HomeComponent implements OnInit, OnDestroy {
       map(info => {
         info.voltage = info.voltage / 1000;
         info.current = info.current / 1000;
+        info.currentLimit = info.currentLimit / 1000;
         info.coreVoltageActual = info.coreVoltageActual / 1000;
         info.coreVoltage = info.coreVoltage / 1000;
         return info;
@@ -470,7 +501,8 @@ export class HomeComponent implements OnInit, OnDestroy {
       map(info => {
         info.power = parseFloat(info.power.toFixed(1));
         info.voltage = parseFloat(info.voltage.toFixed(1));
-        info.current = parseFloat(info.current.toFixed(1));
+        info.current = parseFloat(info.current.toFixed(2));
+        info.currentLimit = parseFloat(info.currentLimit.toFixed(1));
         info.coreVoltageActual = parseFloat(info.coreVoltageActual.toFixed(2));
         info.coreVoltage = parseFloat(info.coreVoltage.toFixed(2));
         info.temp = parseFloat(info.temp.toFixed(1));
@@ -508,6 +540,79 @@ export class HomeComponent implements OnInit, OnDestroy {
         }
         return result;
       }));
+
+    this.heliosPool$ = this.info$.pipe(
+      map(info => {
+        const isFallback = !!info.isUsingFallbackStratum;
+        return {
+          url: (isFallback ? info.fallbackStratumURL : info.stratumURL) ?? '',
+          user: (isFallback ? info.fallbackStratumUser : info.stratumUser) ?? ''
+        };
+      }),
+      distinctUntilChanged((a, b) => a.url === b.url && a.user === b.user),
+      switchMap(({ url, user }) => {
+        const helioBTC = ['btc.heliospool.com', 'btc.heliospool.asia', 'btc.heliospool.eu', 'solo.heliospool.com'];
+        const helioBCH = ['bch.heliospool.com', 'bch.heliospool.asia', 'bch.heliospool.eu', 'solo-bch.heliospool.com'];
+        const urlLower = url.toLowerCase();
+        const isBTC = helioBTC.some(d => urlLower.includes(d));
+        const isBCH = helioBCH.some(d => urlLower.includes(d));
+        if (!isBTC && !isBCH) return of(null);
+        const coin: 'btc' | 'bch' = isBCH ? 'bch' : 'btc';
+        const address = this.getAddressPart(user);
+        return interval(60000).pipe(
+          startWith(0),
+          switchMap(() =>
+            this.heliosPoolService.getAccountStats(coin, address, url).pipe(
+              map(stats => {
+                if (!stats || !Array.isArray(stats.worker)) return null;
+                const now = Math.floor(Date.now() / 1000);
+                const activeWorkers = stats.worker.filter(w => w.started > 0).length;
+                const thisWorker = stats.worker.find(w => w.workername === user);
+                const workerActive = thisWorker ? thisWorker.started > 0 : false;
+                const fmtHash = (v: string): string => v && v !== '0' ? v.slice(0, -1) + ' ' + v.slice(-1) + 'h/s' : v;
+                const formatElapsed = (secs: number): string => {
+                  if (secs < 60) return 'Recently';
+                  const steps: [string, number][] = [['y', 31536000], ['mo', 2592000], ['w', 604800], ['d', 86400], ['h', 3600], ['m', 60]];
+                  for (const [label, s] of steps) { const c = Math.floor(secs / s); if (c > 0) return `${c}${label}`; }
+                  return 'Recently';
+                };
+                return {
+                  coin: coin.toUpperCase(),
+                  region: urlLower.includes('.eu') ? 'EU' : urlLower.includes('.asia') ? 'APAC' : 'NA',
+                  joined: stats.authorised,
+                  activeWorkers,
+                  accountHashrate1m: fmtHash(stats.hashrate1m),
+                  accountHashrate5m: fmtHash(stats.hashrate5m),
+                  accountHashrate1hr: fmtHash(stats.hashrate1hr),
+                  accountHashrate1d: fmtHash(stats.hashrate1d),
+                  accountHashrate7d: fmtHash(stats.hashrate7d),
+                  workerActive,
+                  workerHashrate1m: fmtHash(thisWorker?.hashrate1m ?? '0'),
+                  workerHashrate5m: fmtHash(thisWorker?.hashrate5m ?? '0'),
+                  workerHashrate1hr: fmtHash(thisWorker?.hashrate1hr ?? '0'),
+                  workerHashrate1d: fmtHash(thisWorker?.hashrate1d ?? '0'),
+                  workerHashrate7d: fmtHash(thisWorker?.hashrate7d ?? '0'),
+                  uptimeDisplay: thisWorker?.started ? formatElapsed(now - thisWorker.started) : '—',
+                  lastShareDisplay: thisWorker?.lastshare ? formatElapsed(now - thisWorker.lastshare) : '—',
+                  bestShare: stats.bestshare ?? 0,
+                  bestEver: stats.bestever ?? 0,
+                  accountShares: stats.shares ?? 0,
+                  workerBestShare: thisWorker?.bestshare ?? 0,
+                  workerBestEver: thisWorker?.bestever ?? 0,
+                  workerShares: thisWorker?.shares ?? 0,
+                  workerClient: thisWorker?.useragent ?? '—'
+                } as HeliosPoolView;
+              }),
+              catchError(err => {
+                console.warn('HeliosPoolService returned invalid data', err);
+                return of(null);
+              })
+            )
+          )
+        );
+      }),
+      shareReplay({ refCount: true, bufferSize: 1 })
+    );
 
     this.infoSubscription = combineLatest([this.info$, this.systemInfoError$])
       .pipe(takeUntil(this.destroy$))
@@ -657,11 +762,11 @@ export class HomeComponent implements OnInit, OnDestroy {
     updateMessage(!!info.power_fault, 'POWER_FAULT', 'error', `${info.power_fault} Check your Power Supply.`);
     updateMessage(!info.frequency || info.frequency < 400, 'FREQUENCY_LOW', 'warn', 'Device frequency is set low - See settings');
     updateMessage(!!info.isUsingFallbackStratum, 'FALLBACK_STRATUM', 'warn', 'Using fallback pool - Share stats reset. Check Pool Settings and / or reboot Device.');
-    updateMessage(info.version !== info.axeOSVersion, 'VERSION_MISMATCH', 'warn', `Firmware (${info.version}) and AxeOS (${info.axeOSVersion}) versions do not match. Please make sure to update both www.bin and esp-miner.bin.`);
+    updateMessage(info.version !== info.axeOSVersion, 'VERSION_MISMATCH', 'warn', `Firmware (${info.version}) and HexOS (${info.axeOSVersion}) versions do not match. Please make sure to update both www.bin and esp-miner.bin.`);
     if (info.coinbaseOutputs.length > 0) {
       let percentage = this.getPayoutPercentage(info);
-      updateMessage(percentage > 0 && percentage < 95, 'NOT_SOLO_MINING', 'warn', `Your share of the coinbase reward is only ${percentage.toFixed(1)}%`);
-      updateMessage(percentage === 0, 'NO_MINING_REWARD', 'warn', `You don't have a share in the coinbase reward`);
+      updateMessage(percentage > 0 && percentage < 95, 'NOT_SOLO_MINING', 'warn', `Your share of the mining reward is only ${percentage.toFixed(1)}%`);
+      updateMessage(percentage === 0, 'NO_MINING_REWARD', 'warn', `You don't have a share in the mining reward`);
     }
   }
 
@@ -702,6 +807,20 @@ export class HomeComponent implements OnInit, OnDestroy {
       return 0;
     }
     return (sharesRejectedReason.count / totalShares) * 100;
+  }
+
+  public getTimeSinceLastShare(info: ISystemInfo): string {
+    const sec = info.lastShareSeconds ?? 0;
+    if (sec === 0) return (info.sharesAccepted ?? 0) > 0 ? 'Just now' : 'Never';
+    if (sec < 60) return `${sec}s ago`;
+    const min = Math.floor(sec / 60);
+    if (min < 60) return `${min}m ago`;
+    return `${Math.floor(min / 60)}h ago`;
+  }
+
+  public lastShareIsStale(info: ISystemInfo): boolean {
+    const sec = info.lastShareSeconds ?? 0;
+    return sec > 60 && (info.sharesAccepted ?? 0) > 0;
   }
 
   public getDomainErrorPercentage(info: ISystemInfo, asic: { error: number }): number {
@@ -769,6 +888,7 @@ export class HomeComponent implements OnInit, OnDestroy {
       case eChartLabel.errorPercentage:  return 1;
       case eChartLabel.asicTemp:         return this.maxTemp;
       case eChartLabel.vrTemp:           return this.maxTemp + 25;
+      case eChartLabel.boardTemp:        return 40;
       case eChartLabel.asicVoltage:      return info.coreVoltage;
       case eChartLabel.voltage:          return info.nominalVoltage + .5;
       case eChartLabel.power:            return this.maxPower;
@@ -777,6 +897,7 @@ export class HomeComponent implements OnInit, OnDestroy {
       case eChartLabel.fanRpm:           return 7000;
       case eChartLabel.fan2Rpm:          return 7000;
       case eChartLabel.responseTime:     return 50;
+      case eChartLabel.shareDiff:        return Math.max(2000, info.poolDifficulty * 2);
       default:                           return 0;
     }
   }
@@ -790,6 +911,7 @@ export class HomeComponent implements OnInit, OnDestroy {
       case eChartLabel.errorPercentage:    return info.errorPercentage;
       case eChartLabel.asicTemp:           return info.temp;
       case eChartLabel.vrTemp:             return info.vrTemp;
+      case eChartLabel.boardTemp:          return info.boardTemp ?? 0;
       case eChartLabel.asicVoltage:        return info.coreVoltageActual;
       case eChartLabel.voltage:            return info.voltage;
       case eChartLabel.power:              return info.power;
@@ -800,6 +922,7 @@ export class HomeComponent implements OnInit, OnDestroy {
       case eChartLabel.wifiRssi:           return info.wifiRSSI;
       case eChartLabel.freeHeap:           return info.freeHeap;
       case eChartLabel.responseTime:       return info.responseTime;
+      case eChartLabel.shareDiff:          return info.lastSubmittedDiff;
       default:                             return 0.0;
     }
   }
@@ -808,7 +931,8 @@ export class HomeComponent implements OnInit, OnDestroy {
     switch (label) {
       case eChartLabel.errorPercentage:  return {suffix: ' %', precision: 2};
       case eChartLabel.asicTemp:
-      case eChartLabel.vrTemp:           return {suffix: ' °C', precision: 1};
+      case eChartLabel.vrTemp:
+      case eChartLabel.boardTemp:        return {suffix: ' °C', precision: 1};
       case eChartLabel.asicVoltage:
       case eChartLabel.voltage:          return {suffix: ' V', precision: 1};
       case eChartLabel.power:            return {suffix: ' W', precision: 1};
@@ -818,6 +942,7 @@ export class HomeComponent implements OnInit, OnDestroy {
       case eChartLabel.fan2Rpm:          return {suffix: ' rpm', precision: 0};
       case eChartLabel.wifiRssi:         return {suffix: ' dBm', precision: 0};
       case eChartLabel.responseTime:     return {suffix: ' ms', precision: 1};
+      case eChartLabel.shareDiff:        return {suffix: '', precision: 1};
       default:                           return {suffix: '', precision: 0};
     }
   }
@@ -842,6 +967,18 @@ export class HomeComponent implements OnInit, OnDestroy {
     return dotIndex !== -1 ? user.substring(0, dotIndex) : user;
   }
 
+  getCoinLabel(info: ISystemInfo): string {
+    const network = info.isUsingFallbackStratum ? info.fallbackStratumDecodeCoinbase : info.stratumDecodeCoinbase;
+    if (network === 2) return 'BCH';
+    if (network === 1) return 'BTC';
+    if (network === 3) {
+      // Auto: detect from payout address, same logic as C
+      const addr = this.getAddressPart(this.activePoolUser).replace(/^bitcoincash:/i, '');
+      return (addr[0] === 'q' || addr[0] === 'p') ? 'BCH' : 'BTC';
+    }
+    return '';
+  }
+
   getSuffixPart(user: string): string {
     const dotIndex = user.lastIndexOf('.');
     return dotIndex !== -1 ? '.' + user.substring(dotIndex + 1) : '';
@@ -850,6 +987,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   dataSourceLabels(info: ISystemInfo) {
     return Object.entries(eChartLabel)
       .filter(([key, ]) => key !== 'vrTemp' || info.vrTemp)
+      .filter(([key, ]) => key !== 'boardTemp' || (info.boardTemp ?? 0) > 0)
       .map(([key, value]) => ({name: value, value: key}));
   }
 }
