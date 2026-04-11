@@ -10,6 +10,49 @@ For pre-built images ready to flash, see the [latest release](https://github.com
 
 ---
 
+## Screenshots
+
+<table align="center">
+  <tr>
+    <td align="center" width="160">
+      <a href="doc/images/dashboard-stats.png"><img src="doc/images/thumbs/dashboard-stats.png" width="120"></a><br>
+      <sub>Dashboard</sub>
+    </td>
+    <td align="center" width="160">
+      <a href="doc/images/cards-enhanced.png"><img src="doc/images/thumbs/cards-enhanced.png" width="120"></a><br>
+      <sub>Stats cards</sub>
+    </td>
+    <td align="center" width="160">
+      <a href="doc/images/chart-diff.png"><img src="doc/images/thumbs/chart-diff.png" width="120"></a><br>
+      <sub>History chart</sub>
+    </td>
+    <td align="center" width="160">
+      <a href="doc/images/swarm-view-heliospool.png"><img src="doc/images/thumbs/swarm-view-heliospool.png" width="120"></a><br>
+      <sub>Swarm view</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="160">
+      <a href="doc/images/settings-expert-mode.png"><img src="doc/images/thumbs/settings-expert-mode.png" width="120"></a><br>
+      <sub>Expert Mode</sub>
+    </td>
+    <td align="center" width="160">
+      <a href="doc/images/danger-zone.png"><img src="doc/images/thumbs/danger-zone.png" width="120"></a><br>
+      <sub>Danger Zone</sub>
+    </td>
+    <td align="center" width="160">
+      <a href="doc/images/realtime-logs.png"><img src="doc/images/thumbs/realtime-logs.png" width="120"></a><br>
+      <sub>Real-time logs</sub>
+    </td>
+    <td align="center" width="160">
+      <a href="doc/images/update-check.png"><img src="doc/images/thumbs/update-check.png" width="120"></a><br>
+      <sub>OTA updates</sub>
+    </td>
+  </tr>
+</table>
+
+---
+
 ## Supported Hardware
 
 HexOS supports all upstream ESP-Miner hardware out of the box, plus additional GekkoAxe boards.
