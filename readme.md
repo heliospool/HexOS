@@ -84,7 +84,7 @@ HexOS supports all upstream ESP-Miner hardware out of the box, plus additional G
 
 ### HeliosPool integration
 
-- **Account stats banner** — home dashboard and swarm view show live hashrate, workers, and earnings from the HeliosPool API; automatically hidden when the device is pointed at a different pool
+- **Account stats banner** — home dashboard and swarm view show live hashrate, workers, and other stats from the HeliosPool API; automatically hidden when the device is pointed at a different pool
 - **Multi-region swarm dashboard** — swarm view groups miners by region with per-region aggregate stats; only shown when mining on HeliosPool
 - **Default pool** — primary pool defaults to `btc.heliospool.com`, fallback to `bch.heliospool.com`
 
