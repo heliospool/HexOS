@@ -1,0 +1,21 @@
+# GPIO overrides for TTGO T-Display S3 (NerdAxe / NerdAxe Gamma)
+#
+# The TTGO T-Display S3 uses GPIO 39-48 for the 8-bit parallel ST7789 LCD,
+# which conflicts with the standard Bitaxe I2C (SDA=47, SCL=48) and BAP
+# (RX=40, TX=39) defaults. This overlay remaps them to free GPIO pins.
+#
+# Usage: SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.nerdaxe" idf.py build
+#
+# TTGO T-Display S3 pin usage reference:
+#   LCD D0-D7 : GPIO 39, 40, 41, 42, 45, 46, 47, 48  (8-bit parallel data)
+#   LCD ctrl  : GPIO 5(RST), 6(CS), 7(DC), 8(PCLK/WR), 9(RD), 15(PWR), 38(BL)
+#   I2C       : SDA=44, SCL=43  (remapped here)
+#   ASIC UART : TX=17, RX=18    (no conflict, unchanged)
+#   ASIC RST  : GPIO 1          (no conflict, unchanged)
+#   PWR_EN    : GPIO 10         (no conflict, unchanged)
+#   BAP UART  : RX=2, TX=3      (remapped here, free GPIOs)
+
+CONFIG_GPIO_I2C_SDA=44
+CONFIG_GPIO_I2C_SCL=43
+CONFIG_GPIO_BAP_RX=2
+CONFIG_GPIO_BAP_TX=3
