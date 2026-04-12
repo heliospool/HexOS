@@ -25,6 +25,7 @@
 
 #include "global_state.h"
 #include "nvs_config.h"
+#include "display.h"
 #include "screen_st7789.h"
 
 static const char *TAG = "screen_st7789";
@@ -54,7 +55,6 @@ LV_IMG_DECLARE(ui_img_hexos_splashscreen2_png);
 LV_IMG_DECLARE(ui_img_hexos_portalscreen_png);
 LV_IMG_DECLARE(ui_img_hexos_miningscreen2_png);
 LV_IMG_DECLARE(ui_img_hexos_settingsscreen_png);
-LV_IMG_DECLARE(ui_img_hexos_btcscreen_png);
 LV_IMG_DECLARE(ui_img_hexos_globalStats_png);
 LV_IMG_DECLARE(ui_img_hexos_found_block_png);
 LV_IMG_DECLARE(ui_img_hexos_safe_png);
@@ -67,7 +67,6 @@ typedef enum {
     SCR_SPLASH2,
     SCR_MINING,
     SCR_SETTINGS,
-    SCR_BTC,
     SCR_GLOBALSTATS,
     SCR_PORTAL,
     SCR_POWEROFF,
@@ -80,12 +79,15 @@ static GlobalState *gs;
 static scr_state_t current_state = SCR_SPLASH1;
 static int64_t     state_start_us = 0;
 
+/* Display sleep tracking */
+static int64_t     last_active_us  = 0;  /* updated on every button press */
+static bool        display_sleeping = false;
+
 /* Screen objects */
 static lv_obj_t *scr_splash1    = NULL;
 static lv_obj_t *scr_splash2    = NULL;
-static lv_obj_t *scr_mining     = NULL;
-static lv_obj_t *scr_settings   = NULL;
-static lv_obj_t *scr_btc        = NULL;
+static lv_obj_t *scr_mining      = NULL;
+static lv_obj_t *scr_settings    = NULL;
 static lv_obj_t *scr_globalstats = NULL;
 static lv_obj_t *scr_portal     = NULL;
 static lv_obj_t *scr_poweroff   = NULL;
@@ -114,11 +116,6 @@ static lv_obj_t *lb_freq_set    = NULL;
 static lv_obj_t *lb_fan_set     = NULL;
 static lv_obj_t *lb_pool_set    = NULL;
 static lv_obj_t *lb_port_set    = NULL;
-
-/* BTC screen labels */
-static lv_obj_t *lb_btc_price   = NULL;
-static lv_obj_t *lb_hash_price  = NULL;
-static lv_obj_t *lb_temp_price  = NULL;
 
 /* GlobalStats screen labels */
 static lv_obj_t *lb_halving_pct   = NULL;
@@ -443,41 +440,6 @@ static void settings_screen_init(void)
     lv_obj_set_style_text_font(lb_shares, &ui_font_OpenSansBold14, LV_PART_MAIN | LV_STATE_DEFAULT);
 }
 
-static void btc_screen_init(void)
-{
-    scr_btc = lv_obj_create(NULL);
-    lv_obj_clear_flag(scr_btc, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_style_bg_color(scr_btc, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_opa(scr_btc, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    lv_obj_t *img = lv_img_create(scr_btc);
-    lv_img_set_src(img, &ui_img_hexos_btcscreen_png);
-    lv_obj_set_align(img, LV_ALIGN_CENTER);
-    lv_obj_add_flag(img, LV_OBJ_FLAG_ADV_HITTEST);
-    lv_obj_clear_flag(img, LV_OBJ_FLAG_SCROLLABLE);
-
-    lb_btc_price = lv_label_create(scr_btc);
-    lv_obj_set_x(lb_btc_price, 30); lv_obj_set_y(lb_btc_price, 47);
-    lv_obj_set_align(lb_btc_price, LV_ALIGN_LEFT_MID);
-    lv_label_set_text(lb_btc_price, "0$");
-    lv_obj_set_style_text_color(lb_btc_price, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(lb_btc_price, &ui_font_OpenSansBold45, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    lb_hash_price = lv_label_create(scr_btc);
-    lv_obj_set_x(lb_hash_price, 223); lv_obj_set_y(lb_hash_price, -63);
-    lv_obj_set_align(lb_hash_price, LV_ALIGN_LEFT_MID);
-    lv_label_set_text(lb_hash_price, "0.0");
-    lv_obj_set_style_text_color(lb_hash_price, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(lb_hash_price, &ui_font_OpenSansBold24, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    lb_temp_price = lv_label_create(scr_btc);
-    lv_obj_set_x(lb_temp_price, 261); lv_obj_set_y(lb_temp_price, -18);
-    lv_obj_set_align(lb_temp_price, LV_ALIGN_LEFT_MID);
-    lv_label_set_text(lb_temp_price, "--");
-    lv_obj_set_style_text_color(lb_temp_price, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(lb_temp_price, &ui_font_OpenSansBold24, LV_PART_MAIN | LV_STATE_DEFAULT);
-}
-
 static void globalstats_screen_init(void)
 {
     scr_globalstats = lv_obj_create(NULL);
@@ -580,9 +542,7 @@ static void enter_state(scr_state_t new_state)
     case SCR_SETTINGS:
         lv_screen_load_anim(scr_settings, LV_SCR_LOAD_ANIM_MOVE_LEFT, 350, 0, false);
         break;
-    case SCR_BTC:
-        lv_screen_load_anim(scr_btc, LV_SCR_LOAD_ANIM_MOVE_LEFT, 350, 0, false);
-        break;
+
     case SCR_GLOBALSTATS:
         lv_screen_load_anim(scr_globalstats, LV_SCR_LOAD_ANIM_MOVE_LEFT, 350, 0, false);
         break;
@@ -611,7 +571,6 @@ static void update_mining_labels(void)
     format_hashrate(buf, sizeof(buf), sys->current_hashrate);
     lv_label_set_text(lb_hashrate, buf);
     lv_label_set_text(lb_hash_set,  buf);
-    lv_label_set_text(lb_hash_price, buf);
 
     /* Efficiency (W/GH) */
     float eff = (sys->current_hashrate > 0) ? pwr->power / (sys->current_hashrate / 1000.0f) : 0.0f;
@@ -641,7 +600,6 @@ static void update_mining_labels(void)
     /* Temperature */
     snprintf(buf, sizeof(buf), "%.0f", pwr->chip_temp_avg);
     lv_label_set_text(lb_temp, buf);
-    lv_label_set_text(lb_temp_price, buf);
 
     /* Fan RPM */
     snprintf(buf, sizeof(buf), "%u", (unsigned)pwr->fan_rpm);
@@ -707,8 +665,31 @@ static void screen_update_cb(lv_timer_t *timer)
     (void)timer;
     if (!gs) return;
 
-    /* Transition out of splash screens after timeout */
     int64_t now = esp_timer_get_time();
+
+    /* ── Display sleep / wake via displayTimeout NVS key ─────────────────
+     * -1 = always on, 0 = always off, >0 = minutes until sleep           */
+    int32_t timeout_cfg = nvs_config_get_i32(NVS_CONFIG_DISPLAY_TIMEOUT);
+    if (timeout_cfg == 0) {
+        /* always off */
+        if (!display_sleeping) {
+            display_on(false);
+            display_sleeping = true;
+        }
+    } else if (timeout_cfg > 0) {
+        int64_t inactive_ms = (now - last_active_us) / 1000;
+        int64_t timeout_ms  = (int64_t)timeout_cfg * 60 * 1000;
+        if (!display_sleeping && inactive_ms >= timeout_ms) {
+            display_on(false);
+            display_sleeping = true;
+        }
+    }
+    /* timeout_cfg == -1: always on, nothing to do */
+
+    /* Don't update labels while sleeping */
+    if (display_sleeping) return;
+
+    /* Transition out of splash screens after timeout */
     int64_t elapsed_ms = (now - state_start_us) / 1000;
 
     if (current_state == SCR_SPLASH1 && elapsed_ms >= SPLASH1_MS) {
@@ -732,7 +713,6 @@ static void screen_update_cb(lv_timer_t *timer)
     /* Update live labels on the data screens */
     if (current_state == SCR_MINING    ||
         current_state == SCR_SETTINGS  ||
-        current_state == SCR_BTC       ||
         current_state == SCR_GLOBALSTATS) {
         update_mining_labels();
     }
@@ -745,14 +725,20 @@ void screen_st7789_button_press(void)
 {
     if (!lvgl_port_lock(0)) return;
 
+    /* Any button press resets the sleep timer and wakes the display */
+    last_active_us = esp_timer_get_time();
+    if (display_sleeping) {
+        display_on(true);
+        display_sleeping = false;
+        lvgl_port_unlock();
+        return;  /* first press just wakes; don't also cycle the screen */
+    }
+
     switch (current_state) {
     case SCR_MINING:
         enter_state(SCR_SETTINGS);
         break;
     case SCR_SETTINGS:
-        enter_state(SCR_BTC);
-        break;
-    case SCR_BTC:
         enter_state(SCR_GLOBALSTATS);
         break;
     case SCR_GLOBALSTATS:
@@ -805,12 +791,12 @@ esp_err_t screen_st7789_start(void *pvParameters)
     portal_screen_init();
     mining_screen_init();
     settings_screen_init();
-    btc_screen_init();
     globalstats_screen_init();
     poweroff_screen_init();
 
-    state_start_us = esp_timer_get_time();
-    current_state  = SCR_SPLASH1;
+    state_start_us  = esp_timer_get_time();
+    last_active_us  = state_start_us;
+    current_state   = SCR_SPLASH1;
     lv_screen_load(scr_splash1);
 
     lv_timer_create(screen_update_cb, SCREEN_UPDATE_MS, NULL);

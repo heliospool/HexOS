@@ -5,6 +5,7 @@ main,namespace,,
 boardversion,data,string,nerdqaxeplus
 hostname,data,string,nerdqaxeplus
 display,data,string,ST7789 (320x170)
+invertscreen,data,u8,1
 
 # ASIC configuration
 # BM1368 — 4 chips, 2-phase TPS53647, 12 V input

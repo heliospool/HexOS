@@ -55,6 +55,7 @@ static const char * LVGL_TAG = "lvgl";
 
 static esp_lcd_panel_handle_t panel_handle = NULL;
 static bool display_state_on = false;
+static bool s_is_st7789 = false;
 
 static lv_theme_t theme;
 static lv_style_t scr_style;
@@ -130,6 +131,7 @@ esp_err_t display_init(void * pvParameters)
      * ST7789 path — Intel 8080 8-bit parallel bus (TTGO T-Display S3)
      * --------------------------------------------------------------------- */
     if (GLOBAL_STATE->DISPLAY_CONFIG.display == ST7789_320x170) {
+        s_is_st7789 = true;
         ESP_LOGI(TAG, "Initialize LVGL for ST7789");
         ESP_RETURN_ON_ERROR(lvgl_port_init(&lvgl_cfg), TAG, "LVGL init failed");
 
@@ -188,7 +190,8 @@ esp_err_t display_init(void * pvParameters)
 
         esp_lcd_panel_reset(panel_handle);
         esp_lcd_panel_init(panel_handle);
-        esp_lcd_panel_invert_color(panel_handle, true);
+        /* Invert colour: read from NVS so user can toggle; default true for this panel */
+        esp_lcd_panel_invert_color(panel_handle, nvs_config_get_bool(NVS_CONFIG_INVERT_SCREEN));
         esp_lcd_panel_swap_xy(panel_handle, true);
         esp_lcd_panel_mirror(panel_handle, true, false);
         esp_lcd_panel_set_gap(panel_handle, 0, 35);
@@ -213,6 +216,18 @@ esp_err_t display_init(void * pvParameters)
         if (!disp) {
             ESP_LOGE(TAG, "lvgl_port_add_disp failed for ST7789");
             return ESP_FAIL;
+        }
+
+        /* Apply NVS rotation (0/90/180/270) */
+        uint16_t rotation = nvs_config_get_u16(NVS_CONFIG_ROTATION);
+        if (lvgl_port_lock(0)) {
+            switch (rotation) {
+                case 90:  lv_display_set_rotation(disp, LV_DISPLAY_ROTATION_90);  break;
+                case 180: lv_display_set_rotation(disp, LV_DISPLAY_ROTATION_180); break;
+                case 270: lv_display_set_rotation(disp, LV_DISPLAY_ROTATION_270); break;
+                default:  break; /* 0 = default */
+            }
+            lvgl_port_unlock();
         }
 
         /* Power on backlight */
@@ -368,18 +383,26 @@ esp_err_t display_init(void * pvParameters)
     return ESP_OK;
 }
 
-esp_err_t display_on(bool display_on)
+esp_err_t display_on(bool on)
 {
-    if (NULL != panel_handle) {
-        if (display_on && !display_state_on) {
-            ESP_RETURN_ON_ERROR(esp_lcd_panel_disp_on_off(panel_handle, true), TAG, "Panel display on failed");
-            display_state_on = true;
+    if (NULL == panel_handle) return ESP_OK;
+
+    bool is_st7789 = s_is_st7789;
+
+    if (on && !display_state_on) {
+        if (is_st7789) {
+            /* Restore backlight before un-blanking the panel */
+            gpio_set_level(ST7789_PIN_BK_LIGHT, ST7789_BK_LIGHT_ON);
         }
-        else if (!display_on && display_state_on)
-        {
-            ESP_RETURN_ON_ERROR(esp_lcd_panel_disp_on_off(panel_handle, false), TAG, "Panel display off failed");
-            display_state_on = false;
+        ESP_RETURN_ON_ERROR(esp_lcd_panel_disp_on_off(panel_handle, true), TAG, "Panel display on failed");
+        display_state_on = true;
+    } else if (!on && display_state_on) {
+        ESP_RETURN_ON_ERROR(esp_lcd_panel_disp_on_off(panel_handle, false), TAG, "Panel display off failed");
+        if (is_st7789) {
+            /* Cut backlight power so the display is physically dark */
+            gpio_set_level(ST7789_PIN_BK_LIGHT, ST7789_BK_LIGHT_OFF);
         }
+        display_state_on = false;
     }
 
     return ESP_OK;
