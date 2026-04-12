@@ -4,8 +4,10 @@
     #define LV_ATTRIBUTE_MEM_ALIGN
 #endif
 
-/* Converted from upstream NerdQAxePlus theme to LVGL v9 RGB565 format */
-const LV_ATTRIBUTE_MEM_ALIGN uint8_t ui_img_hexos_settingsscreen_png_data[] = {
+/* Converted from upstream NerdQAxePlus theme "NerdQaxePlus" / screen "settingsscreen" */
+/* LVGL v8 RGB565+alpha → LVGL v9 RGB565 (alpha stripped) */
+
+const LV_ATTRIBUTE_MEM_ALIGN uint8_t ui_img_nerdqaxeplus_settingsscreen_png_data[] = {
     0xDE, 0xFB, 0xDE, 0xFB, 0xDE, 0xFB, 0xDE, 0xFB, 0xDE, 0xFB, 0xDE, 0xFB, 0xDE, 0xFB, 0xDE, 0xFB,
     0xDE, 0xFB, 0xDE, 0xFB, 0xDE, 0xFB, 0xDE, 0xFB, 0xDE, 0xFB, 0xDE, 0xFB, 0xDE, 0xFB, 0xDE, 0xFB,
     0xDE, 0xFB, 0xDE, 0xFB, 0xDE, 0xFB, 0xDE, 0xFB, 0xDE, 0xFB, 0xDE, 0xFB, 0xDE, 0xFB, 0xDE, 0xFB,
@@ -6808,7 +6810,7 @@ const LV_ATTRIBUTE_MEM_ALIGN uint8_t ui_img_hexos_settingsscreen_png_data[] = {
     0x18, 0xC3, 0x18, 0xC3, 0x10, 0xA3, 0x10, 0xA2, 0x10, 0xA2, 0x00, 0x21, 0x00, 0x20, 0x00, 0x20,
 };
 
-const lv_image_dsc_t ui_img_hexos_settingsscreen_png = {
+const lv_image_dsc_t ui_img_nerdqaxeplus_settingsscreen_png = {
     .header.magic  = LV_IMAGE_HEADER_MAGIC,
     .header.cf     = LV_COLOR_FORMAT_RGB565,
     .header.flags  = 0,
@@ -6816,5 +6818,5 @@ const lv_image_dsc_t ui_img_hexos_settingsscreen_png = {
     .header.h      = 170,
     .header.stride = 640,
     .data_size     = 108800,
-    .data          = ui_img_hexos_settingsscreen_png_data,
+    .data          = ui_img_nerdqaxeplus_settingsscreen_png_data,
 };
