@@ -5,7 +5,7 @@
  * (C++ LVGL v8) to HexOS C / LVGL v9.
  *
  * Screen carousel (button press cycles):
- *   Splash → Mining → Settings → BTC → GlobalStats → Mining → …
+ *   Splash → Mining → Settings → Mining → …
  *
  * Data is refreshed every SCREEN_UPDATE_MS via an LVGL timer callback that
  * reads directly from GlobalState — the same pattern used by screen.c.
@@ -55,7 +55,6 @@ LV_IMG_DECLARE(ui_img_hexos_splashscreen2_png);
 LV_IMG_DECLARE(ui_img_hexos_portalscreen_png);
 LV_IMG_DECLARE(ui_img_hexos_miningscreen2_png);
 LV_IMG_DECLARE(ui_img_hexos_settingsscreen_png);
-LV_IMG_DECLARE(ui_img_hexos_globalStats_png);
 LV_IMG_DECLARE(ui_img_hexos_found_block_png);
 LV_IMG_DECLARE(ui_img_hexos_safe_png);
 
@@ -67,7 +66,6 @@ typedef enum {
     SCR_SPLASH2,
     SCR_MINING,
     SCR_SETTINGS,
-    SCR_GLOBALSTATS,
     SCR_PORTAL,
     SCR_POWEROFF,
 } scr_state_t;
@@ -88,7 +86,6 @@ static lv_obj_t *scr_splash1    = NULL;
 static lv_obj_t *scr_splash2    = NULL;
 static lv_obj_t *scr_mining      = NULL;
 static lv_obj_t *scr_settings    = NULL;
-static lv_obj_t *scr_globalstats = NULL;
 static lv_obj_t *scr_portal     = NULL;
 static lv_obj_t *scr_poweroff   = NULL;
 
@@ -116,16 +113,6 @@ static lv_obj_t *lb_freq_set    = NULL;
 static lv_obj_t *lb_fan_set     = NULL;
 static lv_obj_t *lb_pool_set    = NULL;
 static lv_obj_t *lb_port_set    = NULL;
-
-/* GlobalStats screen labels */
-static lv_obj_t *lb_halving_pct   = NULL;
-static lv_obj_t *lb_block_height  = NULL;
-static lv_obj_t *lb_blocks_halving = NULL;
-static lv_obj_t *lb_difficulty    = NULL;
-static lv_obj_t *lb_global_hash   = NULL;
-static lv_obj_t *lb_fee_low       = NULL;
-static lv_obj_t *lb_fee_med       = NULL;
-static lv_obj_t *lb_fee_high      = NULL;
 
 /* Portal screen */
 static lv_obj_t *lb_portal_ssid  = NULL;
@@ -440,74 +427,6 @@ static void settings_screen_init(void)
     lv_obj_set_style_text_font(lb_shares, &ui_font_OpenSansBold14, LV_PART_MAIN | LV_STATE_DEFAULT);
 }
 
-static void globalstats_screen_init(void)
-{
-    scr_globalstats = lv_obj_create(NULL);
-    lv_obj_clear_flag(scr_globalstats, LV_OBJ_FLAG_SCROLLABLE);
-
-    lv_obj_t *img = lv_img_create(scr_globalstats);
-    lv_img_set_src(img, &ui_img_hexos_globalStats_png);
-    lv_obj_set_align(img, LV_ALIGN_CENTER);
-    lv_obj_add_flag(img, LV_OBJ_FLAG_ADV_HITTEST);
-    lv_obj_clear_flag(img, LV_OBJ_FLAG_SCROLLABLE);
-
-    lb_halving_pct = lv_label_create(scr_globalstats);
-    lv_obj_set_x(lb_halving_pct, -64); lv_obj_set_y(lb_halving_pct, 36);
-    lv_obj_set_align(lb_halving_pct, LV_ALIGN_CENTER);
-    lv_label_set_text(lb_halving_pct, "--");
-    lv_obj_set_style_text_color(lb_halving_pct, lv_color_hex(0xC6C6C5), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(lb_halving_pct, &ui_font_OpenSansBold14, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    lb_block_height = lv_label_create(scr_globalstats);
-    lv_obj_set_x(lb_block_height, -37); lv_obj_set_y(lb_block_height, 67);
-    lv_obj_set_align(lb_block_height, LV_ALIGN_RIGHT_MID);
-    lv_label_set_text(lb_block_height, "--");
-    lv_obj_set_style_text_color(lb_block_height, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(lb_block_height, &ui_font_OpenSansBold24, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    lb_blocks_halving = lv_label_create(scr_globalstats);
-    lv_obj_set_x(lb_blocks_halving, -97); lv_obj_set_y(lb_blocks_halving, 68);
-    lv_obj_set_align(lb_blocks_halving, LV_ALIGN_CENTER);
-    lv_label_set_text(lb_blocks_halving, "--");
-    lv_obj_set_style_text_color(lb_blocks_halving, lv_color_hex(0xC6C6C5), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(lb_blocks_halving, &ui_font_OpenSansBold24, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    lb_difficulty = lv_label_create(scr_globalstats);
-    lv_obj_set_x(lb_difficulty, -40); lv_obj_set_y(lb_difficulty, -11);
-    lv_obj_set_align(lb_difficulty, LV_ALIGN_RIGHT_MID);
-    lv_label_set_text(lb_difficulty, "--");
-    lv_obj_set_style_text_color(lb_difficulty, lv_color_hex(0xC6C6C5), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(lb_difficulty, &ui_font_OpenSansBold24, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    lb_global_hash = lv_label_create(scr_globalstats);
-    lv_obj_set_x(lb_global_hash, -39); lv_obj_set_y(lb_global_hash, 30);
-    lv_obj_set_align(lb_global_hash, LV_ALIGN_RIGHT_MID);
-    lv_label_set_text(lb_global_hash, "--");
-    lv_obj_set_style_text_color(lb_global_hash, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(lb_global_hash, &ui_font_OpenSansBold24, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    lb_fee_low = lv_label_create(scr_globalstats);
-    lv_obj_set_x(lb_fee_low, 47); lv_obj_set_y(lb_fee_low, -64);
-    lv_obj_set_align(lb_fee_low, LV_ALIGN_CENTER);
-    lv_label_set_text(lb_fee_low, "--");
-    lv_obj_set_style_text_color(lb_fee_low, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(lb_fee_low, &ui_font_OpenSansBold13, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    lb_fee_med = lv_label_create(scr_globalstats);
-    lv_obj_set_x(lb_fee_med, 89); lv_obj_set_y(lb_fee_med, -64);
-    lv_obj_set_align(lb_fee_med, LV_ALIGN_CENTER);
-    lv_label_set_text(lb_fee_med, "--");
-    lv_obj_set_style_text_color(lb_fee_med, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(lb_fee_med, &ui_font_OpenSansBold13, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    lb_fee_high = lv_label_create(scr_globalstats);
-    lv_obj_set_x(lb_fee_high, 138); lv_obj_set_y(lb_fee_high, -64);
-    lv_obj_set_align(lb_fee_high, LV_ALIGN_CENTER);
-    lv_label_set_text(lb_fee_high, "--");
-    lv_obj_set_style_text_color(lb_fee_high, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(lb_fee_high, &ui_font_OpenSansBold13, LV_PART_MAIN | LV_STATE_DEFAULT);
-}
-
 static void poweroff_screen_init(void)
 {
     scr_poweroff = lv_obj_create(NULL);
@@ -543,9 +462,6 @@ static void enter_state(scr_state_t new_state)
         lv_screen_load_anim(scr_settings, LV_SCR_LOAD_ANIM_MOVE_LEFT, 350, 0, false);
         break;
 
-    case SCR_GLOBALSTATS:
-        lv_screen_load_anim(scr_globalstats, LV_SCR_LOAD_ANIM_MOVE_LEFT, 350, 0, false);
-        break;
     case SCR_PORTAL:
         if (lb_portal_ssid && gs)
             lv_label_set_text(lb_portal_ssid, gs->SYSTEM_MODULE.ap_ssid);
@@ -642,22 +558,6 @@ static void update_mining_labels(void)
         lv_label_set_text(lb_fan_set, buf);
     }
 
-    /* GlobalStats: use block_height and network_diff_string from GlobalState */
-    snprintf(buf, sizeof(buf), "%d", gs->block_height);
-    lv_label_set_text(lb_block_height, buf);
-
-    lv_label_set_text(lb_difficulty, gs->network_diff_string);
-
-    /* Halving: calculate progress towards next halving epoch */
-    {
-        const int HALVING_INTERVAL = 210000;
-        int blocks_since_halving   = gs->block_height % HALVING_INTERVAL;
-        int blocks_to_halving      = HALVING_INTERVAL - blocks_since_halving;
-        snprintf(buf, sizeof(buf), "%d%%", (blocks_since_halving * 100) / HALVING_INTERVAL);
-        lv_label_set_text(lb_halving_pct, buf);
-        snprintf(buf, sizeof(buf), "%d", blocks_to_halving);
-        lv_label_set_text(lb_blocks_halving, buf);
-    }
 }
 
 static void screen_update_cb(lv_timer_t *timer)
@@ -711,9 +611,8 @@ static void screen_update_cb(lv_timer_t *timer)
     }
 
     /* Update live labels on the data screens */
-    if (current_state == SCR_MINING    ||
-        current_state == SCR_SETTINGS  ||
-        current_state == SCR_GLOBALSTATS) {
+    if (current_state == SCR_MINING   ||
+        current_state == SCR_SETTINGS) {
         update_mining_labels();
     }
 }
@@ -739,9 +638,6 @@ void screen_st7789_button_press(void)
         enter_state(SCR_SETTINGS);
         break;
     case SCR_SETTINGS:
-        enter_state(SCR_GLOBALSTATS);
-        break;
-    case SCR_GLOBALSTATS:
         enter_state(SCR_MINING);
         break;
     default:
@@ -791,7 +687,6 @@ esp_err_t screen_st7789_start(void *pvParameters)
     portal_screen_init();
     mining_screen_init();
     settings_screen_init();
-    globalstats_screen_init();
     poweroff_screen_init();
 
     state_start_us  = esp_timer_get_time();

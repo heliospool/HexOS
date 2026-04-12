@@ -52,7 +52,6 @@ SRCS
     "./display_st7789/images/ui_img_hexos_portalscreen_png.c"
     "./display_st7789/images/ui_img_hexos_miningscreen2_png.c"
     "./display_st7789/images/ui_img_hexos_settingsscreen_png.c"
-    "./display_st7789/images/ui_img_hexos_globalStats_png.c"
     "./display_st7789/images/ui_img_hexos_found_block_png.c"
     "./display_st7789/images/ui_img_hexos_safe_png.c"
     "./power/INA260.c"
