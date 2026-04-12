@@ -6,6 +6,9 @@
 
 HexOS is open-source firmware for Bitcoin miners, built and maintained for [HeliosPool](https://heliospool.com) by [Z3r0XG](https://github.com/Z3r0XG). It is a fork of [bitaxeorg/ESP-Miner](https://github.com/bitaxeorg/ESP-Miner), tracking upstream closely while adding hardware support, pool integration, and UI improvements.
 
+> [!WARNING]
+> This is an enthusiast-led project. By proceeding, you acknowledge that this software carries no warranty and is used at your own risk. Neither the developers nor the community are responsible for voided warranties or hardware failure.
+
 For pre-built images ready to flash, see the [latest release](https://github.com/heliospool/HexOS/releases/latest). For questions and support, join the [HexOS Discord](https://discord.gg/Ev82a2H59h).
 
 ---
