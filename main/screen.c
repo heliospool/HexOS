@@ -10,6 +10,7 @@
 #include "display.h"
 #include "connect.h"
 #include "esp_timer.h"
+#include "display_st7789/screen_st7789.h"
 
 typedef enum {
     SCR_SELF_TEST,
@@ -636,6 +637,14 @@ static void screen_update_cb(lv_timer_t * timer)
 
 void screen_button_press() 
 {
+    if (!GLOBAL_STATE) return;
+
+    /* ST7789 colour display has its own button handler */
+    if (GLOBAL_STATE->DISPLAY_CONFIG.display == ST7789_320x170) {
+        screen_st7789_button_press();
+        return;
+    }
+
     if (GLOBAL_STATE->SYSTEM_MODULE.identify_mode_time_ms > 0) {
         GLOBAL_STATE->SYSTEM_MODULE.identify_mode_time_ms = 0;
     } else {
@@ -674,6 +683,12 @@ static void uptime_update_cb(lv_timer_t * timer)
 
 esp_err_t screen_start(void * pvParameters)
 {
+    GlobalState *gs = (GlobalState *)pvParameters;
+    /* ST7789 colour display — delegate entirely to its own driver */
+    if (gs && gs->DISPLAY_CONFIG.display == ST7789_320x170) {
+        return screen_st7789_start(pvParameters);
+    }
+
     if (lvgl_port_lock(0)) {
         // screen_chars = lv_display_get_horizontal_resolution(NULL) / 6;
         screen_lines = lv_display_get_vertical_resolution(NULL) / 8;

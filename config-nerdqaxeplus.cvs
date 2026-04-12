@@ -1,0 +1,19 @@
+key,type,encoding,value
+main,namespace,,
+
+# Board identity
+boardversion,data,string,nerdqaxeplus
+hostname,data,string,nerdqaxeplus
+display,data,string,ST7789 (320x170)
+
+# ASIC configuration
+# BM1368 — 4 chips, 2-phase TPS53647, 12 V input
+asicmodel,data,string,BM1368
+asicfrequency,data,u16,490
+asicvoltage,data,u16,1250
+
+# Pool defaults (override before flashing or via web UI)
+stratumurl,data,string,btc.heliospool.com
+stratumport,data,u16,3333
+fbstratumurl,data,string,bch.heliospool.com
+fbstratumport,data,u16,3333

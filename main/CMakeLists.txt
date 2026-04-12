@@ -36,7 +36,26 @@ SRCS
     "./thermal/thermal.c"
     "./thermal/PID.c"
     "./power/TPS546.c"
+    "./power/TPS53647.c"
     "./power/DS4432U.c"
+    "./display_st7789/screen_st7789.c"
+    "./display_st7789/fonts/ui_font_DigitalNumbers16.c"
+    "./display_st7789/fonts/ui_font_DigitalNumbers28.c"
+    "./display_st7789/fonts/ui_font_OpenSansBold13.c"
+    "./display_st7789/fonts/ui_font_OpenSansBold14.c"
+    "./display_st7789/fonts/ui_font_OpenSansBold24.c"
+    "./display_st7789/fonts/ui_font_OpenSansBold45.c"
+    "./display_st7789/fonts/ui_font_vt323_21.c"
+    "./display_st7789/fonts/ui_font_vt323_35.c"
+    "./display_st7789/images/ui_img_hexos_initscreen2_png.c"
+    "./display_st7789/images/ui_img_hexos_splashscreen2_png.c"
+    "./display_st7789/images/ui_img_hexos_portalscreen_png.c"
+    "./display_st7789/images/ui_img_hexos_miningscreen2_png.c"
+    "./display_st7789/images/ui_img_hexos_settingsscreen_png.c"
+    "./display_st7789/images/ui_img_hexos_btcscreen_png.c"
+    "./display_st7789/images/ui_img_hexos_globalStats_png.c"
+    "./display_st7789/images/ui_img_hexos_found_block_png.c"
+    "./display_st7789/images/ui_img_hexos_safe_png.c"
     "./power/INA260.c"
     "./power/power.c"
     "./power/vcore.c"
@@ -56,6 +75,7 @@ INCLUDE_DIRS
     "../components/stratum/include"
     "thermal"
     "power"
+    "display_st7789"
 
 PRIV_REQUIRES
     "app_update"
@@ -74,11 +94,13 @@ PRIV_REQUIRES
     "vfs"
     "esp_driver_i2c"
     "tcp_transport"
+    "esp_lcd"
 
 EMBED_FILES "http_server/recovery_page.html"
 )
 
 idf_build_set_property(COMPILE_OPTIONS "-DLV_CONF_INCLUDE_SIMPLE=1" APPEND)
+idf_build_set_property(COMPILE_OPTIONS "-DLV_LVGL_H_INCLUDE_SIMPLE=1" APPEND)
 idf_build_set_property(COMPILE_OPTIONS "-DLV_CONF_PATH=\"${CMAKE_SOURCE_DIR}/main/lv_conf.h\"" APPEND)
 
 set(WEB_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/http_server/axe-os")

@@ -18,6 +18,30 @@
 #include "driver/i2c_types.h"
 #include "esp_lcd_panel_ssd1306.h"
 #include "esp_lcd_sh1107.h"
+#include "esp_lcd_panel_st7789.h"
+#include "driver/gpio.h"
+
+/* TTGO T-Display S3 ST7789 pin definitions */
+#define ST7789_PIN_D0       39
+#define ST7789_PIN_D1       40
+#define ST7789_PIN_D2       41
+#define ST7789_PIN_D3       42
+#define ST7789_PIN_D4       45
+#define ST7789_PIN_D5       46
+#define ST7789_PIN_D6       47
+#define ST7789_PIN_D7       48
+#define ST7789_PIN_WR        8
+#define ST7789_PIN_DC        7
+#define ST7789_PIN_RST       5
+#define ST7789_PIN_CS        6
+#define ST7789_PIN_BK_LIGHT 38
+#define ST7789_PIN_PWR      15
+#define ST7789_PIN_RD        9
+#define ST7789_PIXEL_CLK_HZ  (6528000)
+#define ST7789_BK_LIGHT_ON   1
+#define ST7789_BK_LIGHT_OFF  0
+#define ST7789_PSRAM_ALIGN   64
+#define ST7789_SRAM_ALIGN     4
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
@@ -102,6 +126,108 @@ esp_err_t display_init(void * pvParameters)
         return ESP_OK;
     }
 
+    /* -----------------------------------------------------------------------
+     * ST7789 path — Intel 8080 8-bit parallel bus (TTGO T-Display S3)
+     * --------------------------------------------------------------------- */
+    if (GLOBAL_STATE->DISPLAY_CONFIG.display == ST7789_320x170) {
+        ESP_LOGI(TAG, "Initialize LVGL for ST7789");
+        ESP_RETURN_ON_ERROR(lvgl_port_init(&lvgl_cfg), TAG, "LVGL init failed");
+
+        /* GPIO setup */
+        gpio_config_t bk_gpio = {
+            .pin_bit_mask = (1ULL << ST7789_PIN_BK_LIGHT),
+            .mode = GPIO_MODE_OUTPUT,
+        };
+        ESP_RETURN_ON_ERROR(gpio_config(&bk_gpio), TAG, "BK gpio config failed");
+        gpio_set_direction(ST7789_PIN_RD,  GPIO_MODE_OUTPUT);
+        gpio_set_direction(ST7789_PIN_PWR, GPIO_MODE_OUTPUT);
+        gpio_set_level(ST7789_PIN_RD,  1);
+        gpio_set_level(ST7789_PIN_BK_LIGHT, ST7789_BK_LIGHT_OFF);
+
+        /* i80 bus */
+        esp_lcd_i80_bus_handle_t i80_bus = NULL;
+        esp_lcd_i80_bus_config_t bus_cfg = {
+            .dc_gpio_num   = ST7789_PIN_DC,
+            .wr_gpio_num   = ST7789_PIN_WR,
+            .clk_src       = LCD_CLK_SRC_DEFAULT,
+            .data_gpio_nums = {
+                ST7789_PIN_D0, ST7789_PIN_D1, ST7789_PIN_D2, ST7789_PIN_D3,
+                ST7789_PIN_D4, ST7789_PIN_D5, ST7789_PIN_D6, ST7789_PIN_D7,
+            },
+            .bus_width            = 8,
+            .max_transfer_bytes   = (320 * 170 / 4) * sizeof(uint16_t),
+            .psram_trans_align    = ST7789_PSRAM_ALIGN,
+            .sram_trans_align     = ST7789_SRAM_ALIGN,
+        };
+        ESP_RETURN_ON_ERROR(esp_lcd_new_i80_bus(&bus_cfg, &i80_bus), TAG, "i80 bus init failed");
+
+        /* Panel IO */
+        esp_lcd_panel_io_handle_t io_handle = NULL;
+        esp_lcd_panel_io_i80_config_t io_cfg = {
+            .cs_gpio_num       = ST7789_PIN_CS,
+            .pclk_hz           = ST7789_PIXEL_CLK_HZ,
+            .trans_queue_depth = 20,
+            .lcd_cmd_bits      = 8,
+            .lcd_param_bits    = 8,
+            .dc_levels = {
+                .dc_idle_level  = 0,
+                .dc_cmd_level   = 0,
+                .dc_dummy_level = 0,
+                .dc_data_level  = 1,
+            },
+        };
+        ESP_RETURN_ON_ERROR(esp_lcd_new_panel_io_i80(i80_bus, &io_cfg, &io_handle), TAG, "panel IO init failed");
+
+        /* ST7789 panel */
+        esp_lcd_panel_dev_config_t panel_cfg = {
+            .reset_gpio_num  = ST7789_PIN_RST,
+            .rgb_ele_order   = LCD_RGB_ELEMENT_ORDER_RGB,
+            .bits_per_pixel  = 16,
+        };
+        ESP_RETURN_ON_ERROR(esp_lcd_new_panel_st7789(io_handle, &panel_cfg, &panel_handle), TAG, "ST7789 init failed");
+
+        esp_lcd_panel_reset(panel_handle);
+        esp_lcd_panel_init(panel_handle);
+        esp_lcd_panel_invert_color(panel_handle, true);
+        esp_lcd_panel_swap_xy(panel_handle, true);
+        esp_lcd_panel_mirror(panel_handle, true, false);
+        esp_lcd_panel_set_gap(panel_handle, 0, 35);
+        esp_lcd_panel_disp_on_off(panel_handle, true);
+
+        const lvgl_port_display_cfg_t disp_cfg = {
+            .io_handle    = io_handle,
+            .panel_handle = panel_handle,
+            .buffer_size  = (320 * 170) / 4,
+            .double_buffer = false,
+            .hres         = 320,
+            .vres         = 170,
+            .monochrome   = false,
+            .color_format = LV_COLOR_FORMAT_RGB565,
+            .flags = {
+                .swap_bytes = true,
+                .sw_rotate  = false,
+            },
+        };
+
+        lv_disp_t *disp = lvgl_port_add_disp(&disp_cfg);
+        if (!disp) {
+            ESP_LOGE(TAG, "lvgl_port_add_disp failed for ST7789");
+            return ESP_FAIL;
+        }
+
+        /* Power on backlight */
+        gpio_set_level(ST7789_PIN_PWR, 1);
+        gpio_set_level(ST7789_PIN_BK_LIGHT, ST7789_BK_LIGHT_ON);
+        display_state_on = true;
+
+        GLOBAL_STATE->SYSTEM_MODULE.is_screen_active = true;
+        ESP_LOGI(TAG, "ST7789 display init success");
+        return ESP_OK;
+    }
+
+    /* -----------------------------------------------------------------------
+     * I2C OLED path (SSD1306 / SSD1309 / SH1107)
+     * --------------------------------------------------------------------- */
     i2c_master_bus_handle_t i2c_master_bus_handle;
     ESP_RETURN_ON_ERROR(i2c_bitaxe_get_master_bus_handle(&i2c_master_bus_handle), TAG, "Failed to get i2c master bus handle");
 

@@ -5,6 +5,8 @@
 #define PMBUS_CLEAR_FAULTS 0x03
 #define PMBUS_PHASE 0x04
 #define PMBUS_WRITE_PROTECT 0x10
+#define PMBUS_STORE_DEFAULT_ALL 0x11
+#define PMBUS_RESTORE_DEFAULT_ALL 0x12
 #define PMBUS_STORE_USER_ALL 0x15
 #define PMBUS_RESTORE_USER_ALL 0x16
 #define PMBUS_CAPABILITY 0x19
@@ -55,9 +57,12 @@
 #define PMBUS_STATUS_OTHER 0x7F
 #define PMBUS_STATUS_MFR_SPECIFIC 0x80
 #define PMBUS_READ_VIN 0x88
+#define PMBUS_READ_IIN 0x89
 #define PMBUS_READ_VOUT 0x8B
 #define PMBUS_READ_IOUT 0x8C
 #define PMBUS_READ_TEMPERATURE_1 0x8D
+#define PMBUS_READ_POUT 0x96
+#define PMBUS_READ_PIN 0x97
 #define PMBUS_REVISION 0x98
 #define PMBUS_MFR_ID 0x99
 #define PMBUS_MFR_MODEL 0x9A
@@ -67,6 +72,14 @@
 #define PMBUS_IC_DEVICE_REV 0xAE
 #define PMBUS_COMPENSATION_CONFIG 0xB1
 #define PMBUS_POWER_STAGE_CONFIG 0xB5
+
+/* Manufacturer Specific PMBUS commands used by the TPS53647 */
+#define PMBUS_TPS53647_VOUT_READBACK  0xD4  /* actual Vout in linear u16 */
+#define PMBUS_TPS53647_IMAX           0xDA  /* max current, 1 A/LSB */
+#define PMBUS_TPS53647_FREQ           0xDC  /* switching frequency */
+#define PMBUS_TPS53647_OP_MODE        0xDD  /* operation mode */
+#define PMBUS_TPS53647_PHASE_COUNT    0xE4  /* phase count: write (num_phases - 1) */
+#define PMBUS_TPS53647_DEVICE_CODE    0xFC  /* device identification (0x01F0) */
 
 /* Manufacturer Specific PMBUS commands used by the TPS546D24A */
 #define PMBUS_TELEMETRY_CFG 0xD0

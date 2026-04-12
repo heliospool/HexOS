@@ -47,6 +47,7 @@ typedef enum
     GEKKO_GAMMA_12V,
     NERDAXE,
     NERDAXE_GAMMA,
+    NERDQAXEPLUS,
 } Family;
 
 typedef struct {
@@ -76,9 +77,10 @@ typedef struct {
     uint8_t emc_ideality_factor;
     uint8_t emc_beta_compensation;
     int8_t temp_offset;
-    bool DS4432U : 1;
-    bool INA260  : 1;
-    bool TPS546  : 1;
+    bool DS4432U   : 1;
+    bool INA260    : 1;
+    bool TPS546    : 1;
+    bool TPS53647  : 1;
     // test values
     uint16_t power_consumption_target;
 } DeviceConfig;
@@ -121,6 +123,7 @@ static const FamilyConfig FAMILY_GEKKO_GAMMA = { .id = GEKKO_GAMMA, .name = "Gek
 static const FamilyConfig FAMILY_GEKKO_GAMMA_12V = { .id = GEKKO_GAMMA_12V, .name = "GekkoAxe-γ", .asic = ASIC_BM1370, .asic_count = 1, .max_power =  50, .power_offset = 5,  .nominal_voltage = 12, .voltage_domains = 1, .swarm_color = "green",    .oc_fault_default = 30, .oc_fault_max = 36 };
 static const FamilyConfig FAMILY_NERDAXE       = { .id = NERDAXE,       .name = "NerdAxe",      .asic = ASIC_BM1366, .asic_count = 1, .max_power =  25, .power_offset = 5,  .nominal_voltage = 5,  .voltage_domains = 1, .swarm_color = "purple",   .oc_fault_default = 30, .oc_fault_max = 36 };
 static const FamilyConfig FAMILY_NERDAXE_GAMMA = { .id = NERDAXE_GAMMA, .name = "NerdAxeGamma", .asic = ASIC_BM1370, .asic_count = 1, .max_power =  40, .power_offset = 5,  .nominal_voltage = 5,  .voltage_domains = 1, .swarm_color = "green",    .oc_fault_default = 30, .oc_fault_max = 36 };
+static const FamilyConfig FAMILY_NERDQAXEPLUS  = { .id = NERDQAXEPLUS,  .name = "NerdQAxe+",   .asic = ASIC_BM1368, .asic_count = 4, .max_power =  35, .power_offset = 5,  .nominal_voltage = 12, .voltage_domains = 1, .swarm_color = "blue",     .oc_fault_default = 55, .oc_fault_max = 66 };
 
 static const FamilyConfig default_families[] = {
     FAMILY_MAX,
@@ -135,6 +138,7 @@ static const FamilyConfig default_families[] = {
     FAMILY_GEKKO_GAMMA_12V,
     FAMILY_NERDAXE,
     FAMILY_NERDAXE_GAMMA,
+    FAMILY_NERDQAXEPLUS,
 };
 
 static const DeviceConfig default_configs[] = {
@@ -166,6 +170,7 @@ static const DeviceConfig default_configs[] = {
     { .board_version = "gekko-601-12",  .family = FAMILY_GEKKO_GAMMA_12V, .EMC2101 = true, .emc_ideality_factor = 0x24, .emc_beta_compensation = 0x00,                     .TPS546 = true,                                                           .power_consumption_target = 25, },
     { .board_version = "nerdaxe",        .family = FAMILY_NERDAXE,         .EMC2101 = true, .emc_internal_temp = true,                                  .temp_offset = 5,   .DS4432U = true, .INA260 = true, .plug_sense = false, .asic_enable = true, .power_consumption_target = 12, },
     { .board_version = "nerdaxe-gamma",  .family = FAMILY_NERDAXE_GAMMA,   .EMC2101 = true, .emc_ideality_factor = 0x24, .emc_beta_compensation = 0x00,                     .TPS546 = true,                                                           .power_consumption_target = 22, },
+    { .board_version = "nerdqaxeplus",   .family = FAMILY_NERDQAXEPLUS,    .EMC2302 = true, .TMP1075 = true,                                                                .TPS53647 = true,                                                         .power_consumption_target = 35, },
 };
 
 esp_err_t device_config_init(void * pvParameters);

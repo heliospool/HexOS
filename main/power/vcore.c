@@ -5,6 +5,7 @@
 #include "DS4432U.h"
 #include "INA260.h"
 #include "TPS546.h"
+#include "TPS53647.h"
 #include "adc.h"
 #include "nvs_config.h"
 #include "driver/gpio.h"
@@ -143,6 +144,17 @@ esp_err_t VCORE_init(GlobalState * GLOBAL_STATE)
         GLOBAL_STATE->POWER_MANAGEMENT_MODULE.current_limit = tps_config.TPS546_INIT_IOUT_OC_FAULT_LIMIT * 1000.0f;
         GLOBAL_STATE->POWER_MANAGEMENT_MODULE.oc_fault_limit = (uint16_t)tps_config.TPS546_INIT_IOUT_OC_FAULT_LIMIT;
     }
+    if (GLOBAL_STATE->DEVICE_CONFIG.TPS53647) {
+        const FamilyConfig *fam = &GLOBAL_STATE->DEVICE_CONFIG.family;
+        TPS53647_CONFIG tps_config = {
+            .num_phases  = 2,
+            .imax_amps   = fam->oc_fault_default,
+            .ifault_amps = (float)(fam->oc_fault_default - 5),
+        };
+        ESP_RETURN_ON_ERROR(TPS53647_init(tps_config), TAG, "TPS53647 init failed!");
+        GLOBAL_STATE->POWER_MANAGEMENT_MODULE.current_limit  = tps_config.ifault_amps * 1000.0f;
+        GLOBAL_STATE->POWER_MANAGEMENT_MODULE.oc_fault_limit = (uint16_t)tps_config.ifault_amps;
+    }
 
     if (GLOBAL_STATE->DEVICE_CONFIG.plug_sense) {
         gpio_config_t barrel_jack_conf = {
@@ -177,6 +189,11 @@ esp_err_t VCORE_set_voltage(GlobalState * GLOBAL_STATE, float core_voltage)
         uint16_t voltage_domains = GLOBAL_STATE->DEVICE_CONFIG.family.voltage_domains;
         ESP_RETURN_ON_ERROR(TPS546_set_vout(core_voltage * voltage_domains), TAG, "TPS546 set voltage failed!");
     }
+    if (GLOBAL_STATE->DEVICE_CONFIG.TPS53647) {
+        if (!TPS53647_set_vout(core_voltage)) {
+            return ESP_FAIL;
+        }
+    }
     if (core_voltage == 0.0f && GLOBAL_STATE->DEVICE_CONFIG.asic_enable) {
         gpio_set_level(GPIO_ASIC_ENABLE, 1);
     }
@@ -189,26 +206,44 @@ int16_t VCORE_get_voltage_mv(GlobalState * GLOBAL_STATE)
     if (GLOBAL_STATE->DEVICE_CONFIG.TPS546) {
         return TPS546_get_vout() / GLOBAL_STATE->DEVICE_CONFIG.family.voltage_domains * 1000;
     }
+    if (GLOBAL_STATE->DEVICE_CONFIG.TPS53647) {
+        return (int16_t)(TPS53647_get_vout() * 1000.0f);
+    }
     return ADC_get_vcore();
 }
 
 esp_err_t VCORE_set_oc_limits(GlobalState * GLOBAL_STATE, float fault_amps)
 {
-    if (!GLOBAL_STATE->DEVICE_CONFIG.TPS546) return ESP_OK;
-    float warn_amps = fault_amps - 5.0f;
-    ESP_LOGI(TAG, "Setting OC limits: warn=%.1fA fault=%.1fA", warn_amps, fault_amps);
-    esp_err_t r = TPS546_set_iout_oc_limits(warn_amps, fault_amps);
-    if (r == ESP_OK) {
-        GLOBAL_STATE->POWER_MANAGEMENT_MODULE.current_limit = fault_amps * 1000.0f;
-        GLOBAL_STATE->POWER_MANAGEMENT_MODULE.oc_fault_limit = (uint16_t)fault_amps;
+    if (GLOBAL_STATE->DEVICE_CONFIG.TPS546) {
+        float warn_amps = fault_amps - 5.0f;
+        ESP_LOGI(TAG, "Setting OC limits: warn=%.1fA fault=%.1fA", warn_amps, fault_amps);
+        esp_err_t r = TPS546_set_iout_oc_limits(warn_amps, fault_amps);
+        if (r == ESP_OK) {
+            GLOBAL_STATE->POWER_MANAGEMENT_MODULE.current_limit = fault_amps * 1000.0f;
+            GLOBAL_STATE->POWER_MANAGEMENT_MODULE.oc_fault_limit = (uint16_t)fault_amps;
+        }
+        return r;
     }
-    return r;
+    if (GLOBAL_STATE->DEVICE_CONFIG.TPS53647) {
+        float warn_amps = fault_amps - 5.0f;
+        ESP_LOGI(TAG, "Setting OC limits: warn=%.1fA fault=%.1fA", warn_amps, fault_amps);
+        esp_err_t r = TPS53647_set_iout_oc_limits(warn_amps, fault_amps);
+        if (r == ESP_OK) {
+            GLOBAL_STATE->POWER_MANAGEMENT_MODULE.current_limit = fault_amps * 1000.0f;
+            GLOBAL_STATE->POWER_MANAGEMENT_MODULE.oc_fault_limit = (uint16_t)fault_amps;
+        }
+        return r;
+    }
+    return ESP_OK;
 }
 
 esp_err_t VCORE_check_fault(GlobalState * GLOBAL_STATE)
 {
     if (GLOBAL_STATE->DEVICE_CONFIG.TPS546) {
         ESP_RETURN_ON_ERROR(TPS546_check_status(GLOBAL_STATE), TAG, "TPS546 check status failed!");
+    }
+    if (GLOBAL_STATE->DEVICE_CONFIG.TPS53647) {
+        ESP_RETURN_ON_ERROR(TPS53647_check_status(GLOBAL_STATE), TAG, "TPS53647 check status failed!");
     }
     return ESP_OK;
 }
@@ -217,6 +252,9 @@ const char * VCORE_get_fault_string(GlobalState * GLOBAL_STATE)
 {
     if (GLOBAL_STATE->DEVICE_CONFIG.TPS546) {
         return TPS546_get_error_message();
+    }
+    if (GLOBAL_STATE->DEVICE_CONFIG.TPS53647) {
+        return TPS53647_get_error_message();
     }
     return NULL;
 }
