@@ -117,6 +117,9 @@ static lv_obj_t *lb_port_set    = NULL;
 /* Portal screen */
 static lv_obj_t *lb_portal_ssid  = NULL;
 
+/* Poweroff / overheat screen */
+static lv_obj_t *lb_poweroff_ip  = NULL;
+
 /* -------------------------------------------------------------------------
  * Helpers
  * ------------------------------------------------------------------------- */
@@ -437,6 +440,14 @@ static void poweroff_screen_init(void)
     lv_obj_t *img = lv_img_create(scr_poweroff);
     lv_img_set_src(img, &ui_img_hexos_safe_png);
     lv_obj_set_align(img, LV_ALIGN_CENTER);
+
+    /* IP address shown during overheat so user can connect and fix settings */
+    lb_poweroff_ip = lv_label_create(scr_poweroff);
+    lv_obj_set_align(lb_poweroff_ip, LV_ALIGN_BOTTOM_MID);
+    lv_obj_set_y(lb_poweroff_ip, -8);
+    lv_label_set_text(lb_poweroff_ip, "");
+    lv_obj_set_style_text_color(lb_poweroff_ip, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(lb_poweroff_ip, &ui_font_OpenSansBold14, LV_PART_MAIN | LV_STATE_DEFAULT);
 }
 
 /* -------------------------------------------------------------------------
@@ -566,6 +577,21 @@ static void screen_update_cb(lv_timer_t *timer)
     if (!gs) return;
 
     int64_t now = esp_timer_get_time();
+    SystemModule *sys = &gs->SYSTEM_MODULE;
+
+    /* ── Overheat: force display on and lock to poweroff screen ─────────── */
+    if (sys->overheat_mode) {
+        if (display_sleeping) {
+            last_active_us = now;
+            display_on(true);
+            display_sleeping = false;
+        }
+        if (current_state != SCR_POWEROFF) {
+            if (lb_poweroff_ip) lv_label_set_text(lb_poweroff_ip, sys->ip_addr_str);
+            enter_state(SCR_POWEROFF);
+        }
+        return;
+    }
 
     /* ── Display sleep / wake via displayTimeout NVS key ─────────────────
      * -1 = always on, 0 = always off, >0 = minutes until sleep           */
@@ -597,7 +623,7 @@ static void screen_update_cb(lv_timer_t *timer)
         return;
     }
     if (current_state == SCR_SPLASH2 && elapsed_ms >= SPLASH2_MS) {
-        if (gs->SYSTEM_MODULE.ap_enabled)
+        if (sys->ap_enabled)
             enter_state(SCR_PORTAL);
         else
             enter_state(SCR_MINING);
@@ -605,15 +631,19 @@ static void screen_update_cb(lv_timer_t *timer)
     }
 
     /* Once we're in portal, check if we connected */
-    if (current_state == SCR_PORTAL && gs->SYSTEM_MODULE.is_connected) {
+    if (current_state == SCR_PORTAL && sys->is_connected) {
         enter_state(SCR_MINING);
         return;
     }
 
     /* Update live labels on the data screens */
-    if (current_state == SCR_MINING   ||
+    if (current_state == SCR_MINING ||
         current_state == SCR_SETTINGS) {
         update_mining_labels();
+        /* During OTA show progress in the ASIC name slot */
+        if (sys->is_firmware_update && lb_asic)
+            lv_label_set_text(lb_asic,
+                sys->firmware_update_status[0] ? sys->firmware_update_status : "Updating...");
     }
 }
 
@@ -660,6 +690,20 @@ void screen_st7789_show_portal(const char *ap_ssid)
     if (lb_portal_ssid && ap_ssid)
         lv_label_set_text(lb_portal_ssid, ap_ssid);
     enter_state(SCR_PORTAL);
+    lvgl_port_unlock();
+}
+
+void screen_st7789_toggle_display(void)
+{
+    if (!lvgl_port_lock(0)) return;
+    last_active_us = esp_timer_get_time();
+    if (display_sleeping) {
+        display_on(true);
+        display_sleeping = false;
+    } else {
+        display_on(false);
+        display_sleeping = true;
+    }
     lvgl_port_unlock();
 }
 

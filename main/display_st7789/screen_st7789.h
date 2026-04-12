@@ -9,3 +9,4 @@ esp_err_t screen_st7789_start(void *pvParameters);
 void      screen_st7789_button_press(void);
 void      screen_st7789_show_mining(void);
 void      screen_st7789_show_portal(const char *ap_ssid);
+void      screen_st7789_toggle_display(void);

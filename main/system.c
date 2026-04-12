@@ -165,9 +165,6 @@ void SYSTEM_init_versions(GlobalState * GLOBAL_STATE) {
     }
 }
 
-/* Thin wrapper so display_toggle (returns esp_err_t) fits the void(*)(void) callback type */
-static void display_toggle_cb(void) { display_toggle(); }
-
 esp_err_t SYSTEM_init_peripherals(GlobalState * GLOBAL_STATE) {
     
     ESP_RETURN_ON_ERROR(gpio_install_isr_service(0), TAG, "Error installing ISR service");
@@ -189,7 +186,7 @@ esp_err_t SYSTEM_init_peripherals(GlobalState * GLOBAL_STATE) {
          *   GPIO 0  (left/BOOT): short = display on/off toggle, long = WiFi AP
          *   GPIO 14 (right):      short = cycle screens
          */
-        ESP_RETURN_ON_ERROR(input_init(display_toggle_cb, toggle_wifi_softap), TAG, "Input init failed!");
+        ESP_RETURN_ON_ERROR(input_init(screen_toggle_display, toggle_wifi_softap), TAG, "Input init failed!");
         ESP_RETURN_ON_ERROR(input_add_button(14, screen_button_press), TAG, "Input button2 failed!");
     } else {
         ESP_RETURN_ON_ERROR(input_init(screen_button_press, toggle_wifi_softap), TAG, "Input init failed!");

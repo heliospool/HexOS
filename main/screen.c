@@ -652,6 +652,19 @@ void screen_button_press()
     }
 }
 
+void screen_toggle_display(void)
+{
+    if (!GLOBAL_STATE) return;
+
+    /* ST7789: go through its state-aware toggle so display_sleeping is kept in sync */
+    if (GLOBAL_STATE->DISPLAY_CONFIG.display == ST7789_320x170) {
+        screen_st7789_toggle_display();
+        return;
+    }
+
+    display_toggle();
+}
+
 static void uptime_update_cb(lv_timer_t * timer)
 {
     if (wifi_uptime_label) {
