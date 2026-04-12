@@ -200,7 +200,7 @@
 
     <h3 class="mt-5 flex align-items-center">
         Display
-        <tooltip-icon tooltip="Changes to display type and rotation require a restart to take effect." icon="pi-question-circle"></tooltip-icon>
+        <tooltip-icon tooltip="Changes to display type, rotation, and invert require a restart to take effect." icon="pi-question-circle"></tooltip-icon>
     </h3>
 
     <div class="card">
@@ -211,7 +211,7 @@
             </div>
         </div>
 
-        <div class="field grid p-fluid" *ngIf="isST7789">
+        <div class="field grid p-fluid">
             <label (click)="rotationDropdown.show()" class="col-12 md:col-2 md:m-0 hover-next-input">Rotation</label>
             <div class="col-12 md:col-10">
                 <p-dropdown [options]="rotations" formControlName="rotation" #rotationDropdown></p-dropdown>
@@ -239,7 +239,7 @@
             </div>
         </div>
 
-        <div class="field-checkbox grid mt-2 mb-0" *ngIf="isST7789">
+        <div class="field-checkbox grid mt-2 mb-0">
             <div class="col-1 md:col-10 md:flex-order-2">
                 <p-checkbox name="invertscreen" formControlName="invertscreen" inputId="invertscreen" [binary]="true"></p-checkbox>
             </div>
