@@ -33,6 +33,7 @@ static const DisplayConfig display_configs[] = {
 
 esp_err_t display_init(void * pvParameters);
 esp_err_t display_on(bool display_on);
+esp_err_t display_toggle(void);
 const DisplayConfig * get_display_config(const char * name);
 
 #endif /* DISPLAY_H_ */

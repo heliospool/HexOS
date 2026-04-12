@@ -16,6 +16,10 @@ static lv_indev_state_t button_state = LV_INDEV_STATE_RELEASED;
 static void (*button_short_clicked_fn)(void) = NULL;
 static void (*button_long_pressed_fn)(void) = NULL;
 
+/* Second button (GPIO 14 on T-Display S3) — simple ISR, short press only */
+static void (*button2_short_clicked_fn)(void) = NULL;
+static volatile bool button2_pressed_flag = false;
+
 static void button_read(lv_indev_t *indev, lv_indev_data_t *data) 
 {
     data->key = LV_KEY_ENTER;
@@ -28,6 +32,12 @@ static void IRAM_ATTR button_isr_handler(void *arg)
     button_state = pressed ? LV_INDEV_STATE_PRESSED : LV_INDEV_STATE_RELEASED;
 }
 
+static void IRAM_ATTR button2_isr_handler(void *arg)
+{
+    /* Trigger on falling edge (press); handler fires callback on next LVGL tick */
+    button2_pressed_flag = true;
+}
+
 static void button_short_clicked_event_cb(lv_event_t *e)
 {
     ESP_LOGI(TAG, "Short button click detected");
@@ -38,6 +48,14 @@ static void button_long_pressed_event_cb(lv_event_t *e)
 {
     ESP_LOGI(TAG, "Long button press detected");
     button_long_pressed_fn();
+}
+
+static void button2_poll_timer_cb(lv_timer_t *t)
+{
+    if (button2_pressed_flag) {
+        button2_pressed_flag = false;
+        if (button2_short_clicked_fn) button2_short_clicked_fn();
+    }
 }
 
 esp_err_t input_init(void (*button_short_clicked_cb)(void), void (*button_long_pressed_cb)(void))
@@ -75,5 +93,27 @@ esp_err_t input_init(void (*button_short_clicked_cb)(void), void (*button_long_p
         lv_indev_add_event_cb(indev, button_long_pressed_event_cb, LV_EVENT_LONG_PRESSED, NULL);
     }
 
+    return ESP_OK;
+}
+
+esp_err_t input_add_button(int gpio_num, void (*short_clicked_cb)(void))
+{
+    if (short_clicked_cb == NULL) return ESP_ERR_INVALID_ARG;
+
+    button2_short_clicked_fn = short_clicked_cb;
+
+    gpio_config_t io_conf = {
+        .pin_bit_mask = (1ULL << gpio_num),
+        .mode = GPIO_MODE_INPUT,
+        .pull_up_en = GPIO_PULLUP_ENABLE,
+        .intr_type = GPIO_INTR_NEGEDGE,  /* falling edge = press */
+    };
+    ESP_RETURN_ON_ERROR(gpio_config(&io_conf), TAG, "button2 gpio_config failed");
+    ESP_RETURN_ON_ERROR(gpio_isr_handler_add(gpio_num, button2_isr_handler, NULL), TAG, "button2 ISR add failed");
+
+    /* Poll the flag from LVGL timer context so the callback runs safely */
+    lv_timer_create(button2_poll_timer_cb, 50, NULL);
+
+    ESP_LOGI(TAG, "Second button registered on GPIO %d", gpio_num);
     return ESP_OK;
 }

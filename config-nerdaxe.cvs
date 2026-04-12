@@ -24,6 +24,10 @@ asicvoltage,data,u16,1200
 asicmodel,data,string,BM1366
 devicemodel,data,string,NerdAxe
 boardversion,data,string,nerdaxe
+display,data,string,ST7789 (320x170)
+invertscreen,data,u8,1
+display,data,string,ST7789 (320x170)
+invertscreen,data,u8,1
 rotation,data,u16,0
 autofanspeed,data,u16,1
 fanspeed,data,u16,100

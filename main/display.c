@@ -408,6 +408,11 @@ esp_err_t display_on(bool on)
     return ESP_OK;
 }
 
+esp_err_t display_toggle(void)
+{
+    return display_on(!display_state_on);
+}
+
 const DisplayConfig * get_display_config(const char * name)
 {
     for (int i = 0 ; i < ARRAY_SIZE(display_configs); i++) {
