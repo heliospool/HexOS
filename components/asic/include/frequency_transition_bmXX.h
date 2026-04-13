@@ -27,4 +27,11 @@ typedef void (*set_hash_frequency_fn)(float frequency);
  */
 void do_frequency_transition(float target_frequency, set_hash_frequency_fn set_frequency_fn);
 
+/**
+ * @brief Get the current ASIC frequency during or after a transition
+ * 
+ * @return Current frequency in MHz
+ */
+float get_current_frequency(void);
+
 #endif // FREQUENCY_TRANSITION_H

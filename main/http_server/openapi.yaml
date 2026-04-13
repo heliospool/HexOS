@@ -96,6 +96,7 @@ components:
         - total
         - domains
         - errorCount
+        - frequency
       properties:
         total:
           type: number
@@ -107,6 +108,12 @@ components:
             type: number
         errorCount:
           description: Number of errors
+          type: number
+        frequency:
+          description: Actual chip frequency decoded from PLL register readback (MHz), 0 if not yet received
+          type: number
+        chipTemp:
+          description: On-die ASIC temperature from register readback (°C), omitted if not yet received
           type: number
 
     SystemInfo:
@@ -136,11 +143,15 @@ components:
         - fanspeed
         - temptarget
         - vrrtarget
+        - throttleTemp
+        - safeTemp
+        - vrThrottleTemp
         - rotation
         - freeHeap
         - freeHeapInternal
         - freeHeapSpiram
         - frequency
+        - actualFrequency
         - hashRate
         - hashRate_1m
         - hashRate_10m
@@ -295,6 +306,15 @@ components:
         vrrtarget:
           type: integer
           description: VRR target temperature in °C (55-86); 0 = disabled
+        throttleTemp:
+          type: number
+          description: ASIC temperature at which firmware begins throttling frequency (°C)
+        safeTemp:
+          type: number
+          description: ASIC temperature below which firmware resumes normal operation after throttle (°C)
+        vrThrottleTemp:
+          type: number
+          description: VR temperature at which firmware begins throttling frequency (°C)
         responseTime:
           type: number
           description: Pool response time in ms
@@ -313,6 +333,9 @@ components:
         frequency:
           type: number
           description: ASIC frequency in MHz
+        actualFrequency:
+          type: number
+          description: Actual current ASIC frequency in MHz (live during ramp-up)
         hashRate:
           type: number
           description: Current hashrate in Gh/s
@@ -355,6 +378,9 @@ components:
         maxPower:
           type: integer
           description: Maxmium power draw of the board in watts
+        powerOffset:
+          type: integer
+          description: Board power offset in watts (non-ASIC loads subtracted from total to estimate ASIC power)
         minFanSpeed:
           type: integer
           description: Minimum fan speed percentage when using auto fan control

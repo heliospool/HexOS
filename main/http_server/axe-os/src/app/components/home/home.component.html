@@ -366,7 +366,7 @@
 
         <div class="col-12 md:col-4">
             <div class="card">
-                <h4 class="text-center">Power</h4>
+                <h4>Power</h4>
 
                 <div class="mb-3">
                     <h6 class="flex justify-content-between mb-1">
@@ -416,20 +416,32 @@
 
         <div class="col-12 md:col-4">
             <div class="card">
-                <h4 class="text-center">ASIC</h4>
+                <h4>ASIC</h4>
 
                 <div class="mb-3">
                     <h6 class="flex justify-content-between mb-1">
-                        ASIC Frequency<span>{{info.frequency}} MHz</span>
+                        ASIC Frequency<span>{{info.actualFrequency}} MHz</span>
                     </h6>
-                    <p-progressBar [value]="(info.frequency / maxFrequency) * 100" [styleClass]="'p-progressbar--thin'">
+                    <p-progressBar [value]="(info.actualFrequency / maxFrequency) * 100" [styleClass]="'p-progressbar--thin'">
+                        <ng-template pTemplate="content" let-value></ng-template>
+                    </p-progressBar>
+                    <small *ngIf="info.actualFrequency !== info.frequency" class="flex justify-content-between text-white text-xs mt-1">
+                        <span>Target</span><span>{{info.frequency}} MHz</span>
+                    </small>
+                </div>
+
+                <div class="mb-3">
+                    <h6 class="flex justify-content-between mb-1">
+                        ASIC Power<span>{{(info.power - (info.powerOffset ?? 0)).toFixed(1)}} W</span>
+                    </h6>
+                    <p-progressBar [value]="((info.power - (info.powerOffset ?? 0)) / (info.maxPower - (info.powerOffset ?? 0))) * 100" [styleClass]="'p-progressbar--thin'">
                         <ng-template pTemplate="content" let-value></ng-template>
                     </p-progressBar>
                 </div>
 
                 <div class="mb-3">
                     <h6 class="flex justify-content-between mb-1">
-                        Measured ASIC Voltage<span>{{info.coreVoltageActual}} V</span>
+                        ASIC Voltage<span>{{info.coreVoltageActual}} V</span>
                     </h6>
                     <p-progressBar [value]="(info.coreVoltageActual / 1.8) * 100" [styleClass]="'p-progressbar--thin'">
                         <ng-template pTemplate="content" let-value></ng-template>
@@ -438,7 +450,7 @@
 
                 <div class="mb-3">
                     <h6 class="flex justify-content-between mb-1">
-                        Measured ASIC Current<span>{{info.current.toFixed(2)}} A</span>
+                        ASIC Current<span>{{((info.currentLimit ?? 0) > 0 ? info.current : (info.power - (info.powerOffset ?? 0)) / info.coreVoltageActual).toFixed(2)}} A</span>
                     </h6>
                     <div *ngIf="(info.currentLimit ?? 0) > 0" class="relative">
                         <p-progressBar [value]="(info.current / info.currentLimit) * 100" [styleClass]="'p-progressbar--thin'">
@@ -458,118 +470,67 @@
 
         <div class="col-12 md:col-4">
             <div class="card">
-                <h4 class="white-space-nowrap overflow-hidden text-overflow-ellipsis">Hashrate Registers</h4>
+                <h4>Heat</h4>
 
-                <ng-container *ngIf="getAsicsAmount(info) as asicAmount">
-                    <table class="heatmap text-{{asicAmount <= 2 ? 'sm' : 'xs'}}">
-                        <thead>
-                            <tr>
-                                <th *ngIf="asicAmount > 1" class="text-left">ASIC</th>
-                                <ng-container *ngIf="getAsicDomainsAmount(info) as asicDomainsAmount">
-                                    <th *ngIf="asicDomainsAmount > 0" [attr.colspan]="asicDomainsAmount">
-                                        {{ asicDomainsAmount == 1 ? "Domain" : "Domains" }}
-                                    </th>
-                                </ng-container>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr class="cursor-pointer" *ngFor="let asic of info.hashrateMonitor.asics; let i = index"
-                                    [pTooltip]="(asicAmount > 1 ? 'ASIC ' + (i + 1) + ' - ' : '') + 'Error count: ' + asic.errorCount"
-                                    tooltipPosition="bottom">
-                                <td *ngIf="asicAmount > 1" class="text-500 text-left">
-                                    {{ i + 1 }}
-                                </td>
-                                <td *ngFor="let domain of asic.domains"
-                                    [style.background]="getHeatmapColor(info, domain)"
-                                    [style.height]="(asicAmount <= 2 ? '2rem' : null)"
-                                    class="text-center">
-                                    <span class="text-xs">{{ domain | hashSuffix }}</span>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </ng-container>
-            </div>
-        </div>
-
-        <div class="col-12 md:col-4">
-            <div class="card">
-                <h4 class="text-center">Heat</h4>
-
-                <div class="mb-3">
+                <div class="mb-3" *ngIf="info.temp > 0">
                     <h6 class="flex justify-content-between mb-1">
-                        <ng-container *ngIf="info.temp2 > 0; else singleTemp">
-                            ASIC Temperature 1
-                        </ng-container>
-                        <ng-template #singleTemp>
-                            ASIC Temperature
-                        </ng-template>
-                        <span>
-                            <ng-container *ngIf="info.temp > 0; else noValue">
-                                {{info.temp}} &deg;C
-                            </ng-container>
-                        </span>
+                        {{ info.temp2 > 0 ? 'ASIC Temperature 1' : 'ASIC Temperature' }}<span>{{info.temp}}&deg;C</span>
                     </h6>
-                    <p-progressBar [value]="(info.temp / maxTemp) * 100" [styleClass]="'p-progressbar--thin'">
-                        <ng-template pTemplate="content" let-value></ng-template>
+                    <p-progressBar [value]="(info.temp / (info.throttleTemp ?? 75)) * 100" [styleClass]="'p-progressbar--thin'">
+                        <ng-template pTemplate="content"></ng-template>
                     </p-progressBar>
-
-                    <strong class="text-red-500" *ngIf="info.temp >= 70">
-                        Danger: High Temperature
-                    </strong>
+                    <small class="flex justify-content-between text-white text-xs mt-1">
+                        <span></span><span>{{info.throttleTemp ?? 75}}&deg;C</span>
+                    </small>
                 </div>
 
                 <div class="mb-3" *ngIf="info.temp2 > 0">
                     <h6 class="flex justify-content-between mb-1">
-                        ASIC Temperature 2
-                        <span>
-                            {{info.temp2}} &deg;C
-                        </span>
+                        ASIC Temperature 2<span>{{info.temp2}}&deg;C</span>
                     </h6>
-                    <p-progressBar [value]="(info.temp2 / maxTemp) * 100" [styleClass]="'p-progressbar--thin'">
-                        <ng-template pTemplate="content" let-value></ng-template>
+                    <p-progressBar [value]="(info.temp2 / (info.throttleTemp ?? 75)) * 100" [styleClass]="'p-progressbar--thin'">
+                        <ng-template pTemplate="content"></ng-template>
                     </p-progressBar>
-
-                    <strong class="text-red-500" *ngIf="info.temp2 >= 70">
-                        Danger: High Temperature
-                    </strong>
+                    <small class="flex justify-content-between text-white text-xs mt-1">
+                        <span></span><span>{{info.throttleTemp ?? 75}}&deg;C</span>
+                    </small>
                 </div>
 
                 <div class="mb-3" *ngIf="info.vrTemp > 0">
                     <h6 class="flex justify-content-between mb-1">
-                        Voltage Regulator Temperature<span>{{info.vrTemp}} &deg;C</span>
+                        VR Temperature<span>{{info.vrTemp}}&deg;C</span>
                     </h6>
-                    <p-progressBar [value]="(info.vrTemp / 120) * 100" [styleClass]="'p-progressbar--thin'">
-                        <ng-template pTemplate="content" let-value></ng-template>
+                    <p-progressBar [value]="(info.vrTemp / (info.vrThrottleTemp ?? 105)) * 100" [styleClass]="getTempBarClass(info.vrTemp, info.vrThrottleTemp, 20, 10)">
+                        <ng-template pTemplate="content"></ng-template>
                     </p-progressBar>
-
-                    <strong class="text-red-500" *ngIf="info.vrTemp >= 105">
-                        Danger: High Temperature
-                    </strong>
+                    <small class="flex justify-content-between text-white text-xs mt-1">
+                        <span></span><span>{{info.vrThrottleTemp ?? 105}}&deg;C</span>
+                    </small>
                 </div>
 
-                <div *ngIf="(info.boardTemp ?? 0) > 0">
+                <div class="mb-3" *ngIf="(info.boardTemp ?? 0) > 0">
                     <h6 class="flex justify-content-between mb-1">
-                        <tooltip-text-icon
-                            text="Board Temperature"
-                            tooltip="Fan controller internal sensor (board ambient)."
-                        />
-                        <span>{{info.boardTemp! | number: '1.0-1'}} &deg;C</span>
+                        Board Temperature<span>{{info.boardTemp! | number:'1.0-1'}}&deg;C</span>
                     </h6>
                     <p-progressBar [value]="(info.boardTemp! / 60) * 100" [styleClass]="'p-progressbar--thin'">
-                        <ng-template pTemplate="content" let-value></ng-template>
+                        <ng-template pTemplate="content"></ng-template>
                     </p-progressBar>
-
-                    <strong class="text-red-500" *ngIf="(info.boardTemp ?? 0) >= 55">
-                        Warning: High Board Temperature
-                    </strong>
                 </div>
+
+                <strong class="text-red-500 text-xs mt-2 block"
+                    *ngIf="info.temp >= (info.throttleTemp ?? 75) || info.temp2 >= (info.throttleTemp ?? 75)">
+                    Danger: High ASIC Temperature
+                </strong>
+                <strong class="text-red-500 text-xs mt-2 block"
+                    *ngIf="info.vrTemp >= (info.vrThrottleTemp ?? 105)">
+                    Danger: High VR Temperature
+                </strong>
             </div>
         </div>
 
         <div class="col-12 md:col-4">
             <div class="card">
-                <h4 class="text-center">Fan</h4>
+                <h4>Fan</h4>
 
                 <div class="mb-3">
                     <h6 class="flex justify-content-between mb-1">
@@ -612,6 +573,48 @@
                         <ng-template pTemplate="content" let-value></ng-template>
                     </p-progressBar>
                 </div>
+            </div>
+        </div>
+
+        <div class="col-12 md:col-4">
+            <div class="card">
+                <h4 class="white-space-nowrap overflow-hidden text-overflow-ellipsis">Hashrate Registers</h4>
+
+                <ng-container *ngIf="getAsicsAmount(info) as asicAmount">
+                    <table class="heatmap text-{{asicAmount <= 2 ? 'sm' : 'xs'}}">
+                        <thead>
+                            <tr>
+                                <th *ngIf="asicAmount > 1" class="text-left">ASIC</th>
+                                <th *ngIf="hasAsicSensorData(info)">Freq</th>
+                                <ng-container *ngIf="getAsicDomainsAmount(info) as asicDomainsAmount">
+                                    <th *ngIf="asicDomainsAmount > 0" [attr.colspan]="asicDomainsAmount">
+                                        {{ asicDomainsAmount == 1 ? "Domain" : "Domains" }}
+                                    </th>
+                                </ng-container>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="cursor-pointer" *ngFor="let asic of info.hashrateMonitor.asics; let i = index"
+                                    [pTooltip]="(asicAmount > 1 ? 'ASIC ' + (i + 1) + ' - ' : '') + 'Error count: ' + asic.errorCount"
+                                    tooltipPosition="bottom">
+                                <td *ngIf="asicAmount > 1" class="text-500 text-left">
+                                    {{ i + 1 }}
+                                </td>
+                                <td *ngIf="hasAsicSensorData(info)"
+                                    [style.height]="asicAmount <= 2 ? '2rem' : null"
+                                    class="text-center text-500">
+                                    {{asic.frequency > 0 ? (asic.frequency | number:'1.0-0') + ' MHz' : '—'}}
+                                </td>
+                                <td *ngFor="let domain of asic.domains"
+                                    [style.background]="getHeatmapColor(info, domain)"
+                                    [style.height]="(asicAmount <= 2 ? '2rem' : null)"
+                                    class="text-center">
+                                    <span class="text-xs">{{ domain | hashSuffix }}</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </ng-container>
             </div>
         </div>
 

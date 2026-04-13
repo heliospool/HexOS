@@ -869,6 +869,7 @@ static esp_err_t GET_system_info(httpd_req_t * req)
     cJSON_AddFloatToObject(root, "vrTemp", GLOBAL_STATE->POWER_MANAGEMENT_MODULE.vr_temp);
     cJSON_AddFloatToObject(root, "boardTemp", GLOBAL_STATE->POWER_MANAGEMENT_MODULE.board_temp);
     cJSON_AddNumberToObject(root, "maxPower", GLOBAL_STATE->DEVICE_CONFIG.family.max_power);
+    cJSON_AddNumberToObject(root, "powerOffset", GLOBAL_STATE->DEVICE_CONFIG.family.power_offset);
     cJSON_AddNumberToObject(root, "nominalVoltage", GLOBAL_STATE->DEVICE_CONFIG.family.nominal_voltage);
     cJSON_AddFloatToObject(root, "hashRate", GLOBAL_STATE->SYSTEM_MODULE.current_hashrate);
     cJSON_AddFloatToObject(root, "hashRate_1m", GLOBAL_STATE->SYSTEM_MODULE.hashrate_1m);
@@ -894,6 +895,7 @@ static esp_err_t GET_system_info(httpd_req_t * req)
     cJSON_AddNumberToObject(root, "coreVoltage", nvs_config_get_u16(NVS_CONFIG_ASIC_VOLTAGE));
     cJSON_AddNumberToObject(root, "coreVoltageActual", GLOBAL_STATE->POWER_MANAGEMENT_MODULE.core_voltage);
     cJSON_AddFloatToObject(root, "frequency", frequency);
+    cJSON_AddFloatToObject(root, "actualFrequency", GLOBAL_STATE->POWER_MANAGEMENT_MODULE.actual_frequency);
     cJSON_AddStringToObject(root, "ssid", ssid);
     cJSON_AddStringToObject(root, "macAddr", formattedMac);
     cJSON_AddStringToObject(root, "hostname", hostname);
@@ -971,6 +973,9 @@ static esp_err_t GET_system_info(httpd_req_t * req)
     cJSON_AddNumberToObject(root, "fanCurve", nvs_config_get_u16(NVS_CONFIG_FAN_CURVE));
     cJSON_AddNumberToObject(root, "temptarget", nvs_config_get_u16(NVS_CONFIG_TEMP_TARGET));
     cJSON_AddNumberToObject(root, "vrrtarget", nvs_config_get_u16(NVS_CONFIG_VRR_TEMP_TARGET));
+    cJSON_AddFloatToObject(root, "throttleTemp", nvs_config_get_float(NVS_CONFIG_THROTTLE_TEMP));
+    cJSON_AddFloatToObject(root, "safeTemp", nvs_config_get_float(NVS_CONFIG_SAFE_TEMP));
+    cJSON_AddFloatToObject(root, "vrThrottleTemp", nvs_config_get_float(NVS_CONFIG_VR_THROTTLE_TEMP));
     cJSON_AddNumberToObject(root, "dangerzone", nvs_config_get_bool(NVS_CONFIG_DANGER_ZONE));
     cJSON_AddNumberToObject(root, "fanrpm", GLOBAL_STATE->POWER_MANAGEMENT_MODULE.fan_rpm);
     cJSON_AddNumberToObject(root, "fan2rpm", GLOBAL_STATE->POWER_MANAGEMENT_MODULE.fan2_rpm);
@@ -1023,6 +1028,11 @@ static esp_err_t GET_system_info(httpd_req_t * req)
             cJSON_AddItemToObject(asic, "domains", hash_domain_array);
 
             cJSON_AddNumberToObject(asic, "errorCount", GLOBAL_STATE->HASHRATE_MONITOR_MODULE.error_measurement[asic_nr].value);
+            cJSON_AddFloatToObject(asic, "frequency", GLOBAL_STATE->HASHRATE_MONITOR_MODULE.chip_frequency[asic_nr]);
+            float chip_temp = GLOBAL_STATE->HASHRATE_MONITOR_MODULE.chip_temp[asic_nr];
+            if (chip_temp > 0.0f) {
+                cJSON_AddFloatToObject(asic, "chipTemp", chip_temp);
+            }
         }
     }
 

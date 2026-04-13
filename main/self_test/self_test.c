@@ -515,6 +515,8 @@ bool self_test(void * pvParameters)
                     case REGISTER_PLL_PARAM:
                         ESP_LOGD(TAG, "PLL param read asic %d: 0x%08" PRIX32, asic_result->asic_nr, asic_result->value);
                         break;
+                    case REGISTER_TEMP:
+                        break;
                     case REGISTER_INVALID:
                         break;
                 }

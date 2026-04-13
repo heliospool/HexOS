@@ -453,9 +453,9 @@ export class HomeComponent implements OnInit, OnDestroy {
 
         this.maxPower = Math.max(info.maxPower, info.power);
         this.nominalVoltage = info.nominalVoltage;
-        this.maxTemp = Math.max(75, info.temp);
+        this.maxTemp = Math.max(info.throttleTemp ?? 75, info.temp);
         this.maxRpm = Math.max(7000, info.fanrpm, info.fan2rpm);
-        this.maxFrequency = Math.max(800, info.frequency);
+        this.maxFrequency = Math.max(800, info.frequency, info.actualFrequency);
 
         // Only collect and update chart data if there's no power fault
         if (!info.power_fault) {
@@ -843,6 +843,27 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   public getAsicDomainsAmount(info: ISystemInfo): number {
     return info.hashrateMonitor.asics[0]?.domains?.length ?? 0;
+  }
+
+  public hasAsicSensorData(info: ISystemInfo): boolean {
+    if (info.ASICModel === 'BM1397') return false;
+    const asics = info.hashrateMonitor?.asics;
+    return asics != null && asics.length > 0 && asics.some(a => a.frequency > 0);
+  }
+
+  public getTempHeatmapColor(temp: number, limit: number): string {
+    if (!temp || temp <= 0) return 'var(--surface-d)';
+    if (temp >= limit) return 'var(--red-700)';
+    if (temp >= limit - 5) return 'var(--red-400)';
+    if (temp >= limit - 10) return 'var(--yellow-400)';
+    return 'var(--progressbar-value-bg)';
+  }
+
+  public getTempBarClass(temp: number, throttleTemp: number | undefined, warnOffset = 10, dangerOffset = 5): string {
+    if (!throttleTemp) return 'p-progressbar--thin';
+    if (temp >= throttleTemp - dangerOffset) return 'p-progressbar--thin p-progressbar--danger';
+    if (temp >= throttleTemp - warnOffset) return 'p-progressbar--thin p-progressbar--warn';
+    return 'p-progressbar--thin';
   }
 
   public getHeatmapColor(info: ISystemInfo, domainHashrate: number): string {

@@ -40,6 +40,9 @@ yarn-error.log
 testem.log
 /typings
 
+# Local dev environment overrides (personal mock data, not for repo)
+src/environments/environment.local.ts
+
 # System files
 .DS_Store
 Thumbs.db

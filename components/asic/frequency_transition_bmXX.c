@@ -49,3 +49,8 @@ void do_frequency_transition(float target_frequency, set_hash_frequency_fn set_f
     
     ESP_LOGI(TAG, "Successfully transitioned to %g MHz", target_frequency);
 }
+
+float get_current_frequency(void)
+{
+    return current_frequency;
+}

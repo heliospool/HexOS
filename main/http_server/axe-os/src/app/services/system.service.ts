@@ -8,7 +8,6 @@ import {
   SystemInfo as ISystemInfo,
   SystemStatistics as ISystemStatistics,
   SystemASIC as ISystemASIC,
-  SystemASICASICModelEnum,
   SystemService as GeneratedSystemService,
   Settings
 } from 'src/app/generated';
@@ -37,124 +36,7 @@ export class SystemApiService {
     }
 
     return of(
-      {
-        power: 44.3,
-        voltage: 5100,
-        current: 28900,
-        currentLimit: 30000,
-        temp: 62,
-        temp2: 58,
-        vrTemp: 51,
-        maxPower: 40,
-        nominalVoltage: 5,
-        hashRate: 1050,
-        hashRate_1m: 1048,
-        hashRate_10m: 1045,
-        hashRate_1h: 1041,
-        expectedHashrate: 1050,
-        errorPercentage: 0.4,
-        bestDiff: 238214491,
-        bestSessionDiff: 21212121,
-        freeHeap: 200504,
-        freeHeapInternal: 200504,
-        freeHeapSpiram: 200504,
-        coreVoltage: 1360,
-        coreVoltageActual: 1360,
-        hostname: "HexOS",
-        macAddr: "2C:54:91:88:C9:E3",
-        ssid: "HeliosNet",
-        ipv4: "192.168.1.42",
-        ipv6: "fe80::62be:b4ff:fe04:ea9c",
-        wifiPass: "password",
-        wifiStatus: "Connected!",
-        wifiRSSI: -48,
-        apEnabled: 0,
-        sharesAccepted: 312,
-        sharesRejected: 3,
-        sharesRejectedReasons: [
-          { message: "Above target", count: 2 },
-          { message: "Duplicate share", count: 1 }
-        ],
-        stratumDisconnects: 2,
-        wifiDisconnects: 1,
-        txErrors: 0,
-        rxErrors: 1,
-        lastShareSeconds: 45,
-        uptimeSeconds: 7254,
-        smallCoreCount: 2040,
-        ASICModel: "BM1370" as SystemASICASICModelEnum,
-        stratumURL: "btc.heliospool.com",
-        stratumPort: 3333,
-        stratumUser: "bc1q99n3pu025yyu0jlywpmwzalyhm36tg5u37w20d.hexos-gamma",
-        stratumSuggestedDifficulty: 4096,
-        stratumExtranonceSubscribe: !!1,
-        stratumTLS: !!0,
-        stratumCert: "",
-        stratumDecodeCoinbase: 1,
-        fallbackStratumURL: "solo.heliospool.com",
-        fallbackStratumPort: 3333,
-        fallbackStratumUser: "bc1q99n3pu025yyu0jlywpmwzalyhm36tg5u37w20d.hexos-gamma",
-        fallbackStratumSuggestedDifficulty: 4096,
-        fallbackStratumExtranonceSubscribe: !!1,
-        fallbackStratumTLS: !!0,
-        fallbackStratumCert: "",
-        fallbackStratumDecodeCoinbase: 0,
-        poolDifficulty: 4096,
-        lastSubmittedDiff: 3891,
-        workReceived: 14823,
-        boardTemp: 42.5,
-        responseTime: 18,
-        isUsingFallbackStratum: 0,
-        poolConnectionInfo: "IPv4",
-        frequency: 1100,
-        version: "v2.13.1-hexos.1",
-        axeOSVersion: "v2.13.1-hexos.1",
-        idfVersion: "v5.5.3",
-        resetReason: "Power-on reset",
-        boardVersion: "602",
-        display: "SSD1306 (128x32)",
-        rotation: 0,
-        invertscreen: 0,
-        displayTimeout: -1,
-        autofanspeed: 1,
-        isPSRAMAvailable: 1,
-        overclockEnabled: 1,
-        runningPartition: "factory",
-        minFanSpeed: 25,
-        fanCurve: 0,
-        fanspeed: 72,
-        manualFanSpeed: 70,
-        temptarget: 60,
-        vrrtarget: 0,
-        statsFrequency: 30,
-        fanrpm: 4200,
-        fan2rpm: 0,
-
-        boardtemp1: 38,
-        boardtemp2: 42,
-        overheat_mode: 0,
-
-        blockHeight: 895432,
-        scriptsig: "..%..h..,H...heliospool.com/HexOS/",
-        networkDifficulty: 155970000000000,
-        hashrateMonitor: {
-          asics: [{
-            total: 1050.4,
-            domains: [264.1, 258.7, 261.9, 265.7],
-            errorCount: 2,
-          }],
-          hashrate: 1050.4,
-        },
-        blockFound: 0,
-        showNewBlock: false,
-        coinbaseOutputs: [{value: 3.125, address: "bc1q99n3pu025yyu0jlywpmwzalyhm36tg5u37w20d", isUserOutput: true}],
-        coinbaseValueTotalSatoshis: 312500000,
-        coinbaseValueUserSatoshis: 312500000,
-        dangerzone: 0,
-        ocFaultStep: 0,
-        ocFaultDefault: 30,
-        ocFaultMax: 36,
-      }
+      environment.mockData.systemInfo as ISystemInfo
     ).pipe(delay(1000));
   }
 
@@ -172,8 +54,8 @@ export class SystemApiService {
       return this.generatedSystemService.getSystemStatistics(columnList).pipe(timeout(API_TIMEOUT));
     }
 
-    const hashrateData = [0,413.4903744405481,410.7764830376959,440.100549473198,430.5816012914026,452.5464981767163,414.9564271189586,498.7294609150379,411.1671601439723,491.327834852684];
-    const powerData = [14.45068359375,14.86083984375,15.03173828125,15.1171875,15.1171875,15.1513671875,15.185546875,15.27099609375,15.30517578125,15.33935546875];
+        const hashrateData = environment.mockData.statistics.hashrate;
+    const powerData = environment.mockData.statistics.power;
     const asicTempData = [-1,58.5,59.625,60.125,60.75,61.5,61.875,62.125,62.5,63];
     const vrTempData = [45,45,45,44,45,44,44,45,45,45];
     const asicVoltageData = [1221,1223,1219,1223,1217,1222,1221,1219,1221,1221];
@@ -329,16 +211,7 @@ export class SystemApiService {
       return this.httpClient.get<ISystemASIC>(`${uri}/api/system/asic`).pipe(timeout(API_TIMEOUT));
     }
 
-    return of({
-      ASICModel: "BM1370" as SystemASICASICModelEnum,
-      deviceModel: "Gamma",
-      swarmColor: "purple",
-      asicCount: 1,
-      defaultFrequency: 485,
-      frequencyOptions: [400, 425, 450, 475, 485, 500, 525, 550, 575],
-      defaultVoltage: 1200,
-      voltageOptions: [1100, 1150, 1200, 1250, 1300]
-    }).pipe(delay(1000));
+    return of(environment.mockData.asicSettings as ISystemASIC).pipe(delay(1000));
   }
 
 

@@ -18,6 +18,7 @@
 #include "utils.h"
 #include "asic_init.h"
 #include "asic_reset.h"
+#include "frequency_transition_bmXX.h"
 #include "driver/uart.h"
 
 #define POLL_RATE 1800
@@ -74,6 +75,8 @@ void POWER_MANAGEMENT_task(void * pvParameters)
         power_management->power = Power_get_power(GLOBAL_STATE);
         power_management->current = Power_get_current(GLOBAL_STATE);
         power_management->core_voltage = VCORE_get_voltage_mv(GLOBAL_STATE);
+
+        power_management->actual_frequency = get_current_frequency();
 
         power_management->chip_temp_avg = Thermal_get_chip_temp(GLOBAL_STATE);
         power_management->chip_temp2_avg = Thermal_get_chip_temp2(GLOBAL_STATE);
