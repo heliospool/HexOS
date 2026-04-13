@@ -157,7 +157,7 @@ esp_err_t display_init(void * pvParameters)
                 ST7789_PIN_D4, ST7789_PIN_D5, ST7789_PIN_D6, ST7789_PIN_D7,
             },
             .bus_width            = 8,
-            .max_transfer_bytes   = (320 * 170 / 4) * sizeof(uint16_t),
+            .max_transfer_bytes   = (320 * 170) * sizeof(uint16_t),
             .psram_trans_align    = ST7789_PSRAM_ALIGN,
             .sram_trans_align     = ST7789_SRAM_ALIGN,
         };
@@ -190,23 +190,32 @@ esp_err_t display_init(void * pvParameters)
 
         esp_lcd_panel_reset(panel_handle);
         esp_lcd_panel_init(panel_handle);
-        /* Invert colour: read from NVS so user can toggle; default true for this panel */
+        /* invert_color=false: our image data is stored in normal (non-inverted) RGB565.
+         * swap_xy + mirror are handled via disp_cfg.rotation below so that
+         * lvgl_port_disp_rotation_update() applies them and does NOT overwrite them. */
         esp_lcd_panel_invert_color(panel_handle, nvs_config_get_bool(NVS_CONFIG_INVERT_SCREEN));
-        esp_lcd_panel_swap_xy(panel_handle, true);
-        esp_lcd_panel_mirror(panel_handle, true, false);
         esp_lcd_panel_set_gap(panel_handle, 0, 35);
         esp_lcd_panel_disp_on_off(panel_handle, true);
 
         const lvgl_port_display_cfg_t disp_cfg = {
             .io_handle    = io_handle,
             .panel_handle = panel_handle,
-            .buffer_size  = (320 * 170) / 4,
+            .buffer_size  = (320 * 170) / 10,
             .double_buffer = false,
             .hres         = 320,
             .vres         = 170,
             .monochrome   = false,
             .color_format = LV_COLOR_FORMAT_RGB565,
+            /* rotation: lvgl_port_disp_rotation_update() will apply these via
+             * esp_lcd_panel_swap_xy / mirror. Must NOT call those manually above,
+             * or the port will overwrite them with zeros. */
+            .rotation = {
+                .swap_xy  = true,
+                .mirror_x = true,
+                .mirror_y = false,
+            },
             .flags = {
+                .buff_dma   = true,
                 .swap_bytes = true,
                 .sw_rotate  = false,
             },
@@ -218,17 +227,9 @@ esp_err_t display_init(void * pvParameters)
             return ESP_FAIL;
         }
 
-        /* Apply NVS rotation (0/90/180/270) */
-        uint16_t rotation = nvs_config_get_u16(NVS_CONFIG_ROTATION);
-        if (lvgl_port_lock(0)) {
-            switch (rotation) {
-                case 90:  lv_display_set_rotation(disp, LV_DISPLAY_ROTATION_90);  break;
-                case 180: lv_display_set_rotation(disp, LV_DISPLAY_ROTATION_180); break;
-                case 270: lv_display_set_rotation(disp, LV_DISPLAY_ROTATION_270); break;
-                default:  break; /* 0 = default */
-            }
-            lvgl_port_unlock();
-        }
+        /* ST7789: hardware rotation is handled by swap_xy+mirror above.
+         * Do NOT apply LVGL software rotation — that would swap hres/vres in LVGL
+         * (making it see a 170x320 display) which causes only ~53% horizontal fill. */
 
         /* Power on backlight */
         gpio_set_level(ST7789_PIN_PWR, 1);

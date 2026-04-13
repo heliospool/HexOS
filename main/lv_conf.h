@@ -4,10 +4,11 @@
 #define LV_USE_LOG 1
 #define LV_LOG_LEVEL LV_LOG_LEVEL_WARN
 
-#define LV_COLOR_DEPTH 1
+#define LV_COLOR_DEPTH 16
 
 #define LV_USE_OS LV_OS_FREERTOS
 
+#define LV_DRAW_SW_SUPPORT_RGB565                 1
 #define LV_DRAW_SW_SUPPORT_RGB565_SWAPPED         0
 #define LV_DRAW_SW_SUPPORT_RGB565A8               0
 #define LV_DRAW_SW_SUPPORT_RGB888                 0

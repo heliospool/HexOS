@@ -215,11 +215,11 @@ static void splash2_screen_init(void)
     lv_obj_t *lb = lv_label_create(scr_splash2);
     lv_obj_set_width(lb, LV_SIZE_CONTENT);
     lv_obj_set_height(lb, LV_SIZE_CONTENT);
-    lv_obj_set_x(lb, -31);
+    lv_obj_set_x(lb, -8);
     lv_obj_set_y(lb, -40);
     lv_obj_set_align(lb, LV_ALIGN_RIGHT_MID);
     lv_label_set_text(lb, "Connecting...");
-    lv_obj_set_style_text_color(lb, lv_color_hex(0xDEDADE), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_color(lb, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_align(lb, LV_TEXT_ALIGN_RIGHT, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_font(lb, &ui_font_OpenSansBold13, LV_PART_MAIN | LV_STATE_DEFAULT);
 }
