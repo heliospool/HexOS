@@ -37,6 +37,7 @@
 #define FAST_UART_CONFIGURATION 0x28
 
 static const register_type_t REGISTER_MAP[] = {
+    [0x08] = REGISTER_PLL_PARAM,
     [0x4C] = REGISTER_ERROR_COUNT,
     [0x88] = REGISTER_DOMAIN_0_COUNT,
     [0x89] = REGISTER_DOMAIN_1_COUNT,
@@ -349,7 +350,11 @@ task_result * BM1370_process_work(void * pvParameters)
         }
         result.asic_nr = asic_result.cmd.asic_address / address_interval;
         result.value = ntohl(asic_result.cmd.value);
-        
+        // Bit 31 set on a counter register signals an on-die temperature reading
+        if ((result.register_type == REGISTER_TOTAL_COUNT || result.register_type == REGISTER_DOMAIN_0_COUNT) &&
+            (result.value & 0x80000000)) {
+            result.register_type = REGISTER_TEMP;
+        }
         return &result;
     }
 

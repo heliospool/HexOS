@@ -15,7 +15,8 @@ typedef enum
     REGISTER_DOMAIN_2_COUNT,
     REGISTER_DOMAIN_3_COUNT,
     REGISTER_ERROR_COUNT,    // error count register (all)
-    REGISTER_PLL_PARAM,      // PLL/clock config readback (BM1370)
+    REGISTER_PLL_PARAM,      // PLL/clock config readback (BM1366,BM1368,BM1370) — decodes actual chip frequency
+    REGISTER_TEMP,           // on-die temperature from ASIC register (bit 31 set in counter read)
 } register_type_t;
 
 typedef struct

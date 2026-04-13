@@ -146,6 +146,8 @@ void hashrate_monitor_task(void *pvParameters)
         HASHRATE_MONITOR_MODULE->domain_measurements[asic_nr] = data + (asic_nr * hash_domains);
     }
     HASHRATE_MONITOR_MODULE->error_measurement = heap_caps_malloc(asic_count * sizeof(measurement_t), MALLOC_CAP_SPIRAM);
+    HASHRATE_MONITOR_MODULE->chip_frequency = heap_caps_calloc(asic_count, sizeof(float), MALLOC_CAP_SPIRAM);
+    HASHRATE_MONITOR_MODULE->chip_temp = heap_caps_calloc(asic_count, sizeof(float), MALLOC_CAP_SPIRAM);
 
     clear_measurements(GLOBAL_STATE);
 
@@ -208,21 +210,36 @@ void hashrate_monitor_register_read(void *pvParameters, register_type_t register
         case REGISTER_ERROR_COUNT:
             update_hash_counter(&HASHRATE_MONITOR_MODULE->error_measurement[asic_nr], value, time_us);
             break;
-        case REGISTER_PLL_PARAM:
-            ESP_LOGD(TAG, "PLL param read asic %d: 0x%08" PRIX32, asic_nr, value);
+        case REGISTER_PLL_PARAM: {
+            // Decode chip frequency from PLL divider bytes.
+            // UART packet bytes 2-5: [vdo_scale, fb_divider, refdiv, postdiv].
+            // After ntohl (bswap32 on little-endian ESP32):
+            //   bits 31:24 = vdo_scale, bits 23:16 = fb_divider, bits 15:8 = refdiv, bits 7:0 = postdiv
+            uint8_t fb_divider = (value >> 16) & 0xFF;
+            uint8_t refdiv     = (value >> 8) & 0xFF;
+            uint8_t postdiv    = (value >> 0) & 0xFF;
+            uint8_t postdiv1   = ((postdiv >> 4) & 0xF) + 1;
+            uint8_t postdiv2   = (postdiv & 0xF) + 1;
+            if (fb_divider > 0 && refdiv > 0 && postdiv1 > 0 && postdiv2 > 0) {
+                HASHRATE_MONITOR_MODULE->chip_frequency[asic_nr] =
+                    25.0f * fb_divider / refdiv / postdiv1 / postdiv2;
+                ESP_LOGD(TAG, "asic %d pll: fb=%u refdiv=%u pd1=%u pd2=%u -> %.2f MHz",
+                         asic_nr, fb_divider, refdiv, postdiv1, postdiv2,
+                         HASHRATE_MONITOR_MODULE->chip_frequency[asic_nr]);
+            }
             break;
+        }
         case REGISTER_INVALID:
             ESP_LOGE(TAG, "Invalid register type");
             break;
+        case REGISTER_TEMP: {
+            float ftemp = (float)(value & 0x0000ffff) * 0.171342f - 299.5144f;
+            if (ftemp > -40.0f && ftemp < 150.0f) {
+                HASHRATE_MONITOR_MODULE->chip_temp[asic_nr] = ftemp;
+                ESP_LOGI(TAG, "asic %d on-die temp: %.1f°C", asic_nr, ftemp);
+            }
+            break;
+        }
     }
 }
 
-/*
-    // From NerdAxe codebase, temparature conversion?
-    if (asic_result.data & 0x80000000) {
-        float ftemp = (float) (asic_result.data & 0x0000ffff) * 0.171342f - 299.5144f;
-        ESP_LOGI(TAG, "asic %d temp: %.3f", (int) asic_result.asic_nr, ftemp);
-        board->setChipTemp(asic_result.asic_nr, ftemp);
-    }
-    break;
-*/

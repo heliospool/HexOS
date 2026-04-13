@@ -1,0 +1,12 @@
+Command: ninja all
+- Generating browser application bundles (phase: setup)...
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+- Copying assets...
+✔ Copying assets complete.
+- Generating index html...
+✔ Index html generation complete.
+
+Warning: bundle initial exceeded maximum budget. Budget 2.10 MB was not met by 56.89 kB with a total of 2.15 MB.
+
+

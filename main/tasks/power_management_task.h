@@ -12,6 +12,7 @@ typedef struct
     float board_temp;
     float voltage;
     float frequency_value;
+    float actual_frequency;
     float expected_hashrate;
     float power;
     float current;

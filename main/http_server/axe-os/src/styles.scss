@@ -166,6 +166,18 @@ button.color-dot {
     &--thin {
         height: 6px !important;
     }
+
+    &--warn {
+        .p-progressbar-value {
+            background: var(--yellow-400) !important;
+        }
+    }
+
+    &--danger {
+        .p-progressbar-value {
+            background: var(--red-400) !important;
+        }
+    }
 }
 
 /* Dropdown Theme*/

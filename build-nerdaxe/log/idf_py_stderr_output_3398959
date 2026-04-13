@@ -1,0 +1,1 @@
+Command: cmake -G Ninja -DPYTHON_DEPS_CHECKED=1 -DPYTHON=/home/aibot/.espressif/python_env/idf5.5_py3.10_env/bin/python -DESP_PLATFORM=1 -DSDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.nerdaxe -DSDKCONFIG=/home/aibot/repos/HexOS/github/sdkconfig-nerdaxe.build -DCCACHE_ENABLE=0 /home/aibot/repos/HexOS/github

@@ -13,6 +13,8 @@ typedef struct {
     measurement_t* total_measurement;
     measurement_t** domain_measurements;
     measurement_t* error_measurement;
+    float* chip_frequency;  // per-chip actual frequency decoded from PLL register (MHz)
+    float* chip_temp;        // per-chip on-die temperature from ASIC register (°C), 0 if not yet received
 
     bool is_initialized;
 } HashrateMonitorModule;

@@ -1,0 +1,2 @@
+source /home/aibot/repos/HexOS/github/build-nerdaxe/bootloader/gdbinit/symbols
+source /home/aibot/repos/HexOS/github/build-nerdaxe/bootloader/gdbinit/connect
