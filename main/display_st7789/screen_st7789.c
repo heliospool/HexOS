@@ -53,27 +53,23 @@ extern const lv_font_t lv_font_portfolio_6x8; /* HexOS default small font */
  * ------------------------------------------------------------------------- */
 
 /* NerdAxe theme (yellow) */
-LV_IMG_DECLARE(ui_img_nerdaxe_initscreen2_png);
-LV_IMG_DECLARE(ui_img_nerdaxe_splashscreen2_png);
 LV_IMG_DECLARE(ui_img_nerdaxe_portalscreen_png);
 LV_IMG_DECLARE(ui_img_nerdaxe_miningscreen2_png);
 LV_IMG_DECLARE(ui_img_nerdaxe_settingsscreen_png);
 
 /* NerdAxeGamma theme (yellow + γ) */
-LV_IMG_DECLARE(ui_img_nerdaxegamma_initscreen2_png);
-LV_IMG_DECLARE(ui_img_nerdaxegamma_splashscreen2_png);
 LV_IMG_DECLARE(ui_img_nerdaxegamma_portalscreen_png);
 LV_IMG_DECLARE(ui_img_nerdaxegamma_miningscreen2_png);
 LV_IMG_DECLARE(ui_img_nerdaxegamma_settingsscreen_png);
 
 /* NerdQaxePlus theme (pink/magenta) — default */
-LV_IMG_DECLARE(ui_img_nerdqaxeplus_initscreen2_png);
-LV_IMG_DECLARE(ui_img_nerdqaxeplus_splashscreen2_png);
 LV_IMG_DECLARE(ui_img_nerdqaxeplus_portalscreen_png);
 LV_IMG_DECLARE(ui_img_nerdqaxeplus_miningscreen2_png);
 LV_IMG_DECLARE(ui_img_nerdqaxeplus_settingsscreen_png);
 
 /* Shared (non-themed) images */
+LV_IMG_DECLARE(ui_img_hexos_initscreen2_png);   /* unified splash screen 1 — boot logo */
+LV_IMG_DECLARE(ui_img_hexos_splashscreen2_png); /* unified splash screen 2 — connecting */
 LV_IMG_DECLARE(ui_img_hexos_found_block_png);
 LV_IMG_DECLARE(ui_img_hexos_safe_png);
 
@@ -81,24 +77,18 @@ LV_IMG_DECLARE(ui_img_hexos_safe_png);
  * Per-board image themes
  * ------------------------------------------------------------------------- */
 static const st7789_theme_t THEME_NERDAXE = {
-    .img_initscreen2   = &ui_img_nerdaxe_initscreen2_png,
-    .img_splashscreen2 = &ui_img_nerdaxe_splashscreen2_png,
     .img_portalscreen  = &ui_img_nerdaxe_portalscreen_png,
     .img_miningscreen2 = &ui_img_nerdaxe_miningscreen2_png,
     .img_settingsscreen = &ui_img_nerdaxe_settingsscreen_png,
 };
 
 static const st7789_theme_t THEME_NERDAXEGAMMA = {
-    .img_initscreen2   = &ui_img_nerdaxegamma_initscreen2_png,
-    .img_splashscreen2 = &ui_img_nerdaxegamma_splashscreen2_png,
     .img_portalscreen  = &ui_img_nerdaxegamma_portalscreen_png,
     .img_miningscreen2 = &ui_img_nerdaxegamma_miningscreen2_png,
     .img_settingsscreen = &ui_img_nerdaxegamma_settingsscreen_png,
 };
 
 static const st7789_theme_t THEME_NERDQAXEPLUS = {
-    .img_initscreen2   = &ui_img_nerdqaxeplus_initscreen2_png,
-    .img_splashscreen2 = &ui_img_nerdqaxeplus_splashscreen2_png,
     .img_portalscreen  = &ui_img_nerdqaxeplus_portalscreen_png,
     .img_miningscreen2 = &ui_img_nerdqaxeplus_miningscreen2_png,
     .img_settingsscreen = &ui_img_nerdqaxeplus_settingsscreen_png,
@@ -201,7 +191,7 @@ static void splash1_screen_init(void)
     lv_obj_clear_flag(scr_splash1, LV_OBJ_FLAG_SCROLLABLE);
 
     lv_obj_t *img = lv_img_create(scr_splash1);
-    lv_img_set_src(img, active_theme->img_initscreen2);
+    lv_img_set_src(img, &ui_img_hexos_initscreen2_png);
     lv_obj_set_width(img, LV_SIZE_CONTENT);
     lv_obj_set_height(img, LV_SIZE_CONTENT);
     lv_obj_set_align(img, LV_ALIGN_CENTER);
@@ -215,7 +205,7 @@ static void splash2_screen_init(void)
     lv_obj_clear_flag(scr_splash2, LV_OBJ_FLAG_SCROLLABLE);
 
     lv_obj_t *img = lv_img_create(scr_splash2);
-    lv_img_set_src(img, active_theme->img_splashscreen2);
+    lv_img_set_src(img, &ui_img_hexos_splashscreen2_png);
     lv_obj_set_width(img, LV_SIZE_CONTENT);
     lv_obj_set_height(img, LV_SIZE_CONTENT);
     lv_obj_set_align(img, LV_ALIGN_CENTER);
