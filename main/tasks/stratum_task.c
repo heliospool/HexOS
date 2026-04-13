@@ -307,7 +307,14 @@ void stratum_primary_heartbeat(void * pvParameters)
         set_socket_options(transport);
 
         int send_uid = 1;
-        STRATUM_V1_subscribe(transport, send_uid++, GLOBAL_STATE->DEVICE_CONFIG.family.asic.name);
+        char stratum_client[64];
+        if (GLOBAL_STATE->DEVICE_CONFIG.family.stratum_ua) {
+            strncpy(stratum_client, GLOBAL_STATE->DEVICE_CONFIG.family.stratum_ua, sizeof(stratum_client) - 1);
+            stratum_client[sizeof(stratum_client) - 1] = '\0';
+        } else {
+            snprintf(stratum_client, sizeof(stratum_client), "bitaxe/%s", GLOBAL_STATE->DEVICE_CONFIG.family.asic.name);
+        }
+        STRATUM_V1_subscribe(transport, send_uid++, stratum_client);
         STRATUM_V1_authorize(transport, send_uid++, GLOBAL_STATE->SYSTEM_MODULE.pool_user, GLOBAL_STATE->SYSTEM_MODULE.pool_pass);
 
         char recv_buffer[BUFFER_SIZE];
@@ -549,7 +556,14 @@ void stratum_task(void * pvParameters)
         STRATUM_V1_configure_version_rolling(GLOBAL_STATE->transport, GLOBAL_STATE->send_uid++, &GLOBAL_STATE->version_mask);
 
         // mining.subscribe - ID: 2
-        STRATUM_V1_subscribe(GLOBAL_STATE->transport, GLOBAL_STATE->send_uid++, GLOBAL_STATE->DEVICE_CONFIG.family.asic.name);
+        char stratum_client2[64];
+        if (GLOBAL_STATE->DEVICE_CONFIG.family.stratum_ua) {
+            strncpy(stratum_client2, GLOBAL_STATE->DEVICE_CONFIG.family.stratum_ua, sizeof(stratum_client2) - 1);
+            stratum_client2[sizeof(stratum_client2) - 1] = '\0';
+        } else {
+            snprintf(stratum_client2, sizeof(stratum_client2), "bitaxe/%s", GLOBAL_STATE->DEVICE_CONFIG.family.asic.name);
+        }
+        STRATUM_V1_subscribe(GLOBAL_STATE->transport, GLOBAL_STATE->send_uid++, stratum_client2);
 
         char * username = GLOBAL_STATE->SYSTEM_MODULE.is_using_fallback ? GLOBAL_STATE->SYSTEM_MODULE.fallback_pool_user : GLOBAL_STATE->SYSTEM_MODULE.pool_user;
         char * password = GLOBAL_STATE->SYSTEM_MODULE.is_using_fallback ? GLOBAL_STATE->SYSTEM_MODULE.fallback_pool_pass : GLOBAL_STATE->SYSTEM_MODULE.pool_pass;

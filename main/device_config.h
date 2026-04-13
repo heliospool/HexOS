@@ -59,6 +59,7 @@ typedef struct {
     const char * swarm_color;
     uint16_t oc_fault_default; // default IOUT_OC_FAULT_LIMIT in A (0 = no TPS546)
     uint16_t oc_fault_max;     // maximum allowed IOUT_OC_FAULT_LIMIT in A
+    const char * stratum_ua;  // NULL = use default "bitaxe/<asic>" format
 } FamilyConfig;
 
 typedef struct {
@@ -114,9 +115,9 @@ static const FamilyConfig FAMILY_GAMMA       = { .id = GAMMA,       .name = "Gam
 static const FamilyConfig FAMILY_GAMMA_DUO   = { .id = GAMMA_DUO,   .name = "GammaDuo",   .asic = ASIC_BM1370XP, .asic_count = 2, .max_power =  40, .power_offset = 5,  .nominal_voltage = 5,  .voltage_domains = 1, .swarm_color = "green",    .oc_fault_default = 30, .oc_fault_max = 36 };
 static const FamilyConfig FAMILY_SUPRA_HEX   = { .id = SUPRA_HEX,   .name = "SupraHex",   .asic = ASIC_BM1368, .asic_count = 6, .max_power = 120, .power_offset = 25, .nominal_voltage = 12, .voltage_domains = 3, .swarm_color = "darkblue", .oc_fault_default = 30, .oc_fault_max = 36 };
 static const FamilyConfig FAMILY_GAMMA_TURBO = { .id = GAMMA_TURBO, .name = "GammaTurbo", .asic = ASIC_BM1370, .asic_count = 2, .max_power =  60, .power_offset = 10, .nominal_voltage = 12, .voltage_domains = 1, .swarm_color = "cyan",     .oc_fault_default = 55, .oc_fault_max = 66 };
-static const FamilyConfig FAMILY_GEKKO_GT    = { .id = GEKKO_GT,    .name = "GekkoAxe-GT", .asic = ASIC_BM1370, .asic_count = 2, .max_power =  60, .power_offset = 10, .nominal_voltage = 12, .voltage_domains = 1, .swarm_color = "cyan",     .oc_fault_default = 55, .oc_fault_max = 66 };
-static const FamilyConfig FAMILY_GEKKO_GAMMA = { .id = GEKKO_GAMMA, .name = "GekkoAxe-γ",  .asic = ASIC_BM1370, .asic_count = 1, .max_power =  40, .power_offset = 5,  .nominal_voltage = 5,  .voltage_domains = 1, .swarm_color = "green",    .oc_fault_default = 30, .oc_fault_max = 36 };
-static const FamilyConfig FAMILY_GEKKO_GAMMA_12V = { .id = GEKKO_GAMMA_12V, .name = "GekkoAxe-γ", .asic = ASIC_BM1370, .asic_count = 1, .max_power =  50, .power_offset = 5,  .nominal_voltage = 12, .voltage_domains = 1, .swarm_color = "green",    .oc_fault_default = 30, .oc_fault_max = 36 };
+static const FamilyConfig FAMILY_GEKKO_GT    = { .id = GEKKO_GT,    .name = "GekkoAxe-GT", .asic = ASIC_BM1370, .asic_count = 2, .max_power =  60, .power_offset = 10, .nominal_voltage = 12, .voltage_domains = 1, .swarm_color = "cyan",     .oc_fault_default = 55, .oc_fault_max = 66, .stratum_ua = "GekkoAxe-GT" };
+static const FamilyConfig FAMILY_GEKKO_GAMMA = { .id = GEKKO_GAMMA, .name = "GekkoAxe-γ",  .asic = ASIC_BM1370, .asic_count = 1, .max_power =  40, .power_offset = 5,  .nominal_voltage = 5,  .voltage_domains = 1, .swarm_color = "green",    .oc_fault_default = 30, .oc_fault_max = 36, .stratum_ua = "GekkoAxe-Gamma" };
+static const FamilyConfig FAMILY_GEKKO_GAMMA_12V = { .id = GEKKO_GAMMA_12V, .name = "GekkoAxe-γ", .asic = ASIC_BM1370, .asic_count = 1, .max_power =  50, .power_offset = 5,  .nominal_voltage = 12, .voltage_domains = 1, .swarm_color = "green",    .oc_fault_default = 30, .oc_fault_max = 36, .stratum_ua = "GekkoAxe-Gamma" };
 
 static const FamilyConfig default_families[] = {
     FAMILY_MAX,
