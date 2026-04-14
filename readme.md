@@ -65,10 +65,10 @@ HexOS supports all upstream ESP-Miner hardware out of the box, plus additional G
 | Board | Board version(s) |
 |---|---|
 | Bitaxe Max | `102` |
-| Bitaxe Ultra | `201`, `203`, `205`, `207` |
+| Bitaxe Ultra | `201`, `202`, `203`, `204`, `205`, `207` |
 | Bitaxe Hex | `302`, `303` |
 | Bitaxe Supra | `400`, `401`, `402`, `403` |
-| Bitaxe Gamma | `601`, `602` |
+| Bitaxe Gamma | `600`, `601`, `602` |
 | Bitaxe Gamma Duo | `650` |
 | Bitaxe Supra Hex | `701`, `702` |
 | Bitaxe Gamma Turbo | `800`, `801` |
@@ -111,18 +111,17 @@ HexOS supports all upstream ESP-Miner hardware out of the box, plus additional G
 
 ### Web UI & dashboard
 
-- **Expert Mode toggle** — Settings page toggle replaces the `?oc` URL parameter for enabling custom ASIC frequency and voltage; persists to NVS
+- **Expert Mode toggle** — Settings page toggle replaces the `?oc` URL parameter for enabling custom ASIC frequency and voltage overrides; stays on across reboots
 - **Board temperature** — fan controller's internal temperature sensor exposed as `boardTemp` in `/api/system/info`, shown as a progress bar in the Heat card, and available as a chart series
 - **Jobs counter** — stratum work received since last pool connection exposed as `workReceived` in `/api/system/info`, shown in the Shares card
 - **Last submitted share diff** — live `lastSubmittedDiff` stat in `/api/system/info` and selectable as a chart series
 - **ASIC card** — dedicated dashboard card showing ASIC status, input current, and voltage regulator current limit
 - **Network card** — home dashboard card showing Stratum Disconnects, WiFi Disconnects, and TX / RX Errors; Last Share time shown in the Shares card
-- **Dashboard card layout** — Registers and Fan cards appear before Pool and Block cards
 - **Fan curve presets** — Default / Performance / Aggressive preset selector in Settings → Fan; applies immediately without restart
-- **Automatic fan control mode** — Off / ASIC / ASIC+VRR dropdown replaces the previous on/off toggle; ASIC+VRR drives fan speed from whichever of ASIC or voltage regulator temperature is more thermally demanding
+- **Automatic fan control mode** — Off / ASIC / ASIC+VRR dropdown replaces the previous on/off toggle; ASIC+VRR drives fan speed from whichever of ASIC or VRR temperature is more demanding
 - **VRR target temperature** — configurable VRR temperature target (55–86 °C), shown in Settings when ASIC+VRR mode is active
 - **Danger Zone** — opt-in section in Settings requiring explicit confirmation to unlock; exposes advanced controls not shown by default
-- **Overcurrent limit** — Danger Zone slider to raise the voltage regulator's overcurrent fault threshold in 5 % steps, up to +20 % above the board default; visible on boards with a TPS546 voltage regulator
+- **Overcurrent limit** — Danger Zone slider to raise the voltage regulator's overcurrent fault threshold in 5 % steps, up to +20 % above the board default; available on boards with a TPS546 regulator
 
 ### Logs
 
@@ -137,7 +136,7 @@ HexOS supports all upstream ESP-Miner hardware out of the box, plus additional G
 
 - **Stratum connection tuning** — `strat_retry`, `strat_crit_rty`, and `strat_timeout` configurable via CVS file; see [Stratum — connection tuning](./doc/configuration.md#stratum--connection-tuning)
 - **Self-test parameter tuning** — `st_difficulty`, `st_pwr_margin`, `st_vcore_min`, and `st_vcore_max` configurable via CVS file; see [Self-test parameters](./doc/configuration.md#self-test-parameters)
-- **Danger Zone NVS keys** — `dangerzone=1` in the CVS file (or the Settings UI toggle) unlocks fan PID gains, thermal shutdown thresholds, post-overheat frequency and voltage step-down, and voltage regulator input voltage limits — all previously hardcoded constants — without editing source code; see [Danger zone](./doc/configuration.md#danger-zone)
+- **Danger Zone advanced settings** — enabling Danger Zone (via the Settings toggle or `dangerzone=1` in the CVS file) unlocks fan PID gains, thermal shutdown thresholds, post-overheat frequency and voltage step-down, and voltage regulator input voltage limits — previously hardcoded constants — without editing source code; see [Danger zone](./doc/configuration.md#danger-zone)
 
 ---
 
@@ -163,10 +162,18 @@ git clone --branch v5.5 --depth 1 --recursive https://github.com/espressif/esp-i
 ### Build
 
 ```bash
-bash build_release.sh
+# Source ESP-IDF, then build
+. ~/esp/idf/export.sh
+idf.py build
 ```
 
-This sources ESP-IDF, builds the full firmware + Angular web UI, and produces per-board factory images plus shared firmware/www artifacts in `releases/{VERSION}/`:
+This produces firmware and web UI binaries in `build/`. To create a factory image for a specific board, supply the matching CVS config via `merge_bin_with_config.sh`:
+
+```bash
+bash merge_bin_with_config.sh config-602.cvs
+```
+
+Pre-built factory images for all supported boards are available on the [releases page](https://github.com/heliospool/HexOS/releases/latest) — no local build required for flashing.
 
 | File | Use |
 |---|---|
@@ -188,7 +195,7 @@ The file format is documented in `config.cvs.example`.
 | Key | Type | Default | Notes |
 |---|---|---|---|
 | `boardversion` | string | — | e.g. `gekko-800`, `601`, `201` |
-| `asicfrequency_f` | string | — | MHz |
+| `asicfrequency` | u16 | — | MHz |
 | `asicvoltage` | u16 | — | mV |
 | `stratumurl` | string | `btc.heliospool.com` | Primary pool host |
 | `stratumport` | u16 | `3333` | Primary pool port |
@@ -243,12 +250,12 @@ The web server on port 80 exposes a REST API. Full spec: [`main/http_server/open
 - `/api/system/info` — system information (hashrate, temps, uptime, pool, `lastSubmittedDiff`, `workReceived`, `boardTemp`, etc.)
 - `/api/system/asic` — ASIC settings
 - `/api/system/statistics?columns=...` — historical stats ring buffer (720 entries)
-- `/api/system/statistics/dashboard` — dashboard stats
 - `/api/system/wifi/scan` — available Wi-Fi networks
 
 **POST**
 - `/api/system/restart` — restart the device
 - `/api/system/identify` — flash LEDs / beep
+- `/api/system/blockFound/dismiss` — clear the block-found notification
 - `/api/system/OTA` — upload firmware binary
 - `/api/system/OTAWWW` — upload web UI binary
 
@@ -270,7 +277,7 @@ curl -X POST \
 
 ## Credits
 
-HexOS is built on [ESP-Miner](https://github.com/bitaxeorg/ESP-Miner) by the Bitaxe community. All upstream contributors retain their credit.
+HexOS is built on [ESP-Miner](https://github.com/bitaxeorg/ESP-Miner), the open-source Bitcoin miner firmware created by the Bitaxe community. All upstream contributors retain their credit.
 
 ## Attributions
 

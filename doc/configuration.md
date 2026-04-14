@@ -163,9 +163,9 @@ Derived automatically from `boardversion` — do not need to be set in most case
 
 ### Danger zone
 
-These keys are **gated** by the `dangerzone` key. When `dangerzone` is `0` (the default), all keys in this section are ignored at boot — the firmware uses the built-in defaults regardless of any stored NVS value. Set `dangerzone` to `1` in the CVS file and reflash to enable custom values.
+These keys are **gated** by the `dangerzone` key. When `dangerzone` is `0` (the default), all gated keys are ignored at boot — the firmware uses the built-in defaults regardless of any stored NVS value.
 
-No key in this section is accessible via the REST API or Web UI. Changes require a full reflash with an updated CVS file.
+`dangerzone` and `oc_ovr_step` are accessible via the Web UI Settings page (and REST API). All other keys in this section have no REST API exposure and must be set via a CVS file.
 
 **Warning:** These constants control thermal shutdown, power reduction, and input voltage thresholds. Incorrect values can cause overheating, hardware damage, or voltage regulator failure. Only modify them if you understand the implications.
 
