@@ -279,6 +279,8 @@ curl -X POST \
 
 HexOS is built on [ESP-Miner](https://github.com/bitaxeorg/ESP-Miner), the open-source Bitcoin miner firmware created by the Bitaxe community. All upstream contributors retain their credit.
 
+Stratum plain-string error response handling adapted from [ESP-Miner-TCH](https://github.com/thelastchip/ESP-Miner-TCH) by thelastchip.
+
 ## Attributions
 
 The display font is Portfolio 6x8 from https://int10h.org/oldschool-pc-fonts/ by VileR.
