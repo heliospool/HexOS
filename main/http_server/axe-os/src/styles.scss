@@ -20,6 +20,22 @@
 
 
 /* You can add global styles to this file, and also import other style files */
+
+/* Suppress CDK snap-back animation for valid cross-row card drops.
+   Applied via body class in onCardDragReleased, which fires before the animation starts.
+   CDK checks getTransitionDuration() — if 0, it skips the animation entirely. */
+body.axe-suppress-drop-anim .cdk-drag-animating {
+    transition-duration: 0ms !important;
+}
+
+/* Suppress CDK's item-sort transition at drop time.
+   Without this, CDK's transform-reset for items that were shifted during drag
+   plays with a transition AFTER moveItemInArray reorders the DOM, causing
+   cards to animate from wrong starting positions (e.g. slide in from the right). */
+body.axe-no-sort-anim .cdk-drop-list-dragging .cdk-drag:not(.cdk-drag-placeholder) {
+    transition: none !important;
+}
+
 p-chart>div {
     position: relative;
     min-height: 40vh;

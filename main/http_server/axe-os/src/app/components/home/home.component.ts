@@ -1,5 +1,8 @@
 import { Component, OnInit, ViewChild, Input, OnDestroy } from '@angular/core';
 import { interval, map, Observable, shareReplay, startWith, Subscription, switchMap, tap, first, Subject, takeUntil, BehaviorSubject, filter, catchError, of, combineLatest, distinctUntilChanged } from 'rxjs';
+import { CdkDragDrop, CdkDragStart, CdkDragEnd, CdkDragMove, CdkDragRelease, moveItemInArray } from '@angular/cdk/drag-drop';
+import { EditModeService } from 'src/app/services/edit-mode.service';
+import { DashboardLayoutService, DashboardRow, ColClass } from 'src/app/services/dashboard-layout.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormBuilder, FormGroup } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
@@ -85,6 +88,23 @@ export class HomeComponent implements OnInit, OnDestroy {
   public pools$!: Observable<SelectItem<PoolLabel>[]>;
   public heliosPool$!: Observable<HeliosPoolView | null>;
 
+  // Latest HeliosPool data, kept in sync for template access
+  public hp: HeliosPoolView | null = null;
+
+  // Dashboard edit mode
+  public editMode = false;
+  public draggingCardColClass: ColClass = null;
+  public draggingSourceRowId: string | null = null;
+  public draggingOverCompatibleRowId: string | null = null;
+  public draggingInsertIndex: number | null = null;
+  /** When true, cross-row drop swaps the dragged card with the card at draggingInsertIndex */
+  public draggingIsSwap = false;
+  /** Index of the dragged card within its source row (for the swap ghost) */
+  public draggingSourceCardIndex: number | null = null;
+
+  // Dashboard rows (layout)
+  public rows: DashboardRow[] = [];
+
   public chartOptions: any;
   public dataLabel: number[] = [];
   public hashrateData: number[] = [];
@@ -138,12 +158,26 @@ export class HomeComponent implements OnInit, OnDestroy {
     private toastr: ToastrService,
     private shareRejectReasonsService: ShareRejectionExplanationService,
     private storageService: LocalStorageService,
-    private heliosPoolService: HeliosPoolService
+    private heliosPoolService: HeliosPoolService,
+    private editModeService: EditModeService,
+    public layoutService: DashboardLayoutService
   ) {
     this.initializeChart();
   }
 
   ngOnInit(): void {
+    this.rows = this.layoutService.loadLayout();
+
+    // Track edit mode; auto-save layout when edit mode exits
+    let prevEditMode = false;
+    this.editModeService.editMode$.pipe(takeUntil(this.destroy$)).subscribe(active => {
+      if (prevEditMode && !active) {
+        this.layoutService.saveLayout(this.rows);
+      }
+      prevEditMode = active;
+      this.editMode = active;
+    });
+
     this.themeService.getThemeSettings()
       .pipe(takeUntil(this.destroy$))
       .subscribe(() => {
@@ -171,6 +205,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   ngOnDestroy() {
     this.destroy$.next();
     this.destroy$.complete();
+    this.editModeService.exit();
   }
 
   private updateChartColors() {
@@ -453,7 +488,7 @@ export class HomeComponent implements OnInit, OnDestroy {
 
         this.maxPower = Math.max(info.maxPower, info.power);
         this.nominalVoltage = info.nominalVoltage;
-        this.maxTemp = Math.max(info.throttleTemp ?? 75, info.temp);
+        this.maxTemp = Math.max(info.throttleTemp, info.temp);
         this.maxRpm = Math.max(7000, info.fanrpm, info.fan2rpm);
         this.maxFrequency = Math.max(800, info.frequency, info.actualFrequency);
 
@@ -613,6 +648,11 @@ export class HomeComponent implements OnInit, OnDestroy {
       }),
       shareReplay({ refCount: true, bufferSize: 1 })
     );
+
+    // Keep hp property in sync so template can reference it directly
+    this.heliosPool$.pipe(takeUntil(this.destroy$)).subscribe(data => {
+      this.hp = data;
+    });
 
     this.infoSubscription = combineLatest([this.info$, this.systemInfoError$])
       .pipe(takeUntil(this.destroy$))
@@ -1011,4 +1051,189 @@ export class HomeComponent implements OnInit, OnDestroy {
       .filter(([key, ]) => key !== 'boardTemp' || (info.boardTemp ?? 0) > 0)
       .map(([key, value]) => ({name: value, value: key}));
   }
+
+  // ── Dashboard layout ────────────────────────────────────────────────────────
+
+  public trackByRow(_index: number, row: DashboardRow): string {
+    return row.id;
+  }
+
+  public trackByCard(_index: number, cardId: string): string {
+    return cardId;
+  }
+
+  public isCardVisible(cardId: string, info: ISystemInfo): boolean {
+    switch (cardId) {
+      case 'hp-server':
+      case 'hp-status':
+      case 'hp-account':
+      case 'hp-worker':
+        return this.hp !== null;
+      case 'chart':
+        return !info.power_fault;
+      default:
+        return true;
+    }
+  }
+
+  public getCardLabel(cardId: string): string {
+    return this.layoutService.getCardLabel(cardId);
+  }
+
+  public getCardColClass(row: DashboardRow): string {
+    switch (row.colClass ?? this.draggingCardColClass) {
+      case 'col-3':  return 'col-12 md:col-6 xl:col-3';
+      case 'col-4':  return 'col-12 md:col-4';
+      case 'col-12': return 'col-12';
+      default:       return 'col-12';
+    }
+  }
+
+  public isCompatibleDropRow(row: DashboardRow): boolean {
+    return this.draggingOverCompatibleRowId === row.id;
+  }
+
+  public isInvalidDropRow(row: DashboardRow): boolean {
+    if (!this.draggingCardColClass) return false;
+    // Wrong colClass is always invalid
+    if (row.colClass !== null && row.colClass !== this.draggingCardColClass) return true;
+    // Full rows are valid as long as they share the same colClass — swap mode handles it
+    return false;
+  }
+
+  public isRowFull(row: DashboardRow): boolean {
+    const cap = this.layoutService.rowCapacity(row.colClass);
+    return row.cardIds.length >= cap;
+  }
+
+  public onCardDrop(event: CdkDragDrop<string[]>): void {
+    // CDK handles within-row reordering natively
+    moveItemInArray(event.container.data, event.previousIndex, event.currentIndex);
+  }
+
+  public onCardDragStarted(event: CdkDragStart<string>): void {
+    const cardId = event.source.data;
+    const def = this.layoutService.getCardDef(cardId);
+    this.draggingCardColClass = def?.colClass ?? null;
+    this.draggingSourceRowId = event.source.dropContainer.id.replace('card-list-', '');
+    const sourceRow = this.rows.find(r => r.id === this.draggingSourceRowId);
+    this.draggingSourceCardIndex = sourceRow ? sourceRow.cardIds.indexOf(cardId) : null;
+  }
+
+  public onCardDragReleased(_event: CdkDragRelease): void {
+    const isCrossRow = this.draggingOverCompatibleRowId !== null &&
+                       this.draggingOverCompatibleRowId !== this.draggingSourceRowId;
+    if (isCrossRow) {
+      document.body.classList.add('axe-suppress-drop-anim');
+    }
+  }
+
+  public onCardDragEnded(event: CdkDragEnd<string>): void {
+    const cardId = event.source.data;
+    const isCrossRow = this.draggingOverCompatibleRowId !== null &&
+                       this.draggingOverCompatibleRowId !== this.draggingSourceRowId;
+    if (isCrossRow) {
+      const sourceRow = this.rows.find(r => r.id === this.draggingSourceRowId);
+      const targetRow = this.rows.find(r => r.id === this.draggingOverCompatibleRowId);
+      if (sourceRow && targetRow) {
+        const srcIdx = sourceRow.cardIds.indexOf(cardId);
+        const tgtIdx = this.draggingInsertIndex ?? 0;
+        if (srcIdx !== -1) {
+          if (this.draggingIsSwap && tgtIdx < targetRow.cardIds.length) {
+            // Swap: exchange the two cards in-place
+            const displaced = targetRow.cardIds[tgtIdx];
+            targetRow.cardIds[tgtIdx] = cardId;
+            sourceRow.cardIds[srcIdx] = displaced;
+          } else if (!this.draggingIsSwap) {
+            // Insert: move card from source to target
+            sourceRow.cardIds.splice(srcIdx, 1);
+            if (targetRow.colClass === null) targetRow.colClass = this.draggingCardColClass;
+            const insertIdx = Math.min(tgtIdx, targetRow.cardIds.length);
+            targetRow.cardIds.splice(insertIdx, 0, cardId);
+            if (sourceRow.cardIds.length === 0) sourceRow.colClass = null;
+          }
+        }
+      }
+    }
+    this.draggingCardColClass = null;
+    this.draggingSourceRowId = null;
+    this.draggingOverCompatibleRowId = null;
+    this.draggingInsertIndex = null;
+    this.draggingIsSwap = false;
+    this.draggingSourceCardIndex = null;
+    document.body.classList.remove('axe-suppress-drop-anim');
+  }
+
+  public onCardDragMoved(event: CdkDragMove<string>): void {
+    if (!this.draggingCardColClass) return;
+    const { x, y } = event.pointerPosition;
+    const dropListEl = document.elementsFromPoint(x, y).find(el => el.id?.startsWith('card-list-'));
+    if (!dropListEl) {
+      this.draggingOverCompatibleRowId = null;
+      this.draggingInsertIndex = null;
+      this.draggingIsSwap = false;
+      return;
+    }
+    const rowId = dropListEl.id.replace('card-list-', '');
+    // Same-row: CDK handles it — clear cross-row state
+    if (rowId === this.draggingSourceRowId) {
+      this.draggingOverCompatibleRowId = null;
+      this.draggingInsertIndex = null;
+      this.draggingIsSwap = false;
+      return;
+    }
+    const row = this.rows.find(r => r.id === rowId);
+    if (!row) return;
+    // Wrong colClass is always invalid; full-row + matching colClass = swap, still accept
+    const wrongType = row.colClass !== null && row.colClass !== this.draggingCardColClass;
+    if (wrongType) {
+      this.draggingOverCompatibleRowId = null;
+      this.draggingInsertIndex = null;
+      this.draggingIsSwap = false;
+      return;
+    }
+    this.draggingOverCompatibleRowId = rowId;
+    const isSwap = row.id !== this.draggingSourceRowId && this.isRowFull(row);
+    this.draggingIsSwap = isSwap;
+    // Pure geometry: containerLeft and W are invariant to indicator position → no feedback loop
+    const cardEls = Array.from(
+      (dropListEl as Element).querySelectorAll(':scope > .card-col-wrapper')
+    ) as HTMLElement[];
+    const N = cardEls.length;
+    if (N === 0) { this.draggingInsertIndex = 0; return; }
+    const W = cardEls[0].getBoundingClientRect().width;
+    const containerLeft = (dropListEl as Element).getBoundingClientRect().left;
+    const rawSlot = (x - containerLeft) / W;
+    // Swap mode: clamp to card indices (floor); insert mode: clamp to boundaries (round)
+    this.draggingInsertIndex = isSwap
+      ? Math.max(0, Math.min(N - 1, Math.floor(rawSlot)))
+      : Math.max(0, Math.min(N, Math.round(rawSlot)));
+  }
+
+  /** The cardId that will be displaced into the source slot when a swap drop occurs */
+  get swapDisplacedCardId(): string | null {
+    if (!this.draggingIsSwap || this.draggingInsertIndex === null || !this.draggingOverCompatibleRowId) return null;
+    const targetRow = this.rows.find(r => r.id === this.draggingOverCompatibleRowId);
+    return targetRow?.cardIds[this.draggingInsertIndex] ?? null;
+  }
+
+  public addRow(index: number): void {
+    this.rows.splice(index, 0, {
+      id: this.layoutService.generateRowId(),
+      colClass: null,
+      cardIds: [],
+    });
+  }
+
+  public removeRow(rowId: string): void {
+    const idx = this.rows.findIndex(r => r.id === rowId);
+    if (idx !== -1 && this.rows[idx].cardIds.length === 0) {
+      this.rows.splice(idx, 1);
+    }
+  }
+
+  public onRowDrop(event: CdkDragDrop<DashboardRow[]>): void {
+    moveItemInArray(this.rows, event.previousIndex, event.currentIndex);
+  }
+
 }

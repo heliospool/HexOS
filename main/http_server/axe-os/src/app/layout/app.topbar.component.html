@@ -77,6 +77,15 @@
             <li>
                 <a class="block py-2 text-white cursor-pointer"
                     tooltipPosition="bottom"
+                    [pTooltip]="editMode ? 'Save layout' : 'Customize dashboard'"
+                    (click)="toggleEditMode()"
+                >
+                    <i class="pi pi-{{editMode ? 'check' : 'pencil'}} text-xl block"></i>
+                </a>
+            </li>
+            <li>
+                <a class="block py-2 text-white cursor-pointer"
+                    tooltipPosition="bottom"
                     pTooltip="Restart"
                     (click)="restart()"
                 >

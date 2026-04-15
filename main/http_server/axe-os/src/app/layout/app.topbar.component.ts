@@ -6,6 +6,7 @@ import { LayoutService } from './service/app.layout.service';
 import { SensitiveData } from 'src/app/services/sensitive-data.service';
 import { SystemInfo as ISystemInfo } from 'src/app/generated';
 import { MenuItem } from 'primeng/api';
+import { EditModeService } from 'src/app/services/edit-mode.service';
 
 @Component({
   selector: 'app-topbar',
@@ -17,6 +18,7 @@ export class AppTopBarComponent implements OnInit, OnDestroy {
   public info$!: Observable<ISystemInfo>;
   public sensitiveDataHidden: boolean = false;
   public items!: MenuItem[];
+  public editMode = false;
 
   @Input() isAPMode: boolean = false;
 
@@ -27,6 +29,7 @@ export class AppTopBarComponent implements OnInit, OnDestroy {
     private systemService: SystemApiService,
     private toastr: ToastrService,
     private sensitiveData: SensitiveData,
+    private editModeService: EditModeService,
   ) {
     this.info$ = this.systemService.getInfo().pipe(shareReplay({refCount: true, bufferSize: 1}))
   }
@@ -37,11 +40,20 @@ export class AppTopBarComponent implements OnInit, OnDestroy {
       .subscribe((hidden: boolean) => {
         this.sensitiveDataHidden = hidden;
       });
+    this.editModeService.editMode$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((active: boolean) => {
+        this.editMode = active;
+      });
   }
 
   ngOnDestroy() {
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  public toggleEditMode() {
+    this.editModeService.toggle();
   }
 
   public toggleSensitiveData() {
