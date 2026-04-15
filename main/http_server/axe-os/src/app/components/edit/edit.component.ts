@@ -197,7 +197,8 @@ export class EditComponent implements OnInit, OnDestroy, OnChanges {
             Validators.required,
             Validators.min(0),
             Validators.max(this.statsFrequencyMaxValue)
-          ]]
+          ]],
+          heliosStatsEnabled: [info.heliosStatsEnabled ?? 1]
         });
 
         this.formSubject.next(this.form);
@@ -387,7 +388,8 @@ export class EditComponent implements OnInit, OnDestroy, OnChanges {
       'overheat_mode',
       'dangerzone',
       'ocFaultStep',
-      'statsFrequency'
+      'statsFrequency',
+      'heliosStatsEnabled'
     ];
   }
 

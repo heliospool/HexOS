@@ -97,6 +97,7 @@ export const mockData: DevMockData = {
     safeTemp: 45,
     vrThrottleTemp: 105,
     statsFrequency: 30,
+    heliosStatsEnabled: 1,
     fanrpm: 3200,
     fan2rpm: 0,
     boardtemp1: 36,

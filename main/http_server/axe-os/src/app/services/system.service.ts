@@ -16,6 +16,93 @@ import { environment } from '../../environments/environment';
 
 const API_TIMEOUT = 15000;
 
+/** Jitter a number by up to ±pct percent */
+function jitter(val: number, pct: number): number {
+  return val * (1 + (Math.random() * 2 - 1) * pct / 100);
+}
+
+/** Drift a number toward target by step, clamp to [min, max] */
+function drift(val: number, target: number, step: number, min: number, max: number): number {
+  const d = target - val;
+  const move = Math.min(Math.abs(d), step) * Math.sign(d);
+  return Math.min(max, Math.max(min, val + move + (Math.random() - 0.5) * step));
+}
+
+const MOCK_SETTINGS_KEY = 'axe_mock_settings';
+
+function loadMockSettings(): void {
+  try {
+    const raw = localStorage.getItem(MOCK_SETTINGS_KEY);
+    if (raw) Object.assign(environment.mockData.systemInfo, JSON.parse(raw));
+  } catch { /* ignore */ }
+}
+
+function saveMockSettings(update: Record<string, any>): void {
+  try {
+    const raw = localStorage.getItem(MOCK_SETTINGS_KEY);
+    const existing = raw ? JSON.parse(raw) : {};
+    localStorage.setItem(MOCK_SETTINGS_KEY, JSON.stringify({ ...existing, ...update }));
+  } catch { /* ignore */ }
+}
+
+let mockSettingsLoaded = false;
+
+function tickMockData() {
+  const m = environment.mockData.systemInfo as any;
+  if (!m) return;
+
+  m.uptimeSeconds = (m.uptimeSeconds ?? 0) + 5;
+
+  const nominalHash = 8577;
+  m.hashRate      = Math.round(jitter(m.hashRate ?? nominalHash, 1.2));
+  m.hashRate_1m   = Math.round(jitter(m.hashRate_1m ?? nominalHash, 0.8));
+  m.hashRate_10m  = Math.round(jitter(m.hashRate_10m ?? nominalHash, 0.5));
+  m.hashRate_1h   = Math.round(jitter(m.hashRate_1h ?? nominalHash, 0.3));
+
+  m.temp    = parseFloat(drift(m.temp ?? 67, 67, 0.4, 55, 74).toFixed(1));
+  m.temp2   = parseFloat(drift(m.temp2 ?? 65, 65, 0.3, 54, 72).toFixed(1));
+  m.vrTemp  = parseFloat(drift(m.vrTemp ?? 54, 54, 0.3, 48, 60).toFixed(1));
+  m.boardTemp = parseFloat(drift(m.boardTemp ?? 42.5, 42.5, 0.2, 38, 48).toFixed(1));
+
+  const tempRatio = Math.min(1, Math.max(0, (m.temp - 50) / 25));
+  const targetFan = Math.round(40 + tempRatio * 55);
+  m.fanspeed = Math.min(100, Math.max(25, Math.round(drift(m.fanspeed ?? 72, targetFan, 2, 25, 100))));
+  m.fanrpm   = Math.round(m.fanspeed * 58 + (Math.random() - 0.5) * 150);
+
+  m.power   = parseFloat(jitter(m.power ?? 58.2, 0.8).toFixed(1));
+  m.current = Math.round(jitter(m.current ?? 4810, 0.5));
+
+  const shareInterval = 5 / 30; // ~1 share per 30s
+  if (Math.random() < shareInterval) {
+    m.sharesAccepted = (m.sharesAccepted ?? 0) + 1;
+    m.lastShareSeconds = 0;
+  } else {
+    m.lastShareSeconds = Math.min((m.lastShareSeconds ?? 0) + 5, 120);
+  }
+
+  m.responseTime = parseFloat(jitter(m.responseTime ?? 18, 15).toFixed(1));
+
+  m.errorPercentage = parseFloat(Math.min(2, Math.max(0, jitter(m.errorPercentage ?? 0.4, 5))).toFixed(2));
+
+  if (m.hashrateMonitor?.asics) {
+    m.hashrateMonitor = {
+      ...m.hashrateMonitor,
+      asics: m.hashrateMonitor.asics.map((a: any) => {
+        const chipTotal = parseFloat(jitter(a.total, 1.5).toFixed(1));
+        return {
+          ...a,
+          total: chipTotal,
+          chipTemp: parseFloat(drift(a.chipTemp, a.chipTemp, 0.3, 55, 80).toFixed(1)),
+        };
+      }),
+      hashrate: m.hashRate,
+    };
+  }
+
+  m.freeHeap = Math.max(180000, (m.freeHeap ?? 200504) - Math.round(Math.random() * 200));
+  if (m.freeHeap < 185000) m.freeHeap = 210000 + Math.round(Math.random() * 10000);
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -35,9 +122,11 @@ export class SystemApiService {
       return this.httpClient.get<ISystemInfo>(`${uri}/api/system/info`).pipe(timeout(API_TIMEOUT));
     }
 
+    if (!mockSettingsLoaded) { loadMockSettings(); mockSettingsLoaded = true; }
+    tickMockData();
     return of(
-      environment.mockData.systemInfo as ISystemInfo
-    ).pipe(delay(1000));
+      { ...environment.mockData.systemInfo } as ISystemInfo
+    ).pipe(delay(300));
   }
 
   public getStatistics(y1: string, y2: string, uri: string = ''): Observable<ISystemStatistics> {
@@ -155,6 +244,8 @@ export class SystemApiService {
       return this.httpClient.patch(`${uri}/api/system`, update);
     }
 
+    Object.assign(environment.mockData.systemInfo, update);
+    saveMockSettings(update);
     return of(true);
   }
 

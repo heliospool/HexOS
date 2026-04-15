@@ -88,6 +88,7 @@ HexOS supports all upstream ESP-Miner hardware out of the box, plus additional G
 ### HeliosPool integration
 
 - **Account stats banner** — home dashboard and swarm view show live hashrate, workers, and other stats from the HeliosPool API; automatically hidden when the device is pointed at a different pool
+- **Pool API toggle** — Settings → Statistics → Pool API switch disables all HeliosPool API polling when turned off; persists across reboots
 - **Multi-region swarm dashboard** — swarm view groups miners by region with per-region aggregate stats; only shown when mining on HeliosPool
 - **Default pool** — primary pool defaults to `btc.heliospool.com`, fallback to `bch.heliospool.com`
 
@@ -122,6 +123,7 @@ HexOS supports all upstream ESP-Miner hardware out of the box, plus additional G
 - **VRR target temperature** — configurable VRR temperature target (55–86 °C), shown in Settings when ASIC+VRR mode is active
 - **Danger Zone** — opt-in section in Settings requiring explicit confirmation to unlock; exposes advanced controls not shown by default
 - **Overcurrent limit** — Danger Zone slider to raise the voltage regulator's overcurrent fault threshold in 5 % steps, up to +20 % above the board default; available on boards with a TPS546 regulator
+- **Customizable dashboard layout** — dashboard cards can be organized into rows via a drag-and-drop editor; cards can be moved between rows, swapped in place, or rearranged within a row; layout is saved to the browser and persists across reloads
 
 ### Logs
 

@@ -105,6 +105,8 @@ export class SwarmComponent implements OnInit, OnDestroy {
 
     this.heliosPoolWorkers$ = this.systemService.getInfo().pipe(
       map(info => {
+        const enabled = (info.heliosStatsEnabled ?? 1) === 1;
+        if (!enabled) return null;
         const pools: { coin: 'btc' | 'bch'; address: string }[] = [];
         for (const [url, user] of [
           [info.stratumURL ?? '',         info.stratumUser ?? ''],
@@ -121,7 +123,7 @@ export class SwarmComponent implements OnInit, OnDestroy {
       }),
       distinctUntilChanged((a, b) => JSON.stringify(a) === JSON.stringify(b)),
       switchMap(pools => {
-        if (!pools.length) return of(null);
+        if (!pools || !pools.length) return of(null);
         return interval(60000).pipe(
           startWith(0),
           switchMap(() =>

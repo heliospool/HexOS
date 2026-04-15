@@ -210,6 +210,7 @@ components:
         - wifiRSSI
         - displayTimeout
         - statsFrequency
+        - heliosStatsEnabled
         - blockHeight
         - scriptsig
         - networkDifficulty
@@ -506,6 +507,9 @@ components:
         statsFrequency:
           type: number
           description: Statistics frequency in seconds
+        heliosStatsEnabled:
+          type: number
+          description: HeliosPool stats API enabled flag (0=disabled, 1=enabled)
         blockHeight:
           type: integer
           description: Current block height
@@ -792,6 +796,13 @@ components:
           minimum: 0
           examples:
             - 120
+        heliosStatsEnabled:
+          type: integer
+          description: Enable or disable HeliosPool stats API (0=disabled, 1=enabled)
+          minimum: 0
+          maximum: 1
+          examples:
+            - 1
       additionalProperties: true
 
   responses:
