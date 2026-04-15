@@ -3,6 +3,7 @@ import 'chartjs-adapter-moment';
 import { CommonModule, HashLocationStrategy, LocationStrategy } from '@angular/common';
 import { provideHttpClient } from '@angular/common/http';
 import { NgModule } from '@angular/core';
+import { DragDropModule } from '@angular/cdk/drag-drop';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { BrowserModule } from '@angular/platform-browser';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
@@ -89,6 +90,7 @@ const components = [
     CommonModule,
     PrimeNGModule,
     AppLayoutModule,
+    DragDropModule,
     MessageModule,
     TooltipModule,
     DialogModule,
