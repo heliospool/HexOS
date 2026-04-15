@@ -88,10 +88,8 @@ export class HomeComponent implements OnInit, OnDestroy {
   public pools$!: Observable<SelectItem<PoolLabel>[]>;
   public heliosPool$!: Observable<HeliosPoolView | null>;
 
-  // Latest HeliosPool data, kept in sync for template access
   public hp: HeliosPoolView | null = null;
 
-  // Dashboard edit mode
   public editMode = false;
   public draggingCardColClass: ColClass = null;
   public draggingSourceRowId: string | null = null;
@@ -102,7 +100,6 @@ export class HomeComponent implements OnInit, OnDestroy {
   /** Index of the dragged card within its source row (for the swap ghost) */
   public draggingSourceCardIndex: number | null = null;
 
-  // Dashboard rows (layout)
   public rows: DashboardRow[] = [];
 
   public chartOptions: any;
@@ -168,7 +165,6 @@ export class HomeComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.rows = this.layoutService.loadLayout();
 
-    // Track edit mode; auto-save layout when edit mode exits
     let prevEditMode = false;
     this.editModeService.editMode$.pipe(takeUntil(this.destroy$)).subscribe(active => {
       if (prevEditMode && !active) {
@@ -581,11 +577,13 @@ export class HomeComponent implements OnInit, OnDestroy {
         const isFallback = !!info.isUsingFallbackStratum;
         return {
           url: (isFallback ? info.fallbackStratumURL : info.stratumURL) ?? '',
-          user: (isFallback ? info.fallbackStratumUser : info.stratumUser) ?? ''
+          user: (isFallback ? info.fallbackStratumUser : info.stratumUser) ?? '',
+          enabled: (info.heliosStatsEnabled ?? 1) === 1
         };
       }),
-      distinctUntilChanged((a, b) => a.url === b.url && a.user === b.user),
-      switchMap(({ url, user }) => {
+      distinctUntilChanged((a, b) => a.url === b.url && a.user === b.user && a.enabled === b.enabled),
+      switchMap(({ url, user, enabled }) => {
+        if (!enabled) return of(null);
         const helioBTC = ['btc.heliospool.com', 'btc.heliospool.asia', 'btc.heliospool.eu', 'solo.heliospool.com'];
         const helioBCH = ['bch.heliospool.com', 'bch.heliospool.asia', 'bch.heliospool.eu', 'solo-bch.heliospool.com'];
         const urlLower = url.toLowerCase();
@@ -649,7 +647,6 @@ export class HomeComponent implements OnInit, OnDestroy {
       shareReplay({ refCount: true, bufferSize: 1 })
     );
 
-    // Keep hp property in sync so template can reference it directly
     this.heliosPool$.pipe(takeUntil(this.destroy$)).subscribe(data => {
       this.hp = data;
     });

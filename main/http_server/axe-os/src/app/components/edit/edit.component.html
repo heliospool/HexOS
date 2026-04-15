@@ -250,6 +250,20 @@
     <h3 class="mt-5">Statistics</h3>
 
     <div class="card">
+        <div class="grid p-fluid mb-3">
+            <label class="hidden md:flex md:col-2 md:m-0 align-items-center">
+                Pool API
+                <tooltip-icon tooltip="Fetch miner statistics when connected to HeliosPool." icon="pi-question-circle"></tooltip-icon>
+            </label>
+            <div class="col-12 md:col-10">
+                <p-inputSwitch inputId="heliosStatsToggle"
+                    [ngModel]="form.controls['heliosStatsEnabled'].value === 1"
+                    [ngModelOptions]="{standalone: true}"
+                    (onChange)="form.patchValue({ heliosStatsEnabled: $event.checked ? 1 : 0 }); form.controls['heliosStatsEnabled'].markAsDirty()">
+                </p-inputSwitch>
+            </div>
+        </div>
+
         <div class="grid p-fluid">
             <label class="col-12 md:col-2 hidden md:flex md:m-0 relative hover-next-input">
                 Data Logging

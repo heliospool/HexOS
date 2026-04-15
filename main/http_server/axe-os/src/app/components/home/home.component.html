@@ -1,6 +1,6 @@
 <ng-template #noValue>--</ng-template>
 
-<!-- Reusable card content template — used both in the main loop and in the swap ghost slot -->
+<!-- Reusable card content template -->
 <ng-template #cardContent let-cardId="cardId" let-info="info">
     <ng-container [ngSwitch]="cardId">
 
@@ -791,7 +791,6 @@
         </div>
     </div>
 
-    <!-- Flat card drop list — all cards in a single wrapping grid, CDK handles reordering -->
     <!-- Outer row drop list (vertical reordering of rows) -->
     <div cdkDropList
          cdkDropListOrientation="vertical"
@@ -815,7 +814,6 @@
                 <i class="pi pi-bars"></i>
             </div>
 
-            <!-- Grid wrapper: flex sibling of handle -->
             <div class="row-grid-wrapper">
 
             <!-- Capacity badge in edit mode -->
@@ -884,7 +882,6 @@
                             </div>
                         </div>
 
-                        <!-- Actual card content (only when visible) -->
                         <ng-container *ngIf="isCardVisible(cardId, info)">
                             <ng-container *ngTemplateOutlet="cardContent; context: { cardId: cardId, info: info }"></ng-container>
                         </ng-container>
