@@ -1,0 +1,16 @@
+---
+name: Documentation
+about: Missing, incorrect, or unclear documentation
+title: '[DOCS] '
+labels: documentation
+assignees: ''
+---
+
+## What is missing or incorrect?
+Describe what documentation is wrong or missing.
+
+## Where should it be documented?
+README, wiki, code comments, etc.
+
+## Suggested Content
+What should it say? (optional)
