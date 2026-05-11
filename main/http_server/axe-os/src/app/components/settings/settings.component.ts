@@ -260,6 +260,8 @@ export class SettingsComponent implements AfterViewInit, OnDestroy {
     this.isNewProfile = true;
     this.managedProfile = null;
     const f = this.editComponent?.form?.getRawValue() ?? {};
+    // edit form uses 'minfanspeed' (lowercase); buildProfileForm expects 'minFanSpeed'
+    if (f.minfanspeed != null && f.minFanSpeed == null) f.minFanSpeed = f.minfanspeed;
     this.profileForm = this.buildProfileForm({ ...f, name: '' });
   }
 
