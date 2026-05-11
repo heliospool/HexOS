@@ -76,7 +76,7 @@ export class PoolComponent implements OnInit, OnDestroy {
       this.form = this.fb.group({
         stratumURL: [info.stratumURL, [
           Validators.required,
-          Validators.pattern(/^(?!.*stratum\+tcp:\/\/)(?!.*:[1-9]\d{0,4}$).*$/),
+          PoolComponent.stratumURLValidator(),
         ]],
         stratumPort: [info.stratumPort, [
           Validators.required,
@@ -92,7 +92,7 @@ export class PoolComponent implements OnInit, OnDestroy {
         stratumCert: [info.stratumCert],
         stratumDecodeCoinbase: [info.stratumDecodeCoinbase ?? 3, [Validators.required]],
         fallbackStratumURL: [info.fallbackStratumURL, [
-          Validators.pattern(/^(?!.*stratum\+tcp:\/\/)(?!.*:[1-9]\d{0,4}$).*$/),
+          PoolComponent.stratumURLValidator(),
         ]],
         fallbackStratumPort: [info.fallbackStratumPort, [
           Validators.required,
@@ -287,7 +287,7 @@ export class PoolComponent implements OnInit, OnDestroy {
       name: [profile?.name ?? '', [Validators.required, Validators.maxLength(32)]],
       stratumURL: [profile?.stratumURL ?? '', [
         Validators.required,
-        Validators.pattern(/^(?!.*stratum\+tcp:\/\/)(?!.*:[1-9]\d{0,4}$).*$/),
+        PoolComponent.stratumURLValidator(),
       ]],
       stratumPort: [profile?.stratumPort ?? 3333, [
         Validators.required,
@@ -524,6 +524,15 @@ export class PoolComponent implements OnInit, OnDestroy {
       };
       reader.readAsText(file);
     }
+  }
+
+  private static stratumURLValidator(): ValidatorFn {
+    return (control: AbstractControl): ValidationErrors | null => {
+      const v: string = control.value ?? '';
+      if (v.includes('stratum+tcp://')) return { pattern: true };
+      if (/:[1-9]\d{0,4}$/.test(v)) return { pattern: true };
+      return null;
+    };
   }
 
   private pemCertificateValidator(): ValidatorFn {
