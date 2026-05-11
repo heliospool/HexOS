@@ -7,6 +7,7 @@ import { SensitiveData } from 'src/app/services/sensitive-data.service';
 import { SystemInfo as ISystemInfo } from 'src/app/generated';
 import { MenuItem } from 'primeng/api';
 import { EditModeService } from 'src/app/services/edit-mode.service';
+import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-topbar',
@@ -30,8 +31,9 @@ export class AppTopBarComponent implements OnInit, OnDestroy {
     private toastr: ToastrService,
     private sensitiveData: SensitiveData,
     private editModeService: EditModeService,
+    private router: Router,
   ) {
-    this.info$ = this.systemService.getInfo().pipe(shareReplay({refCount: true, bufferSize: 1}))
+    this.info$ = this.systemService.getInfo().pipe(shareReplay({refCount: true, bufferSize: 1}));
   }
 
   ngOnInit() {
@@ -54,6 +56,10 @@ export class AppTopBarComponent implements OnInit, OnDestroy {
 
   public toggleEditMode() {
     this.editModeService.toggle();
+  }
+
+  get isDashboard(): boolean {
+    return this.router.url === '/' || this.router.url === '';
   }
 
   public toggleSensitiveData() {

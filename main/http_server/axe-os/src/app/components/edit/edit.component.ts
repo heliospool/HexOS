@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, Input, OnInit, OnDestroy, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, EventEmitter, Input, OnInit, OnDestroy, OnChanges, Output, SimpleChanges } from '@angular/core';
 import { FormBuilder, FormGroup, FormControl, Validators } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
 import { forkJoin, startWith, Subject, takeUntil, pairwise, BehaviorSubject, Observable } from 'rxjs';
@@ -25,6 +25,8 @@ export class EditComponent implements OnInit, OnDestroy, OnChanges {
   public form$: Observable<FormGroup | null> = this.formSubject.asObservable();
 
   public form!: FormGroup;
+  private savedValues: Record<string, any> = {};
+  public restartRequired = false;
 
   public firmwareUpdateProgress: number | null = null;
   public websiteUpdateProgress: number | null = null;
@@ -33,6 +35,9 @@ export class EditComponent implements OnInit, OnDestroy, OnChanges {
   public settingsUnlocked: boolean = false;
 
   @Input() uri = '';
+  @Input() extraFields: Record<string, any> = {};
+  @Output() sectionSaved = new EventEmitter<void>();
+  @Output() reverted = new EventEmitter<void>();
 
   // Store frequency and voltage options from API
   public defaultFrequency: number = 0;
@@ -57,20 +62,15 @@ export class EditComponent implements OnInit, OnDestroy, OnChanges {
   public dangerZoneAcknowledged = false;
   public deviceInfo: SystemInfo | null = null;
 
-  private saveDangerZoneSetting(enabled: number) {
-    const deviceUri = this.uri || '';
-    this.systemService.updateSystem(deviceUri, { dangerzone: enabled })
-      .subscribe({
-        next: () => {},
-        error: (err) => { console.error(`Failed to save danger zone setting: ${err.message}`); }
-      });
-  }
-
   toggleDangerZone(enabled: boolean): void {
     if (!enabled) {
       this.dangerZoneEnabled = false;
       this.dangerZoneAcknowledged = false;
-      this.saveDangerZoneSetting(0);
+      if (this.form) {
+        this.form.patchValue({ dangerzone: 0, ocFaultStep: 0 });
+        this.form.controls['dangerzone'].markAsDirty();
+        this.form.controls['ocFaultStep'].markAsDirty();
+      }
       return;
     }
     this.dangerZoneConfirmVisible = true;
@@ -80,7 +80,10 @@ export class EditComponent implements OnInit, OnDestroy, OnChanges {
     if (this.dangerZoneAcknowledged) {
       this.dangerZoneConfirmVisible = false;
       this.dangerZoneEnabled = true;
-      this.saveDangerZoneSetting(1);
+      if (this.form) {
+        this.form.patchValue({ dangerzone: 1 });
+        this.form.controls['dangerzone'].markAsDirty();
+      }
     }
   }
 
@@ -89,6 +92,46 @@ export class EditComponent implements OnInit, OnDestroy, OnChanges {
     this.dangerZoneAcknowledged = false;
     this.dangerZoneEnabled = false;
   }
+
+  public loadProfile(p: any): void {
+    const patch: any = {};
+    if (p.frequency != null)        patch['frequency']        = p.frequency;
+    if (p.coreVoltage != null)      patch['coreVoltage']      = p.coreVoltage;
+    if (p.autofanspeed != null)     patch['autofanspeed']     = p.autofanspeed;
+    if (p.manualFanSpeed != null)   patch['manualFanSpeed']   = p.manualFanSpeed;
+    if (p.minFanSpeed != null)      patch['minfanspeed']      = p.minFanSpeed;
+    if (p.fanCurve != null)         patch['fanCurve']         = p.fanCurve;
+    if (p.temptarget != null)       patch['temptarget']       = p.temptarget;
+    if (p.vrrtarget != null)        patch['vrrtarget']        = p.vrrtarget;
+    if (p.dangerzone != null) {
+      patch['dangerzone'] = p.dangerzone;
+      this.dangerZoneEnabled = p.dangerzone === 1;
+    }
+    if (p.ocFaultStep != null)      patch['ocFaultStep']      = p.ocFaultStep;
+    if (p.overheat_mode != null)    patch['overheat_mode']    = p.overheat_mode;
+    if (p.display != null)          patch['display']          = p.display;
+    if (p.rotation != null)         patch['rotation']         = p.rotation;
+    if (p.invertscreen != null)     patch['invertscreen']     = p.invertscreen;
+    if (p.displayTimeout != null)   patch['displayTimeout']   = p.displayTimeout;
+    if (p.heliosStatsEnabled != null) patch['heliosStatsEnabled'] = p.heliosStatsEnabled;
+    if (p.statsFrequency != null)   patch['statsFrequency']   = p.statsFrequency;
+    if (p.overclockEnabled != null) {
+      patch['overclockEnabled'] = p.overclockEnabled;
+      this.settingsUnlocked = p.overclockEnabled === 1;
+    }
+    this.form.patchValue(patch, { emitEvent: false });
+    if (p.displayTimeout != null) {
+      const dtIdx = DISPLAY_TIMEOUT_STEPS.findIndex(x => x === p.displayTimeout);
+      if (dtIdx >= 0) this.displayTimeoutControl.setValue(dtIdx, { emitEvent: false });
+    }
+    if (p.statsFrequency != null) {
+      const sfIdx = STATS_FREQUENCY_STEPS.findIndex(x => x === p.statsFrequency);
+      if (sfIdx >= 0) this.statsFrequencyControl.setValue(sfIdx, { emitEvent: false });
+    }
+    this.form.markAsPristine();
+    // Do NOT update savedValues here — savedValues tracks device state, not profile state
+  }
+
   public displayTimeoutControl: FormControl;
   public statsFrequencyControl: FormControl;
 
@@ -119,18 +162,6 @@ export class EditComponent implements OnInit, OnDestroy, OnChanges {
     });
   }
 
-  private saveOverclockSetting(enabled: number) {
-    const deviceUri = this.uri || '';
-    this.systemService.updateSystem(deviceUri, { overclockEnabled: enabled })
-      .subscribe({
-        next: () => {
-          console.log(`Overclock setting saved: ${enabled === 1 ? 'enabled' : 'disabled'}`);
-        },
-        error: (err) => {
-          console.error(`Failed to save overclock setting: ${err.message}`);
-        }
-      });
-  }
 
   ngOnInit(): void {
     this.loadDeviceSettings();
@@ -198,11 +229,11 @@ export class EditComponent implements OnInit, OnDestroy, OnChanges {
             Validators.min(0),
             Validators.max(this.statsFrequencyMaxValue)
           ]],
-          heliosStatsEnabled: [info.heliosStatsEnabled ?? 1]
+          heliosStatsEnabled: [info.heliosStatsEnabled ?? 1],
+          overclockEnabled: [info.overclockEnabled ?? 0]
         });
 
         this.formSubject.next(this.form);
-        this.dangerZoneEnabled = !!info.dangerzone;
 
       this.form.controls['autofanspeed'].valueChanges.pipe(
         startWith(this.form.controls['autofanspeed'].value),
@@ -242,6 +273,12 @@ export class EditComponent implements OnInit, OnDestroy, OnChanges {
       this.statsFrequencyControl.setValue(
         STATS_FREQUENCY_STEPS.findIndex(x => x === info.statsFrequency)
       );
+
+      // Capture after all synchronous subscriptions (e.g. autofanspeed startWith) have settled
+      Promise.resolve().then(() => {
+        this.savedValues = this.form.getRawValue();
+        this.dangerZoneEnabled = this.savedValues['dangerzone'] === 1;
+      });
     });
   }
 
@@ -294,15 +331,9 @@ export class EditComponent implements OnInit, OnDestroy, OnChanges {
 
   toggleOverclockMode(enable: boolean) {
     this.settingsUnlocked = enable;
-    this.saveOverclockSetting(enable ? 1 : 0);
-
-    if (enable) {
-      console.log(
-        '🎉 Overclock mode enabled!\n' +
-        '⚡ Custom frequency and voltage values are now available.'
-      );
-    } else {
-      console.log('🔒 Overclock mode disabled. Using safe preset values only.');
+    if (this.form) {
+      this.form.patchValue({ overclockEnabled: enable ? 1 : 0 });
+      this.form.controls['overclockEnabled'].markAsDirty();
     }
   }
 
@@ -389,12 +420,83 @@ export class EditComponent implements OnInit, OnDestroy, OnChanges {
       'dangerzone',
       'ocFaultStep',
       'statsFrequency',
-      'heliosStatsEnabled'
+      'heliosStatsEnabled',
+      'overclockEnabled'
     ];
   }
 
   get isRestartRequired(): boolean {
     return !! Object.entries(this.form.controls)
       .filter(([field, control]) => control.dirty && !this.noRestartFields.includes(field)).length
+  }
+
+  public isSectionDirty(fields: string[]): boolean {
+    if (!this.form) return false;
+    const raw = this.form.getRawValue();
+    return fields.some(f => {
+      if (this.form.controls[f]?.disabled) return false;
+      return raw[f] !== this.savedValues[f];
+    });
+  }
+
+  public revertToSaved(): void {
+    if (!this.form) return;
+    this.form.patchValue(this.savedValues, { emitEvent: true });
+    this.form.markAsPristine();
+    this.dangerZoneEnabled = this.savedValues['dangerzone'] === 1;
+    this.reverted.emit();
+  }
+
+  public restartDevice(): void {
+    this.systemService.restart(this.uri || '').subscribe();
+  }
+
+  public isAnyDirty(): boolean {
+    if (this.form?.dirty) return true;
+    return this.isSectionDirty([
+      'frequency', 'coreVoltage', 'autofanspeed', 'fanCurve', 'temptarget', 'vrrtarget', 'minfanspeed', 'manualFanSpeed',
+      'dangerzone', 'ocFaultStep',
+      'display', 'rotation', 'displayTimeout', 'invertscreen',
+      'statsFrequency', 'heliosStatsEnabled'
+    ]);
+  }
+
+  public applyAll(): void {
+    this.applyField([
+      'frequency', 'coreVoltage', 'autofanspeed', 'fanCurve', 'temptarget', 'vrrtarget', 'minfanspeed', 'manualFanSpeed',
+      'dangerzone', 'ocFaultStep',
+      'display', 'rotation', 'displayTimeout', 'invertscreen',
+      'statsFrequency', 'heliosStatsEnabled'
+    ]);
+  }
+
+  public applyField(fields: string[]): void {
+    const raw = this.form.getRawValue();
+    const patch: Record<string, any> = {};
+    fields.forEach(f => { if (raw[f] !== undefined) patch[f] = raw[f]; });
+    Object.assign(patch, this.extraFields);
+    const deviceUri = this.uri || '';
+    const prevValues: Record<string, any> = {};
+    fields.forEach(f => { prevValues[f] = this.savedValues[f]; });
+    this.systemService.updateSystem(deviceUri, patch)
+      .pipe(this.loadingService.lockUIUntilComplete())
+      .subscribe({
+        next: () => {
+          fields.forEach(f => {
+            this.form.controls[f]?.markAsPristine();
+            this.savedValues[f] = raw[f];
+          });
+          this.savedChanges = true;
+          this.toastr.success(deviceUri ? `Saved settings for ${deviceUri}` : 'Saved');
+          const needsRestart = fields
+            .filter(f => raw[f] !== prevValues[f])
+            .some(f => !this.noRestartFields.includes(f));
+          if (needsRestart) this.restartRequired = true;
+          this.sectionSaved.emit();
+        },
+        error: (err: HttpErrorResponse) => {
+          this.toastr.error(deviceUri ? `Could not save settings for ${deviceUri}. ${err.message}` : `Could not save settings. ${err.message}`);
+        }
+      });
   }
 }

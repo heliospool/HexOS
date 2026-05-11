@@ -4,7 +4,7 @@ CVS files define the initial NVS configuration baked into factory images. Keys a
 
 The file format is documented in [`config.cvs.example`](../config.cvs.example).
 
-**Contents:** [NVS keys](#nvs-keys) — [Board](#board) · [Network](#network) · [Stratum primary](#stratum--primary-pool) · [Stratum fallback](#stratum--fallback-pool) · [Stratum tuning](#stratum--connection-tuning) · [ASIC](#asic) · [Self-test](#self-test-parameters) · [Fan & thermal](#fan-and-thermal) · [Display](#display) · [Hardware peripherals](#hardware-peripherals) · [System](#system) · [**Danger zone**](#danger-zone) | [Firmware constants](#firmware-constants)
+**Contents:** [NVS keys](#nvs-keys) — [Board](#board) · [Network](#network) · [Stratum primary](#stratum--primary-pool) · [Stratum fallback](#stratum--fallback-pool) · [Stratum tuning](#stratum--connection-tuning) · [ASIC](#asic) · [Self-test](#self-test-parameters) · [Fan & thermal](#fan-and-thermal) · [Display](#display) · [Hardware peripherals](#hardware-peripherals) · [System](#system) · [**Danger zone**](#danger-zone) · [**Advanced thermal and power tuning**](#advanced-thermal-and-power-tuning) | [Firmware constants](#firmware-constants)
 
 ---
 
@@ -163,16 +163,23 @@ Derived automatically from `boardversion` — do not need to be set in most case
 
 ### Danger zone
 
-These keys are **gated** by the `dangerzone` key. When `dangerzone` is `0` (the default), all gated keys are ignored at boot — the firmware uses the built-in defaults regardless of any stored NVS value.
-
-`dangerzone` and `oc_ovr_step` are accessible via the Web UI Settings page (and REST API). All other keys in this section have no REST API exposure and must be set via a CVS file.
-
-**Warning:** These constants control thermal shutdown, power reduction, and input voltage thresholds. Incorrect values can cause overheating, hardware damage, or voltage regulator failure. Only modify them if you understand the implications.
+`dangerzone` controls access to advanced settings in the Web UI Settings page. Setting `dangerzone` to `0` (via the UI toggle or the REST API) resets all UI-exposed danger zone settings to firmware defaults.
 
 | Key | Type | Default | Unit | Notes |
 |---|---|---|---|---|
-| `dangerzone` | bool | `0` | | Gate key. Must be `1` for any other key in this section to take effect |
+| `dangerzone` | bool | `0` | | UI toggle. Enables the danger zone panel in Settings. Disabling resets UI-exposed gated settings to firmware defaults |
 | `oc_ovr_step` | u16 | `0` | | Raises the voltage regulator's overcurrent fault threshold by this many 5 % steps above the board default (0–4, so 0–20 % above default). 0 = use board default. Only applicable to TPS546-equipped boards. |
+
+---
+
+### Advanced thermal and power tuning
+
+Set via CVS file only — not accessible via the REST API or Web UI.
+
+**Warning:** These settings control thermal shutdown, power reduction, and input voltage thresholds. Incorrect values can cause overheating, hardware damage, or voltage regulator failure. Only modify them if you understand the implications.
+
+| Key | Type | Default | Unit | Notes |
+|---|---|---|---|---|
 | `pid_p` | float | `15.0` | | Fan PID proportional gain |
 | `pid_i` | float | `2.0` | | Fan PID integral gain |
 | `pid_d` | float | `5.0` | | Fan PID derivative gain |

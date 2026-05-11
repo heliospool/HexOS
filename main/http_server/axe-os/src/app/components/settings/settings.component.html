@@ -1,4 +1,333 @@
-<div [ngClass]="{'card': (form$ | async), 'hidden': !(form$ | async)}">
-    <h2>Settings</h2>
-    <app-edit></app-edit>
+<div class="settings-tabview-wrapper">
+<p-tabView [(activeIndex)]="activeTabIndex">
+
+    <!-- Tab 1: Settings -->
+    <p-tabPanel header="Settings">
+        <app-edit (sectionSaved)="onSectionSaved()" (reverted)="onReverted()" [extraFields]="{selectedProfileId: selectedProfile?.id ?? -1}">
+            <div profileSlot class="flex align-items-center gap-2">
+                <p-dropdown
+                    [options]="profileOptions"
+                    optionLabel="name"
+                    [(ngModel)]="selectedProfile"
+                    (onChange)="onApplyProfile($event.value)"
+                    placeholder="Custom"
+                    [disabled]="profileOptions.length === 0"
+                    [style]="{'min-width': '160px'}"
+                >
+                </p-dropdown>
+            </div>
+            <h2 settingsTitleSlot class="mt-0 mb-3">Settings</h2>
+        </app-edit>
+    </p-tabPanel>
+
+    <!-- Tab 2: Profiles -->
+    <p-tabPanel header="Profiles">
+        <div class="card mb-3 profile-action-toolbar">
+            <div class="flex align-items-center justify-content-between gap-2">
+                <div class="flex align-items-center gap-2">
+                    <p-dropdown
+                        [options]="profileOptions"
+                        optionLabel="name"
+                        [(ngModel)]="managedProfile"
+                        (onChange)="onManageProfileChange($event.value)"
+                        placeholder="Select profile"
+                        [disabled]="profileOptions.length === 0"
+                        [style]="{'min-width': '160px'}"
+                    >
+                        <ng-template pTemplate="selectedItem">
+                            <span>{{ isNewProfile ? 'New profile' : managedProfile?.name }}</span>
+                            <i *ngIf="profileForm?.dirty" class="pi pi-asterisk profile-dirty-indicator" pTooltip="Unsaved changes" tooltipPosition="right"></i>
+                        </ng-template>
+                    </p-dropdown>
+                    <button pButton type="button" icon="pi pi-trash"
+                        class="p-button-text p-button-danger profile-action-button"
+                        [disabled]="!managedProfile || isNewProfile"
+                        (click)="deleteProfile(managedProfile)"
+                        pTooltip="Delete profile">
+                    </button>
+                </div>
+                <div class="flex align-items-center gap-1">
+                    <button pButton type="button" icon="pi pi-file-plus"
+                        class="p-button-text profile-action-button"
+                        [disabled]="savedProfiles.length >= 4"
+                        (click)="newProfile()"
+                        [pTooltip]="savedProfiles.length >= 4 ? '4/4 profiles — delete one to add more' : 'New profile'">
+                    </button>
+                    <button pButton type="button" icon="pi pi-file-import"
+                        class="p-button-text profile-action-button"
+                        [disabled]="savedProfiles.length >= 4"
+                        (click)="importProfileInput.click()"
+                        [pTooltip]="savedProfiles.length >= 4 ? '4/4 profiles — delete one to add more' : 'Import profiles'">
+                    </button>
+                    <input #importProfileInput type="file" accept=".json" style="display:none" (change)="importProfiles($event)" />
+                    <button pButton type="button" icon="pi pi-file-export"
+                        class="p-button-text profile-action-button"
+                        [disabled]="savedProfiles.length === 0"
+                        (click)="exportAllProfiles()"
+                        pTooltip="Export profiles">
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div *ngIf="!profileForm" class="card text-color-secondary">
+            No profiles yet. Click <i class="pi pi-file-plus mx-1"></i> above to create one.
+        </div>
+
+        <form *ngIf="profileForm" [formGroup]="profileForm">
+
+            <div class="card">
+                <div class="field grid p-fluid">
+                    <label class="col-12 md:col-2 md:m-0">Name</label>
+                    <div class="col-12 md:col-10">
+                        <input pInputText formControlName="name" maxlength="32" placeholder="Profile name" />
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="flex align-items-center justify-content-end gap-2 mb-2">
+                    <label for="profileExpertMode" class="text-sm cursor-pointer" style="user-select:none">Expert Mode</label>
+                    <p-inputSwitch inputId="profileExpertMode"
+                        [ngModel]="profileForm.get('overclockEnabled')?.value === 1"
+                        [ngModelOptions]="{standalone: true}"
+                        (onChange)="profileForm!.patchValue({overclockEnabled: $event.checked ? 1 : 0}); profileForm!.markAsDirty()">
+                    </p-inputSwitch>
+                </div>
+                <p-message *ngIf="profileForm.get('overclockEnabled')?.value === 1" severity="warn" styleClass="w-full mb-3 py-4 border-round-xl"
+                    text="Custom settings can cause damage & system instability. Only modify these settings if you understand the risks of running outside designed parameters.">
+                </p-message>
+
+                <div class="field grid p-fluid">
+                    <ng-container *ngIf="profileForm.get('overclockEnabled')?.value === 1">
+                        <label class="col-12 md:col-2 md:m-0">Frequency</label>
+                        <div class="col-12 md:col-10">
+                            <input pInputText formControlName="frequency" type="number" />
+                        </div>
+                    </ng-container>
+                    <ng-container *ngIf="profileForm.get('overclockEnabled')?.value !== 1">
+                        <label class="col-12 md:col-2 md:m-0">Frequency</label>
+                        <div class="col-12 md:col-10">
+                            <p-dropdown [options]="profileDropdownFrequency" optionLabel="name" optionValue="value" formControlName="frequency"></p-dropdown>
+                        </div>
+                    </ng-container>
+                </div>
+
+                <div class="field grid p-fluid">
+                    <ng-container *ngIf="profileForm.get('overclockEnabled')?.value === 1">
+                        <label class="col-12 md:col-2 md:m-0">Core Voltage</label>
+                        <div class="col-12 md:col-10">
+                            <input pInputText formControlName="coreVoltage" type="number" />
+                        </div>
+                    </ng-container>
+                    <ng-container *ngIf="profileForm.get('overclockEnabled')?.value !== 1">
+                        <label class="col-12 md:col-2 md:m-0">Core Voltage</label>
+                        <div class="col-12 md:col-10">
+                            <p-dropdown [options]="profileDropdownVoltage" optionLabel="name" optionValue="value" formControlName="coreVoltage"></p-dropdown>
+                        </div>
+                    </ng-container>
+                </div>
+
+                <div class="field grid p-fluid my-2">
+                    <label class="col-12 md:col-2 md:m-0 hover-next-input">Automatic Fan Control</label>
+                    <div class="col-12 md:col-10">
+                        <p-dropdown [options]="fanModeOptions" optionLabel="label" optionValue="value" formControlName="autofanspeed"></p-dropdown>
+                    </div>
+                </div>
+
+                <div *ngIf="profileForm.get('autofanspeed')?.value > 0" class="grid p-fluid my-2">
+                    <label class="hidden md:flex md:col-2 md:m-0 hover-next-input">Fan Curve</label>
+                    <div class="col-12 md:col-10">
+                        <div class="flex justify-content-between mb-1">
+                            <span class="flex align-items-center gap-1">
+                                <span class="md:hidden mr-1">Fan Curve:</span>
+                                <ng-container [ngSwitch]="profileForm.get('fanCurve')?.value">
+                                    <ng-container *ngSwitchCase="0"><span class="md:hidden">Default<tooltip-text-icon tooltip="Stock settings, gentle reaction to temp changes, wider temp swings, prioritizes noise reduction."></tooltip-text-icon></span></ng-container>
+                                    <ng-container *ngSwitchCase="1"><span class="md:hidden">Performance<tooltip-text-icon tooltip="Faster reaction to temp changes, tighter temp swings, balanced."></tooltip-text-icon></span></ng-container>
+                                    <ng-container *ngSwitchCase="2"><span class="md:hidden">Aggressive<tooltip-text-icon tooltip="Fastest reaction to temp changes, aggressively maintains target temp, prioritizes cooling."></tooltip-text-icon></span></ng-container>
+                                </ng-container>
+                                <span class="hidden md:inline">Default<tooltip-text-icon tooltip="Stock settings, gentle reaction to temp changes, wider temp swings, prioritizes noise reduction."></tooltip-text-icon></span>
+                            </span>
+                            <span class="hidden md:flex align-items-center gap-1">Performance<tooltip-text-icon tooltip="Faster reaction to temp changes, tighter temp swings, balanced."></tooltip-text-icon></span>
+                            <span class="hidden md:flex align-items-center gap-1">Aggressive<tooltip-text-icon tooltip="Fastest reaction to temp changes, aggressively maintains target temp, prioritizes cooling." tooltipPosition="left"></tooltip-text-icon></span>
+                        </div>
+                        <p-slider [min]="0" [max]="2" formControlName="fanCurve"></p-slider>
+                    </div>
+                </div>
+
+                <div *ngIf="profileForm.get('autofanspeed')?.value > 0" class="grid p-fluid my-2">
+                    <label class="hidden md:flex md:col-2 md:m-0 hover-next-input">ASIC Target Temp</label>
+                    <div class="col-12 md:col-10">
+                        <label class="block mb-1">
+                            <span class="md:hidden mr-1">ASIC Target Temp:</span>{{profileForm.get('temptarget')?.value}} °C
+                        </label>
+                        <p-slider [min]="35" [max]="66" formControlName="temptarget"></p-slider>
+                    </div>
+                </div>
+
+                <div *ngIf="profileForm.get('autofanspeed')?.value === 2" class="grid p-fluid my-2">
+                    <label class="hidden md:flex md:col-2 md:m-0 hover-next-input">VRR Target Temp</label>
+                    <div class="col-12 md:col-10">
+                        <label class="block mb-1">
+                            <span class="md:hidden mr-1">VRR Target Temp:</span>{{profileForm.get('vrrtarget')?.value}} °C
+                        </label>
+                        <p-slider [min]="55" [max]="86" formControlName="vrrtarget"></p-slider>
+                    </div>
+                </div>
+
+                <div *ngIf="profileForm.get('autofanspeed')?.value > 0" class="grid p-fluid">
+                    <label class="hidden md:flex md:col-2 md:m-0 hover-next-input">Minimum Fan Speed</label>
+                    <div class="col-12 md:col-10">
+                        <label class="block mb-1">
+                            <span class="md:hidden mr-1">Minimum Fan Speed:</span>{{profileForm.get('minFanSpeed')?.value}} %
+                        </label>
+                        <p-slider [min]="0" [max]="99" formControlName="minFanSpeed"></p-slider>
+                    </div>
+                </div>
+
+                <div *ngIf="profileForm.get('autofanspeed')?.value === 0" class="grid p-fluid mt-2">
+                    <label class="hidden md:flex md:col-2 md:m-0 hover-next-input">Fan Speed</label>
+                    <div class="col-12 md:col-10">
+                        <label class="block mb-1">
+                            <span class="md:hidden mr-1">Fan Speed:</span>{{profileForm.get('manualFanSpeed')?.value}} %
+                            <b *ngIf="profileForm.get('manualFanSpeed')?.value < 33" class="text-primary">
+                                Danger: Could Cause Overheating
+                            </b>
+                            <b *ngIf="profileForm.get('manualFanSpeed')?.value == 100" class="text-orange-500 ml-2">
+                                S19 Simulator
+                            </b>
+                        </label>
+                        <p-slider formControlName="manualFanSpeed"></p-slider>
+                    </div>
+                </div>
+            </div>
+
+            <h3 class="mt-5 text-red-500">⚠ Danger Zone</h3>
+
+            <div class="card">
+                <div class="flex align-items-center justify-content-end gap-2 mb-3">
+                    <label for="profileDangerZone" class="text-sm cursor-pointer" style="user-select:none">Enable Danger Zone</label>
+                    <p-inputSwitch inputId="profileDangerZone"
+                        [ngModel]="profileForm.get('dangerzone')?.value === 1"
+                        [ngModelOptions]="{standalone: true}"
+                        (onChange)="profileForm!.patchValue({dangerzone: $event.checked ? 1 : 0}); profileForm!.markAsDirty()">
+                    </p-inputSwitch>
+                </div>
+                <p-message *ngIf="profileForm.get('dangerzone')?.value === 1" severity="warn" styleClass="w-full mb-3 py-4 border-round-xl"
+                    text="Danger Zone settings allow you to adjust normally hidden parameters and bypass internal safety limits. Only modify these settings if you understand the extreme risks of running outside designed parameters.">
+                </p-message>
+                <div [class.pointer-events-none]="profileForm.get('dangerzone')?.value !== 1"
+                     [style.opacity]="profileForm.get('dangerzone')?.value === 1 ? '1' : '0.35'">
+                    <div class="grid p-fluid my-2">
+                        <label class="hidden md:flex md:col-2 md:m-0">Overcurrent Limit</label>
+                        <div class="col-12 md:col-10">
+                            <label class="block mb-1">
+                                <span class="md:hidden mr-1">Overcurrent Limit:</span>
+                                <ng-container [ngSwitch]="profileForm.get('ocFaultStep')?.value">
+                                    <span *ngSwitchCase="0">Default</span>
+                                    <span *ngSwitchCase="1">+5%</span>
+                                    <span *ngSwitchCase="2">+10%</span>
+                                    <span *ngSwitchCase="3">+15%</span>
+                                    <span *ngSwitchCase="4">+20%</span>
+                                </ng-container>
+                            </label>
+                            <p-slider [min]="0" [max]="4" [step]="1" formControlName="ocFaultStep"></p-slider>
+                            <div class="flex justify-content-between mt-1 text-sm">
+                                <span>Default</span><span>+5%</span><span>+10%</span><span>+15%</span><span>+20%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <h3 class="mt-5">Display</h3>
+
+            <div class="card">
+                <div class="field grid p-fluid">
+                    <label class="col-12 md:col-2 md:m-0">Type</label>
+                    <div class="col-12 md:col-10">
+                        <p-dropdown formControlName="display" [options]="displays"></p-dropdown>
+                    </div>
+                </div>
+                <div class="field grid p-fluid">
+                    <label class="col-12 md:col-2 md:m-0">Rotation</label>
+                    <div class="col-12 md:col-10">
+                        <p-dropdown formControlName="rotation" [options]="rotations"></p-dropdown>
+                    </div>
+                </div>
+                <div class="field grid p-fluid">
+                    <label class="col-12 md:col-2 hidden md:flex md:m-0">Sleep</label>
+                    <div class="col-12 md:col-10">
+                        <label class="block mb-1">
+                            <ng-container *ngIf="profileForm.get('displayTimeout')?.value == 0">
+                                <span class="md:hidden mr-1">Display</span> Always Off
+                            </ng-container>
+                            <ng-container *ngIf="profileForm.get('displayTimeout')?.value > 0">
+                                <span class="md:hidden mr-1">Display</span> Timeout: {{profileForm.get('displayTimeout')?.value * 60 | dateAgo}}
+                            </ng-container>
+                            <ng-container *ngIf="profileForm.get('displayTimeout')?.value == -1">
+                                <span class="md:hidden mr-1">Display</span> Always On
+                            </ng-container>
+                        </label>
+                        <p-slider [min]="0" [max]="profileDisplayTimeoutMaxSteps" [step]="1" [formControl]="profileDisplayTimeoutControl"></p-slider>
+                        <input type="hidden" formControlName="displayTimeout" />
+                    </div>
+                </div>
+                <div class="field-checkbox grid mt-2 mb-0">
+                    <div class="col-1 md:col-10 md:flex-order-2">
+                        <p-checkbox formControlName="invertscreen" [binary]="true" inputId="profileInvertscreen"></p-checkbox>
+                    </div>
+                    <label for="profileInvertscreen" class="col-11 m-0 pl-3 md:col-2 md:flex-order-1 md:p-2">Invert Display Colors</label>
+                </div>
+            </div>
+
+            <h3 class="mt-5">Statistics</h3>
+
+            <div class="card">
+                <div class="grid p-fluid mb-3">
+                    <label class="hidden md:flex md:col-2 md:m-0 align-items-center">Pool API</label>
+                    <div class="col-12 md:col-10 flex align-items-center justify-content-end gap-2">
+                        <label for="profileStatsToggle" class="text-sm cursor-pointer md:hidden" style="user-select:none">Pool API</label>
+                        <p-inputSwitch inputId="profileStatsToggle"
+                            [ngModel]="profileForm.get('heliosStatsEnabled')?.value === 1"
+                            [ngModelOptions]="{standalone: true}"
+                            (onChange)="profileForm!.patchValue({heliosStatsEnabled: $event.checked ? 1 : 0}); profileForm!.markAsDirty()">
+                        </p-inputSwitch>
+                    </div>
+                </div>
+                <div class="grid p-fluid">
+                    <label class="col-12 md:col-2 hidden md:flex md:m-0 relative hover-next-input">Data Logging</label>
+                    <div class="col-12 md:col-10">
+                        <label class="block mb-2">
+                            <ng-container *ngIf="profileForm.get('statsFrequency')?.value == 0">
+                                <span class="md:hidden mr-1">Data Logging</span>Disabled
+                            </ng-container>
+                            <ng-container *ngIf="profileForm.get('statsFrequency')?.value > 0">
+                                <span class="md:hidden mr-1">Log Data</span>Every {{profileForm.get('statsFrequency')?.value | dateAgo: {strict: true} }} for {{(profileForm.get('statsFrequency')?.value * 720) | dateAgo}}
+                            </ng-container>
+                        </label>
+                        <p-slider [min]="0" [max]="profileStatsFrequencyMaxSteps" [step]="1" [formControl]="profileStatsFrequencyControl"></p-slider>
+                        <input type="hidden" formControlName="statsFrequency" />
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex mt-5">
+                <button pButton type="button" label="Save"
+                    [disabled]="!profileForm.valid || (!isNewProfile && !profileForm.dirty)"
+                    (click)="saveProfileForm()">
+                </button>
+            </div>
+
+        </form>
+    </p-tabPanel>
+
+</p-tabView>
 </div>
+
+<p-dialog header="Import Profile" [(visible)]="showImportConfirm" [modal]="true" [style]="{width: '360px'}" [closable]="true">
+    <p class="mt-0 mb-4">{{ importConfirmMessage }}</p>
+    <div class="flex justify-content-end gap-2">
+        <button pButton type="button" label="Confirm" class="p-button-primary" (click)="confirmImport()"></button>
+    </div>
+</p-dialog>

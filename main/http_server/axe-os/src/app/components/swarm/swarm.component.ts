@@ -96,29 +96,50 @@ export class SwarmComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    const detectCoin = (url: string): 'btc' | 'bch' | null => {
+    const detectCoin = (url: string): 'btc' | 'bch' | 'dgb' | 'chta' | null => {
       const h = url.toLowerCase();
       if (h.includes('bch.heliospool') || h.includes('solo-bch.heliospool')) return 'bch';
+      if (h.includes('dgb.heliospool'))  return 'dgb';
+      if (h.includes('chta.heliospool')) return 'chta';
       if (h.includes('btc.heliospool') || h.includes('solo.heliospool'))     return 'btc';
       return null;
     };
 
-    this.heliosPoolWorkers$ = this.systemService.getInfo().pipe(
-      map(info => {
+    this.heliosPoolWorkers$ = forkJoin({
+      info: this.systemService.getInfo(),
+      presets: this.systemService.getPoolProfiles(),
+    }).pipe(
+      map(({ info, presets }) => {
         const enabled = (info.heliosStatsEnabled ?? 1) === 1;
         if (!enabled) return null;
-        const pools: { coin: 'btc' | 'bch'; address: string }[] = [];
-        for (const [url, user] of [
-          [info.stratumURL ?? '',         info.stratumUser ?? ''],
-          [info.fallbackStratumURL ?? '', info.fallbackStratumUser ?? ''],
-        ] as [string, string][]) {
-          const coin = detectCoin(url);
+
+        const pools: { coin: 'btc' | 'bch' | 'dgb' | 'chta'; address: string }[] = [];
+
+        // Collect from all profiles
+        for (const preset of presets as any[]) {
+          const coin = detectCoin(preset.stratumURL ?? '');
           if (!coin) continue;
-          const address = this.getHeliosAddress(user);
+          const address = this.getHeliosAddress(preset.stratumUser ?? '');
           if (address && !pools.some(p => p.coin === coin && p.address === address)) {
             pools.push({ coin, address });
           }
         }
+
+        // Fall back to raw pool fields if no profiles matched
+        if (!pools.length) {
+          for (const [url, user] of [
+            [info.stratumURL ?? '',         info.stratumUser ?? ''],
+            [info.fallbackStratumURL ?? '', info.fallbackStratumUser ?? ''],
+          ] as [string, string][]) {
+            const coin = detectCoin(url);
+            if (!coin) continue;
+            const address = this.getHeliosAddress(user);
+            if (address && !pools.some(p => p.coin === coin && p.address === address)) {
+              pools.push({ coin, address });
+            }
+          }
+        }
+
         return pools;
       }),
       distinctUntilChanged((a, b) => JSON.stringify(a) === JSON.stringify(b)),
@@ -624,7 +645,11 @@ export class SwarmComponent implements OnInit, OnDestroy {
       let cmp = 0;
       switch (field) {
         case 'server':    cmp = a.server.localeCompare(b.server); break;
-        case 'name':      cmp = a.workername.localeCompare(b.workername); break;
+        case 'name': {
+          const displayName = (w: any) => w.workername.includes('.') ? w.workername.split('.').pop() : w.workername;
+          cmp = displayName(a).localeCompare(displayName(b));
+          break;
+        }
         case 'hashrate5m':  cmp = this.parseHeliosHashToTH(a.hashrate5m)  - this.parseHeliosHashToTH(b.hashrate5m);  break;
         case 'hashrate1hr': cmp = this.parseHeliosHashToTH(a.hashrate1hr) - this.parseHeliosHashToTH(b.hashrate1hr); break;
         case 'hashrate1d':  cmp = this.parseHeliosHashToTH(a.hashrate1d)  - this.parseHeliosHashToTH(b.hashrate1d);  break;

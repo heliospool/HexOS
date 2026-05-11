@@ -186,7 +186,13 @@ components:
         - wifiDisconnects
         - txErrors
         - rxErrors
-        - lastShareSeconds
+        - lastAcceptedShareSeconds
+        - asicLastJobSeconds
+        - lastJobSeconds
+        - lastNonceSeconds
+        - queueCount
+        - asicJobsDispatched
+        - asicNonceCount
         - smallCoreCount
         - ssid
         - ipv4
@@ -435,9 +441,32 @@ components:
         rxErrors:
           type: number
           description: Number of failed JSON-RPC receive operations since boot
-        lastShareSeconds:
+        lastAcceptedShareSeconds:
           type: number
           description: Seconds since the last accepted share (0 if no share yet)
+        asicLastJobSeconds:
+          type: number
+          description: Seconds since the last job was sent to the ASIC over UART (0 if no job sent yet)
+        lastJobSeconds:
+          type: number
+          description: Seconds since last stratum notify received from pool (0 if none)
+        lastNonceSeconds:
+          type: number
+          description: Seconds since last nonce reported by the ASIC over UART (0 if none)
+        queueCount:
+          type: integer
+          description: Number of items currently in the stratum queue (0-12)
+        asicJobsDispatched:
+          type: integer
+          description: Total jobs dispatched to the ASIC over UART since boot
+        asicNonceCount:
+          type: integer
+          description: Total nonces received from the ASIC over UART since boot
+        asicNonceCounts:
+          type: array
+          description: Per-chip nonce counts since boot (index = chip number)
+          items:
+            type: integer
         smallCoreCount:
           type: number
           description: Number of small cores
@@ -569,6 +598,9 @@ components:
         ocFaultDefault:
           type: number
           description: Default OC fault limit in amps for this board family
+        debugLog:
+          type: boolean
+          description: Enable verbose debug metrics logging to serial
 
     SystemASIC:
       type: object

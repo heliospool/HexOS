@@ -29,6 +29,8 @@ SRCS
     "./tasks/statistics_task.c"
     "./tasks/hashrate_monitor_task.c"
     "./tasks/fan_controller_task.c"
+    "./tasks/debug_metrics_task.c"
+    "./tasks/network_ping_task.c"
     "./thermal/EMC2101.c"
     "./thermal/EMC2103.c"
     "./thermal/EMC2302.c"
@@ -101,6 +103,7 @@ else()
         OUTPUT ${OPENAPI_STAMP}
         COMMAND ${NPM_EXECUTABLE} i
         COMMAND ${NPM_EXECUTABLE} run generate:api
+        COMMAND node patch-generated.js
         COMMAND ${CMAKE_COMMAND} -E touch ${OPENAPI_STAMP}
         WORKING_DIRECTORY ${WEB_SRC_DIR}
         DEPENDS ${OPENAPI_SPEC}
@@ -132,6 +135,7 @@ else()
     add_custom_command(
         OUTPUT ${WEB_UI_STAMP} ${WEB_UI_OUTPUT}
         COMMAND ${NPM_EXECUTABLE} i
+        COMMAND node patch-generated.js
         COMMAND ${NPM_EXECUTABLE} run build:no-api-gen
         COMMAND ${CMAKE_COMMAND} -E touch ${WEB_UI_STAMP}
         WORKING_DIRECTORY ${WEB_SRC_DIR}

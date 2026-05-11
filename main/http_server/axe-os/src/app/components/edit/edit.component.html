@@ -1,5 +1,9 @@
 <form *ngIf="form" [formGroup]="form">
+    <div class="card mb-3">
+        <ng-content select="[profileSlot]"></ng-content>
+    </div>
     <div class="card">
+        <ng-content select="[settingsTitleSlot]"></ng-content>
         <div class="flex align-items-center justify-content-end gap-2 mb-2">
             <label for="expertModeToggle" class="text-sm cursor-pointer" style="user-select:none">Expert Mode</label>
             <p-inputSwitch inputId="expertModeToggle"
@@ -77,14 +81,19 @@
             <div class="col-12 md:col-10">
                 <div class="flex justify-content-between mb-1">
                     <span class="flex align-items-center gap-1">
-                        <span class="md:hidden mr-1">Fan Curve:</span>Default
-                        <tooltip-text-icon tooltip="Stock settings, gentle reaction to temp changes, wider temp swings, prioritizes noise reduction."></tooltip-text-icon>
+                        <span class="md:hidden mr-1">Fan Curve:</span>
+                        <ng-container [ngSwitch]="form.controls['fanCurve'].value">
+                            <ng-container *ngSwitchCase="0"><span class="md:hidden">Default<tooltip-text-icon tooltip="Stock settings, gentle reaction to temp changes, wider temp swings, prioritizes noise reduction."></tooltip-text-icon></span></ng-container>
+                            <ng-container *ngSwitchCase="1"><span class="md:hidden">Performance<tooltip-text-icon tooltip="Faster reaction to temp changes, tighter temp swings, balanced."></tooltip-text-icon></span></ng-container>
+                            <ng-container *ngSwitchCase="2"><span class="md:hidden">Aggressive<tooltip-text-icon tooltip="Fastest reaction to temp changes, aggressively maintains target temp, prioritizes cooling."></tooltip-text-icon></span></ng-container>
+                        </ng-container>
+                        <span class="hidden md:inline">Default<tooltip-text-icon tooltip="Stock settings, gentle reaction to temp changes, wider temp swings, prioritizes noise reduction."></tooltip-text-icon></span>
                     </span>
-                    <span class="flex align-items-center gap-1">
+                    <span class="hidden md:flex align-items-center gap-1">
                         Performance
                         <tooltip-text-icon tooltip="Faster reaction to temp changes, tighter temp swings, balanced."></tooltip-text-icon>
                     </span>
-                    <span class="flex align-items-center gap-1">
+                    <span class="hidden md:flex align-items-center gap-1">
                         Aggressive
                         <tooltip-text-icon tooltip="Fastest reaction to temp changes, aggressively maintains target temp, prioritizes cooling." tooltipPosition="left"></tooltip-text-icon>
                     </span>
@@ -138,6 +147,7 @@
                 <p-slider formControlName="manualFanSpeed"></p-slider>
             </div>
         </div>
+
     </div>
 
     <h3 class="mt-5 text-red-500">⚠ Danger Zone</h3>
@@ -196,6 +206,7 @@
             </div>
 
         </div>
+
     </div>
 
     <h3 class="mt-5 flex align-items-center">
@@ -245,6 +256,7 @@
             </div>
             <label for="invertscreen" class="col-11 m-0 pl-3 md:col-2 md:flex-order-1 md:p-2">Invert Display Colors</label>
         </div>
+
     </div>
 
     <h3 class="mt-5">Statistics</h3>
@@ -255,7 +267,11 @@
                 Pool API
                 <tooltip-icon tooltip="Fetch miner statistics when connected to HeliosPool." icon="pi-question-circle"></tooltip-icon>
             </label>
-            <div class="col-12 md:col-10">
+            <div class="col-12 md:col-10 flex align-items-center justify-content-end gap-2">
+                <label for="heliosStatsToggle" class="text-sm cursor-pointer md:hidden" style="user-select:none">
+                    Pool API
+                    <tooltip-icon tooltip="Fetch miner statistics when connected to HeliosPool." icon="pi-question-circle"></tooltip-icon>
+                </label>
                 <p-inputSwitch inputId="heliosStatsToggle"
                     [ngModel]="form.controls['heliosStatsEnabled'].value === 1"
                     [ngModelOptions]="{standalone: true}"
@@ -281,12 +297,23 @@
                 <input type="hidden" formControlName="statsFrequency" />
             </div>
         </div>
+
     </div>
 
-    <div class="flex mt-5 gap-3">
-        <button pButton [disabled]="!form.dirty || form.invalid" (click)="updateSystem()"
-            class="btn btn-primary">Save</button>
-
-        <button pButton [disabled]="!savedChanges" (click)="restart()">Restart</button>
+    <div class="flex gap-2 mt-5 justify-content-between">
+        <div class="flex gap-2">
+            <button pButton type="button" label="Save"
+                [disabled]="!isAnyDirty()"
+                (click)="applyAll()">
+            </button>
+            <button pButton type="button" label="Restart" class="p-button-warning"
+                [disabled]="!restartRequired"
+                (click)="restartDevice()">
+            </button>
+        </div>
+        <button pButton type="button" label="Undo"
+            [disabled]="!isAnyDirty()"
+            (click)="revertToSaved()">
+        </button>
     </div>
 </form>

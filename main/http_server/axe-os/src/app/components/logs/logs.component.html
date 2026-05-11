@@ -34,6 +34,15 @@
                     tooltipPosition="left">
                 </p-inputNumber>
                 <div class="flex gap-3 ml-auto">
+                    <div class="flex align-items-center gap-2">
+                        <p-inputSwitch
+                            inputId="debugLogToggle"
+                            [(ngModel)]="debugLog"
+                            [ngModelOptions]="{standalone: true}"
+                            (onChange)="onDebugLogChange($event.checked)">
+                        </p-inputSwitch>
+                        <label for="debugLogToggle" class="text-sm cursor-pointer" style="user-select:none">Debug Logging</label>
+                    </div>
                     <p-button
                         pp-button
                         icon="pi pi-{{stopScroll ? 'play' : 'pause'}}"

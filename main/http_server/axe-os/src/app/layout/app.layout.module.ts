@@ -20,11 +20,15 @@ import { AppSidebarComponent } from './app.sidebar.component';
 import { AppTopBarComponent } from './app.topbar.component';
 import { LoadingComponent } from '../components/loading/loading.component';
 import { WifiIconComponent } from '../components/wifi-icon/wifi-icon.component';
+import { DateAgoPipe } from '../pipes/date-ago.pipe';
+import { DiffSuffixPipe } from '../pipes/diff-suffix.pipe';
 
 @NgModule({
     declarations: [
         AppMenuitemComponent,
         AppTopBarComponent,
+        DateAgoPipe,
+        DiffSuffixPipe,
         AppFooterComponent,
         AppMenuComponent,
         AppSidebarComponent,
@@ -47,6 +51,6 @@ import { WifiIconComponent } from '../components/wifi-icon/wifi-icon.component';
         PrimeNGModule,
         TooltipModule,
     ],
-    exports: [AppLayoutComponent, WifiIconComponent]
+    exports: [AppLayoutComponent, WifiIconComponent, DateAgoPipe, DiffSuffixPipe]
 })
 export class AppLayoutModule { }

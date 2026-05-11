@@ -18,7 +18,8 @@
         @include focused-input();
     }
 
-    &.ng-dirty.ng-invalid {
+    &.ng-dirty.ng-invalid,
+    &.ng-touched.ng-invalid {
         @include invalid-input();
     }
 

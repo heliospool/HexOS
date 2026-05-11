@@ -6,7 +6,9 @@
 #include "create_jobs_task.h"
 #include "hashrate_monitor_task.h"
 #include "fan_controller_task.h"
+#include "network_ping_task.h"
 #include "statistics_task.h"
+#include "debug_metrics_task.h"
 #include "system.h"
 #include "http_server.h"
 #include "serial.h"
@@ -128,5 +130,11 @@ void app_main(void)
     }
     if (xTaskCreateWithCaps(statistics_task, "statistics", 8192, (void *) &GLOBAL_STATE, 3, NULL, MALLOC_CAP_SPIRAM) != pdPASS) {
         ESP_LOGE(TAG, "Error creating statistics task");
+    }
+    if (xTaskCreateWithCaps(debug_metrics_task, "debug_metrics", 4096, (void *) &GLOBAL_STATE, 1, NULL, MALLOC_CAP_SPIRAM) != pdPASS) {
+        ESP_LOGE(TAG, "Error creating debug metrics task");
+    }
+    if (xTaskCreate(network_ping_task, "network_ping", 4096, (void *) &GLOBAL_STATE, 2, NULL) != pdPASS) {
+        ESP_LOGE(TAG, "Error creating network ping task");
     }
 }

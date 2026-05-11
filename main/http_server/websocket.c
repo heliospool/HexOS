@@ -119,6 +119,12 @@ void websocket_close_fn(httpd_handle_t hd, int fd)
     close(fd);
 }
 
+UBaseType_t log_queue_depth(void)
+{
+    if (log_queue == NULL) return 0;
+    return uxQueueMessagesWaiting(log_queue);
+}
+
 esp_err_t websocket_handler(httpd_req_t *req)
 {
     if (is_network_allowed(req) != ESP_OK) {
@@ -214,24 +220,68 @@ void websocket_task(void *pvParameters)
         ESP_LOGE(TAG, "Failed to create clients mutex");
     }
 
+    // Batch multiple log lines into one frame per send interval to avoid
+    // flooding the httpd work queue with one httpd_ws_send_frame_async call.
+    #define WS_BATCH_MAX (4096)
+    #define WS_SEND_INTERVAL_MS (200)
+
+    char *batch = (char *)heap_caps_malloc(WS_BATCH_MAX, MALLOC_CAP_SPIRAM);
+    if (batch == NULL) {
+        ESP_LOGE(TAG, "Failed to allocate websocket batch buffer");
+        vTaskDelete(NULL);
+        return;
+    }
+
     while (true) {
         if (active_clients == 0) {
             vTaskDelay(pdMS_TO_TICKS(100));
             continue;
         }
 
+        // Collect the first message (block up to the send interval)
         char *message;
-        if (xQueueReceive(log_queue, &message, pdMS_TO_TICKS(1000)) != pdPASS) {
+        if (xQueueReceive(log_queue, &message, pdMS_TO_TICKS(WS_SEND_INTERVAL_MS)) != pdPASS) {
             continue;
         }
 
+        // Drain available messages into the batch buffer
+        size_t batch_len = 0;
+        char *oversized = NULL;
+        do {
+            size_t msg_len = strlen(message);
+            if (batch_len + msg_len < WS_BATCH_MAX) {
+                memcpy(batch + batch_len, message, msg_len);
+                batch_len += msg_len;
+                free(message);
+                message = NULL;
+            } else if (batch_len == 0) {
+                // First message alone exceeds the batch buffer; send it as-is
+                oversized = message;
+                message = NULL;
+                break;
+            } else {
+                // Batch full; leave this message for the next iteration
+                free(message);
+                message = NULL;
+                break;
+            }
+        } while (xQueueReceive(log_queue, &message, 0) == pdPASS);
+
+        const char *payload = oversized ? oversized : batch;
+        size_t payload_len  = oversized ? strlen(oversized) : batch_len;
+
+        if (payload_len == 0) {
+            continue;
+        }
+
+        // Send one async call per batch instead of one per log line
         for (int i = 0; i < MAX_WEBSOCKET_CLIENTS; i++) {
             int client_fd = clients[i];
             if (client_fd != -1) {
                 httpd_ws_frame_t ws_pkt;
                 memset(&ws_pkt, 0, sizeof(httpd_ws_frame_t));
-                ws_pkt.payload = (uint8_t *)message;
-                ws_pkt.len = strlen(message);
+                ws_pkt.payload = (uint8_t *)payload;
+                ws_pkt.len = payload_len;
                 ws_pkt.type = HTTPD_WS_TYPE_TEXT;
 
                 if (httpd_ws_send_frame_async(https_handle, client_fd, &ws_pkt) != ESP_OK) {
@@ -241,6 +291,9 @@ void websocket_task(void *pvParameters)
             }
         }
 
-        free(message);
+        if (oversized) {
+            free(oversized);
+            oversized = NULL;
+        }
     }
 }

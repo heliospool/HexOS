@@ -122,5 +122,7 @@ static void generate_work(GlobalState *GLOBAL_STATE, mining_notify *notification
 
     // The ASIC send function will store it in active_jobs array
     // Job cleanup will be handled by the ASIC result processing
+    GLOBAL_STATE->ASIC_TASK_MODULE.last_job_sent_us = esp_timer_get_time();
+    GLOBAL_STATE->ASIC_TASK_MODULE.asic_jobs_dispatched++;
     ASIC_send_work(GLOBAL_STATE, next_job);
 }

@@ -2,7 +2,7 @@ import { Component, OnInit, ViewChild, Input, OnDestroy } from '@angular/core';
 import { interval, map, Observable, shareReplay, startWith, Subscription, switchMap, tap, first, Subject, takeUntil, BehaviorSubject, filter, catchError, of, combineLatest, distinctUntilChanged } from 'rxjs';
 import { CdkDragDrop, CdkDragStart, CdkDragEnd, CdkDragMove, CdkDragRelease, moveItemInArray } from '@angular/cdk/drag-drop';
 import { EditModeService } from 'src/app/services/edit-mode.service';
-import { DashboardLayoutService, DashboardRow, ColClass } from 'src/app/services/dashboard-layout.service';
+import { DashboardLayoutService, DashboardRow, LayoutData, ColClass } from 'src/app/services/dashboard-layout.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormBuilder, FormGroup } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
@@ -91,6 +91,9 @@ export class HomeComponent implements OnInit, OnDestroy {
   public hp: HeliosPoolView | null = null;
 
   public editMode = false;
+  private cancellingEdit = false;
+  public hiddenCardIds = new Set<string>();
+  public draggingCardId: string | null = null;
   public draggingCardColClass: ColClass = null;
   public draggingSourceRowId: string | null = null;
   public draggingOverCompatibleRowId: string | null = null;
@@ -101,6 +104,8 @@ export class HomeComponent implements OnInit, OnDestroy {
   public draggingSourceCardIndex: number | null = null;
 
   public rows: DashboardRow[] = [];
+  public showResetBlocksConfirm = false;
+  private latestInfo: ISystemInfo | null = null;
 
   public chartOptions: any;
   public dataLabel: number[] = [];
@@ -135,6 +140,24 @@ export class HomeComponent implements OnInit, OnDestroy {
     { label: '1h', key: 'hashRate_1h' }
   ];
 
+  public efficiencyAverageLabels: { label: string, key: 'efficiency_1m' | 'efficiency_10m' | 'efficiency_1h' }[] = [
+    { label: '1m', key: 'efficiency_1m' },
+    { label: '10m', key: 'efficiency_10m' },
+    { label: '1h', key: 'efficiency_1h' },
+  ];
+
+  public diffAverageLabels: { label: string, key: 'diff_1m' | 'diff_10m' | 'diff_1h' }[] = [
+    { label: '1m', key: 'diff_1m' },
+    { label: '10m', key: 'diff_10m' },
+    { label: '1h', key: 'diff_1h' },
+  ];
+
+  public getEfficiencyAverageForWindow(windowSize: number): number {
+    const n = Math.min(windowSize, this.hashrateData.length, this.powerData.length);
+    if (n === 0) return 0;
+    return this.calculateEfficiencyAverage(this.hashrateData.slice(-n), this.powerData.slice(-n));
+  }
+
   @ViewChild('chart')
   private chart?: UIChart
 
@@ -156,19 +179,24 @@ export class HomeComponent implements OnInit, OnDestroy {
     private shareRejectReasonsService: ShareRejectionExplanationService,
     private storageService: LocalStorageService,
     private heliosPoolService: HeliosPoolService,
-    private editModeService: EditModeService,
+    public editModeService: EditModeService,
     public layoutService: DashboardLayoutService
   ) {
     this.initializeChart();
   }
 
   ngOnInit(): void {
-    this.rows = this.layoutService.loadLayout();
+    const layout = this.layoutService.loadLayout();
+    this.rows = layout.rows;
+    this.hiddenCardIds = new Set(layout.hiddenCardIds);
 
     let prevEditMode = false;
     this.editModeService.editMode$.pipe(takeUntil(this.destroy$)).subscribe(active => {
       if (prevEditMode && !active) {
-        this.layoutService.saveLayout(this.rows);
+        if (!this.cancellingEdit) {
+          this.layoutService.saveLayout(this.rows, [...this.hiddenCardIds]);
+        }
+        this.cancellingEdit = false;
       }
       prevEditMode = active;
       this.editMode = active;
@@ -479,6 +507,8 @@ export class HomeComponent implements OnInit, OnDestroy {
         return info;
       }),
       tap(info => {
+        this.systemService.latestInfo$.next(info);
+
         const chartY1DataLabel = chartLabelValue(this.form.get('chartY1Data')?.value);
         const chartY2DataLabel = chartLabelValue(this.form.get('chartY2Data')?.value);
 
@@ -584,13 +614,17 @@ export class HomeComponent implements OnInit, OnDestroy {
       distinctUntilChanged((a, b) => a.url === b.url && a.user === b.user && a.enabled === b.enabled),
       switchMap(({ url, user, enabled }) => {
         if (!enabled) return of(null);
-        const helioBTC = ['btc.heliospool.com', 'btc.heliospool.asia', 'btc.heliospool.eu', 'solo.heliospool.com'];
-        const helioBCH = ['bch.heliospool.com', 'bch.heliospool.asia', 'bch.heliospool.eu', 'solo-bch.heliospool.com'];
+        const helioBTC = ['btc.heliospool.com', 'btc.heliospool.eu', 'btc.heliospool.apac', 'solo.heliospool.com'];
+        const helioBCH = ['bch.heliospool.com', 'bch.heliospool.eu', 'bch.heliospool.apac', 'solo-bch.heliospool.com'];
+        const helioDGB = ['dgb.heliospool.com', 'dgb.heliospool.eu', 'dgb.heliospool.apac'];
+        const helioCHTA = ['chta.heliospool.com', 'chta.heliospool.eu', 'chta.heliospool.apac'];
         const urlLower = url.toLowerCase();
         const isBTC = helioBTC.some(d => urlLower.includes(d));
         const isBCH = helioBCH.some(d => urlLower.includes(d));
-        if (!isBTC && !isBCH) return of(null);
-        const coin: 'btc' | 'bch' = isBCH ? 'bch' : 'btc';
+        const isDGB = helioDGB.some(d => urlLower.includes(d));
+        const isCHTA = helioCHTA.some(d => urlLower.includes(d));
+        if (!isBTC && !isBCH && !isDGB && !isCHTA) return of(null);
+        const coin: 'btc' | 'bch' | 'dgb' | 'chta' = isBCH ? 'bch' : isDGB ? 'dgb' : isCHTA ? 'chta' : 'btc';
         const address = this.getAddressPart(user);
         return interval(60000).pipe(
           startWith(0),
@@ -654,6 +688,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.infoSubscription = combineLatest([this.info$, this.systemInfoError$])
       .pipe(takeUntil(this.destroy$))
       .subscribe(([info, systemInfoError]) => {
+        this.latestInfo = info;
         this.handleSystemMessages(info, systemInfoError);
         this.setTitle(info, systemInfoError);
       });
@@ -694,6 +729,70 @@ export class HomeComponent implements OnInit, OnDestroy {
           this.toastr.error(`Error dismissing notification: ${err.message}`);
         }
       });
+  }
+
+  public onResetBlocks(): void {
+    this.showResetBlocksConfirm = false;
+    this.systemService.resetBlocks().subscribe();
+  }
+
+  public cancelEdit(): void {
+    this.cancellingEdit = true;
+    const layout = this.layoutService.loadLayout();
+    this.rows = layout.rows;
+    this.hiddenCardIds = new Set(layout.hiddenCardIds);
+    this.editModeService.exit();
+  }
+
+  public showResetLayoutConfirm = false;
+
+  public resetLayout(): void {
+    const layout = this.layoutService.resetToDefault();
+    this.rows = layout.rows;
+    this.hiddenCardIds = new Set();
+    this.editModeService.exit();
+  }
+
+  public confirmResetLayout(): void {
+    this.showResetLayoutConfirm = false;
+    this.resetLayout();
+  }
+
+  public exportLayout(): void {
+    const layout = this.layoutService.loadLayout();
+    const json = JSON.stringify(layout, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'dashboard-layout.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  public importLayout(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    input.value = '';
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(reader.result as string);
+        if (!parsed || !Array.isArray(parsed.rows)) {
+          this.toastr.error('Invalid layout file');
+          return;
+        }
+        this.layoutService.saveLayout(parsed.rows, parsed.hiddenCardIds ?? []);
+        const layout = this.layoutService.loadLayout();
+        this.rows = layout.rows;
+        this.hiddenCardIds = new Set(layout.hiddenCardIds);
+        this.toastr.success('Layout imported');
+      } catch {
+        this.toastr.error('Invalid layout file');
+      }
+    };
+    reader.readAsText(file);
   }
 
   private setTitle(info: ISystemInfo, systemInfoError: ISystemInfoError) {
@@ -831,6 +930,20 @@ export class HomeComponent implements OnInit, OnDestroy {
     return this.calculateEfficiency(info, 'expectedHashrate');
   }
 
+  public getWifiRssiLabel(rssi: number): string {
+    if (rssi > -50) return 'Excellent';
+    if (rssi > -60) return 'Good';
+    if (rssi > -70) return 'Fair';
+    return 'Weak';
+  }
+
+  public getWifiRssiColor(rssi: number): string {
+    if (rssi > -50) return 'text-green-500';
+    if (rssi > -60) return 'text-blue-500';
+    if (rssi > -70) return 'text-orange-500';
+    return 'text-red-500';
+  }
+
   public getNetworkDifficultyPercentage(info: ISystemInfo): string {
     if (!info.networkDifficulty || info.networkDifficulty === 0) return '0';
     const percentage = (info.bestDiff / info.networkDifficulty) * 100;
@@ -847,7 +960,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   public getTimeSinceLastShare(info: ISystemInfo): string {
-    const sec = info.lastShareSeconds ?? 0;
+    const sec = info.lastAcceptedShareSeconds ?? 0;
     if (sec === 0) return (info.sharesAccepted ?? 0) > 0 ? 'Just now' : 'Never';
     if (sec < 60) return `${sec}s ago`;
     const min = Math.floor(sec / 60);
@@ -855,8 +968,17 @@ export class HomeComponent implements OnInit, OnDestroy {
     return `${Math.floor(min / 60)}h ago`;
   }
 
+  public formatSecondsAgo(sec: number, hasOccurred = true): string {
+    if (sec <= 0) return hasOccurred ? 'Just now' : 'Never';
+    if (sec < 5) return 'Just now';
+    if (sec < 60) return `${sec}s ago`;
+    const min = Math.floor(sec / 60);
+    if (min < 60) return `${min}m ago`;
+    return `${Math.floor(min / 60)}h ago`;
+  }
+
   public lastShareIsStale(info: ISystemInfo): boolean {
-    const sec = info.lastShareSeconds ?? 0;
+    const sec = info.lastAcceptedShareSeconds ?? 0;
     return sec > 60 && (info.sharesAccepted ?? 0) > 0;
   }
 
@@ -943,6 +1065,12 @@ export class HomeComponent implements OnInit, OnDestroy {
       case eChartLabel.hashrate_1m:
       case eChartLabel.hashrate_10m:
       case eChartLabel.hashrate_1h:      return info.expectedHashrate;
+      case eChartLabel.efficiency_1m:
+      case eChartLabel.efficiency_10m:
+      case eChartLabel.efficiency_1h:    return info.efficiency_1h * 1.5;
+      case eChartLabel.diff_1m:
+      case eChartLabel.diff_10m:
+      case eChartLabel.diff_1h:          return Math.max(2000, info.poolDifficulty * 2);
       case eChartLabel.errorPercentage:  return 1;
       case eChartLabel.asicTemp:         return this.maxTemp;
       case eChartLabel.vrTemp:           return this.maxTemp + 25;
@@ -966,6 +1094,12 @@ export class HomeComponent implements OnInit, OnDestroy {
       case eChartLabel.hashrate_1m:        return info.hashRate_1m;
       case eChartLabel.hashrate_10m:       return info.hashRate_10m;
       case eChartLabel.hashrate_1h:        return info.hashRate_1h;
+      case eChartLabel.efficiency_1m:      return info.efficiency_1m;
+      case eChartLabel.efficiency_10m:     return info.efficiency_10m;
+      case eChartLabel.efficiency_1h:      return info.efficiency_1h;
+      case eChartLabel.diff_1m:            return info.diff_1m;
+      case eChartLabel.diff_10m:           return info.diff_10m;
+      case eChartLabel.diff_1h:            return info.diff_1h;
       case eChartLabel.errorPercentage:    return info.errorPercentage;
       case eChartLabel.asicTemp:           return info.temp;
       case eChartLabel.vrTemp:             return info.vrTemp;
@@ -988,6 +1122,12 @@ export class HomeComponent implements OnInit, OnDestroy {
   static getSettingsForLabel(label: eChartLabel): {suffix: string; precision: number} {
     switch (label) {
       case eChartLabel.errorPercentage:  return {suffix: ' %', precision: 2};
+      case eChartLabel.efficiency_1m:
+      case eChartLabel.efficiency_10m:
+      case eChartLabel.efficiency_1h:    return {suffix: ' J/Th', precision: 2};
+      case eChartLabel.diff_1m:
+      case eChartLabel.diff_10m:
+      case eChartLabel.diff_1h:          return {suffix: '', precision: 1};
       case eChartLabel.asicTemp:
       case eChartLabel.vrTemp:
       case eChartLabel.boardTemp:        return {suffix: ' °C', precision: 1};
@@ -1059,18 +1199,42 @@ export class HomeComponent implements OnInit, OnDestroy {
     return cardId;
   }
 
-  public isCardVisible(cardId: string, info: ISystemInfo): boolean {
+  public isCardConditional(cardId: string, info: ISystemInfo): boolean {
     switch (cardId) {
       case 'hp-server':
       case 'hp-status':
       case 'hp-account':
       case 'hp-worker':
-        return this.hp !== null;
+        return this.hp === null;
       case 'chart':
-        return !info.power_fault;
+        return !!info.power_fault;
       default:
-        return true;
+        return false;
     }
+  }
+
+  public isCardUserHidden(cardId: string): boolean {
+    return this.hiddenCardIds.has(cardId);
+  }
+
+  public toggleCardHidden(cardId: string): void {
+    if (this.hiddenCardIds.has(cardId)) {
+      this.hiddenCardIds.delete(cardId);
+    } else {
+      this.hiddenCardIds.add(cardId);
+    }
+  }
+
+  public isCardVisible(cardId: string, info: ISystemInfo): boolean {
+    return !this.isCardConditional(cardId, info) && !this.isCardUserHidden(cardId);
+  }
+
+  public hasVisibleCards(row: DashboardRow, info: ISystemInfo): boolean {
+    return row.cardIds.some(id => this.isCardVisible(id, info));
+  }
+
+  public allCardsConditional(row: DashboardRow, info: ISystemInfo): boolean {
+    return row.cardIds.length > 0 && row.cardIds.every(id => this.isCardConditional(id, info));
   }
 
   public getCardLabel(cardId: string): string {
@@ -1081,6 +1245,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     switch (row.colClass ?? this.draggingCardColClass) {
       case 'col-3':  return 'col-12 md:col-6 xl:col-3';
       case 'col-4':  return 'col-12 md:col-4';
+      case 'col-6':  return 'col-12 md:col-6';
       case 'col-12': return 'col-12';
       default:       return 'col-12';
     }
@@ -1091,16 +1256,18 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   public isInvalidDropRow(row: DashboardRow): boolean {
-    if (!this.draggingCardColClass) return false;
-    // Wrong colClass is always invalid
+    if (!this.draggingCardId || !this.draggingCardColClass) return false;
     if (row.colClass !== null && row.colClass !== this.draggingCardColClass) return true;
-    // Full rows are valid as long as they share the same colClass — swap mode handles it
     return false;
   }
 
   public isRowFull(row: DashboardRow): boolean {
     const cap = this.layoutService.rowCapacity(row.colClass);
     return row.cardIds.length >= cap;
+  }
+
+  public get visibleRows(): DashboardRow[] {
+    return this.rows;
   }
 
   public onCardDrop(event: CdkDragDrop<string[]>): void {
@@ -1111,6 +1278,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   public onCardDragStarted(event: CdkDragStart<string>): void {
     const cardId = event.source.data;
     const def = this.layoutService.getCardDef(cardId);
+    this.draggingCardId = cardId;
     this.draggingCardColClass = def?.colClass ?? null;
     this.draggingSourceRowId = event.source.dropContainer.id.replace('card-list-', '');
     const sourceRow = this.rows.find(r => r.id === this.draggingSourceRowId);
@@ -1152,6 +1320,7 @@ export class HomeComponent implements OnInit, OnDestroy {
         }
       }
     }
+    this.draggingCardId = null;
     this.draggingCardColClass = null;
     this.draggingSourceRowId = null;
     this.draggingOverCompatibleRowId = null;
@@ -1230,7 +1399,18 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   public onRowDrop(event: CdkDragDrop<DashboardRow[]>): void {
-    moveItemInArray(this.rows, event.previousIndex, event.currentIndex);
+    // CDK indices reflect only DOM-rendered rows. Map them back to true this.rows indices.
+    const rendered = this.rows.filter(r =>
+      r.cardIds.length === 0 ||
+      !r.cardIds.every(id => this.isCardConditional(id, this.latestInfo as ISystemInfo))
+    );
+    const fromRow = rendered[event.previousIndex];
+    const toRow   = rendered[event.currentIndex];
+    const fromIdx = this.rows.indexOf(fromRow);
+    const toIdx   = this.rows.indexOf(toRow);
+    if (fromIdx !== -1 && toIdx !== -1) {
+      moveItemInArray(this.rows, fromIdx, toIdx);
+    }
   }
 
 }

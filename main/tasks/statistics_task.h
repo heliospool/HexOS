@@ -12,6 +12,12 @@ struct StatisticsData
     float hashrate_1m;
     float hashrate_10m;
     float hashrate_1h;
+    float efficiency_1m;
+    float efficiency_10m;
+    float efficiency_1h;
+    float diff_1m;
+    float diff_10m;
+    float diff_1h;
     float errorPercentage;
     float chipTemperature;
     float vrTemperature;

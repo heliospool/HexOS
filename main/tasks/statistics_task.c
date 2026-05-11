@@ -135,6 +135,12 @@ void statistics_task(void * pvParameters)
                 statsData.hashrate_1m = sys_module->hashrate_1m;
                 statsData.hashrate_10m = sys_module->hashrate_10m;
                 statsData.hashrate_1h = sys_module->hashrate_1h;
+                statsData.efficiency_1m = sys_module->efficiency_1m;
+                statsData.efficiency_10m = sys_module->efficiency_10m;
+                statsData.efficiency_1h = sys_module->efficiency_1h;
+                statsData.diff_1m = sys_module->diff_1m;
+                statsData.diff_10m = sys_module->diff_10m;
+                statsData.diff_1h = sys_module->diff_1h;
                 statsData.errorPercentage = sys_module->error_percentage;
                 statsData.chipTemperature = power_management->chip_temp_avg;
                 statsData.vrTemperature = power_management->vr_temp;
