@@ -124,6 +124,7 @@ HexOS supports all upstream ESP-Miner hardware out of the box, plus additional G
 - **Danger Zone** — opt-in section in Settings requiring explicit confirmation to unlock; exposes advanced controls not shown by default
 - **Overcurrent limit** — Danger Zone slider to raise the voltage regulator's overcurrent fault threshold in 5 % steps, up to +20 % above the board default; available on boards with a TPS546 regulator
 - **Customizable dashboard layout** — dashboard cards can be organized into rows via a drag-and-drop editor; cards can be moved between rows, swapped in place, or rearranged within a row; layout is saved to the browser and persists across reloads
+- **Pool profiles** — Pool and Settings pages each have a Profiles tab; save named configurations, switch between them instantly, and export/import as JSON to share across devices; the active profile is remembered across reboots
 
 ### Logs
 
