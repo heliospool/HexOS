@@ -3,6 +3,8 @@ import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Subscription } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import { WebsocketService } from 'src/app/services/web-socket.service';
+import { SystemApiService } from 'src/app/services/system.service';
+import { SystemInfo } from 'src/app/generated/model/system-info';
 
 @Component({
   selector: 'app-logs',
@@ -23,6 +25,8 @@ export class LogsComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   public maxLogs: number = 500;
 
+  public debugLog: boolean = false;
+
   @ViewChild('scrollContainer') private scrollContainer!: ElementRef;
 
   @HostListener('document:keydown.esc', ['$event'])
@@ -38,6 +42,7 @@ export class LogsComponent implements OnInit, OnDestroy, AfterViewChecked {
     private fb: FormBuilder,
     private websocketService: WebsocketService,
     private toastr: ToastrService,
+    private systemService: SystemApiService,
   ) {}
 
   ngOnInit(): void {
@@ -46,6 +51,11 @@ export class LogsComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.form = this.fb.group({
       filter: ["", [Validators.required]],
       maxLogs: [500, [Validators.required, Validators.min(50), Validators.max(5000)]]
+    });
+
+    this.systemService.getInfo(this.uri).subscribe({
+      next: (info: SystemInfo) => { this.debugLog = info.debugLog ?? false; },
+      error: () => {}
     });
   }
 
@@ -89,6 +99,13 @@ export class LogsComponent implements OnInit, OnDestroy, AfterViewChecked {
           this.toastr.error("Error opening websocket connection");
         }
       })
+  }
+
+  public onDebugLogChange(value: boolean) {
+    this.systemService.updateSystem(this.uri, { debugLog: value }).subscribe({
+      next: () => { this.toastr.success(`Debug logging ${value ? 'enabled' : 'disabled'}`); },
+      error: () => { this.toastr.error('Failed to update debug logging'); this.debugLog = !value; }
+    });
   }
 
   public clearLogs() {

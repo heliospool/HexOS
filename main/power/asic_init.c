@@ -5,6 +5,7 @@
 #include "asic.h"
 #include "serial.h"
 #include "asic_reset.h"
+#include "esp_heap_caps.h"
 
 static const char *TAG = "asic_init";
 
@@ -56,7 +57,13 @@ uint8_t asic_initialize(GlobalState *GLOBAL_STATE, asic_init_mode_t mode, uint32
     SERIAL_clear_buffer();
 
     GLOBAL_STATE->ASIC_initalized = true;
-    
+
+    int asic_count = GLOBAL_STATE->DEVICE_CONFIG.family.asic_count;
+    GLOBAL_STATE->SYSTEM_MODULE.asic_nonce_counts = heap_caps_calloc(asic_count, sizeof(uint32_t), MALLOC_CAP_SPIRAM);
+    if (GLOBAL_STATE->SYSTEM_MODULE.asic_nonce_counts == NULL) {
+        ESP_LOGE(TAG, "Failed to allocate per-chip nonce count array");
+    }
+
     if (stabilization_delay_ms > 0) {
         ESP_LOGI(TAG, "Waiting %u ms for tasks to stabilize...", stabilization_delay_ms);
         vTaskDelay(stabilization_delay_ms / portTICK_PERIOD_MS);

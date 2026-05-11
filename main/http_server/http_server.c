@@ -35,6 +35,7 @@
 #include "cJSON.h"
 #include "global_state.h"
 #include "nvs_config.h"
+#include "nvs.h"
 #include "vcore.h"
 #include "connect.h"
 #include "asic.h"
@@ -54,6 +55,12 @@ static const char * STATS_LABEL_HASHRATE = "hashrate";
 static const char * STATS_LABEL_HASHRATE_1m = "hashrate_1m";
 static const char * STATS_LABEL_HASHRATE_10m = "hashrate_10m";
 static const char * STATS_LABEL_HASHRATE_1h = "hashrate_1h";
+static const char * STATS_LABEL_EFFICIENCY_1m = "efficiency_1m";
+static const char * STATS_LABEL_EFFICIENCY_10m = "efficiency_10m";
+static const char * STATS_LABEL_EFFICIENCY_1h = "efficiency_1h";
+static const char * STATS_LABEL_DIFF_1m = "diff_1m";
+static const char * STATS_LABEL_DIFF_10m = "diff_10m";
+static const char * STATS_LABEL_DIFF_1h = "diff_1h";
 static const char * STATS_LABEL_ERROR_PERCENTAGE = "errorPercentage";
 static const char * STATS_LABEL_ASIC_TEMP = "asicTemp";
 static const char * STATS_LABEL_VR_TEMP = "vrTemp";
@@ -83,6 +90,12 @@ typedef enum
     SRC_HASHRATE_1m,
     SRC_HASHRATE_10m,
     SRC_HASHRATE_1h,
+    SRC_EFFICIENCY_1m,
+    SRC_EFFICIENCY_10m,
+    SRC_EFFICIENCY_1h,
+    SRC_DIFF_1m,
+    SRC_DIFF_10m,
+    SRC_DIFF_1h,
     SRC_ERROR_PERCENTAGE,
     SRC_ASIC_TEMP,
     SRC_VR_TEMP,
@@ -107,8 +120,14 @@ DataSource strToDataSource(const char * sourceStr)
         if (strcmp(sourceStr, STATS_LABEL_HASHRATE) == 0)     return SRC_HASHRATE;
         if (strcmp(sourceStr, STATS_LABEL_HASHRATE_1m) == 0)  return SRC_HASHRATE_1m;
         if (strcmp(sourceStr, STATS_LABEL_HASHRATE_10m) == 0) return SRC_HASHRATE_10m;
-        if (strcmp(sourceStr, STATS_LABEL_HASHRATE_1h) == 0)  return SRC_HASHRATE_1h;
-        if (strcmp(sourceStr, STATS_LABEL_ERROR_PERCENTAGE) == 0)  return SRC_ERROR_PERCENTAGE;
+        if (strcmp(sourceStr, STATS_LABEL_HASHRATE_1h) == 0)    return SRC_HASHRATE_1h;
+        if (strcmp(sourceStr, STATS_LABEL_EFFICIENCY_1m) == 0)    return SRC_EFFICIENCY_1m;
+        if (strcmp(sourceStr, STATS_LABEL_EFFICIENCY_10m) == 0)   return SRC_EFFICIENCY_10m;
+        if (strcmp(sourceStr, STATS_LABEL_EFFICIENCY_1h) == 0)    return SRC_EFFICIENCY_1h;
+        if (strcmp(sourceStr, STATS_LABEL_DIFF_1m) == 0)          return SRC_DIFF_1m;
+        if (strcmp(sourceStr, STATS_LABEL_DIFF_10m) == 0)         return SRC_DIFF_10m;
+        if (strcmp(sourceStr, STATS_LABEL_DIFF_1h) == 0)          return SRC_DIFF_1h;
+        if (strcmp(sourceStr, STATS_LABEL_ERROR_PERCENTAGE) == 0) return SRC_ERROR_PERCENTAGE;
         if (strcmp(sourceStr, STATS_LABEL_VOLTAGE) == 0)      return SRC_VOLTAGE;
         if (strcmp(sourceStr, STATS_LABEL_POWER) == 0)        return SRC_POWER;
         if (strcmp(sourceStr, STATS_LABEL_CURRENT) == 0)      return SRC_CURRENT;
@@ -633,6 +652,30 @@ bool check_settings_and_update(const cJSON * const root)
                     break;
             }
         }
+
+        // Persist selected settings profile ID if provided
+        cJSON *sp_item = cJSON_GetObjectItem(root, "selectedProfileId");
+        if (sp_item && cJSON_IsNumber(sp_item)) {
+            nvs_config_set_i32(NVS_CONFIG_SELECTED_PROFILE, sp_item->valueint);
+        }
+
+        // If danger zone was just disabled, reset UI-exposed gated settings to defaults
+        cJSON *dz_item = cJSON_GetObjectItem(root, "dangerzone");
+        if (dz_item && cJSON_IsNumber(dz_item) && dz_item->valueint == 0) {
+            ESP_LOGI(TAG, "Danger zone disabled — resetting gated settings to defaults");
+            for (NvsConfigKey k = 0; k < NVS_CONFIG_COUNT; k++) {
+                Settings *s = nvs_config_get_settings(k);
+                if (!s || !s->danger_zone_gated || !s->rest_name) continue;
+                switch (s->type) {
+                    case TYPE_U16:  nvs_config_set_u16(k, s->default_value.u16);     break;
+                    case TYPE_I32:  nvs_config_set_i32(k, s->default_value.i32);     break;
+                    case TYPE_U64:  nvs_config_set_u64(k, s->default_value.u64);     break;
+                    case TYPE_FLOAT: nvs_config_set_float(k, s->default_value.f);    break;
+                    case TYPE_BOOL: nvs_config_set_bool(k, s->default_value.b);      break;
+                    default: break;
+                }
+            }
+        }
     }
 
     return result;
@@ -786,6 +829,7 @@ static esp_err_t POST_dismiss_block_found(httpd_req_t * req)
     }
 
     GLOBAL_STATE->SYSTEM_MODULE.show_new_block = false;
+    GLOBAL_STATE->SYSTEM_MODULE.block_found = 0;
 
     cJSON_AddNumberToObject(root, "blockFound", GLOBAL_STATE->SYSTEM_MODULE.block_found);
     cJSON_AddBoolToObject(root, "showNewBlock", GLOBAL_STATE->SYSTEM_MODULE.show_new_block);
@@ -795,6 +839,672 @@ static esp_err_t POST_dismiss_block_found(httpd_req_t * req)
 
     cJSON_Delete(root);
 
+    return res;
+}
+
+static esp_err_t POST_reset_blocks(httpd_req_t * req)
+{
+    if (is_network_allowed(req) != ESP_OK) {
+        return httpd_resp_send_err(req, HTTPD_401_UNAUTHORIZED, "Unauthorized");
+    }
+
+    if (set_cors_headers(req) != ESP_OK) {
+        httpd_resp_send_500(req);
+        return ESP_OK;
+    }
+
+    ESP_LOGI(TAG, "Resetting all block found data");
+
+    httpd_resp_set_type(req, "application/json");
+
+    cJSON * root = cJSON_CreateObject();
+    if (root == NULL) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Memory allocation failed");
+        return ESP_OK;
+    }
+
+    // Clear in-memory state — only lifetime count and last block details.
+    // block_found (session counter) and show_new_block (banner) are untouched.
+    GLOBAL_STATE->SYSTEM_MODULE.lifetime_block_found = 0;
+    GLOBAL_STATE->SYSTEM_MODULE.last_block_time = 0;
+    GLOBAL_STATE->SYSTEM_MODULE.last_block_diff = 0.0;
+    GLOBAL_STATE->SYSTEM_MODULE.last_block_net_diff = 0.0;
+    GLOBAL_STATE->SYSTEM_MODULE.last_block_fallback = false;
+    memset(GLOBAL_STATE->SYSTEM_MODULE.last_block_url, 0, sizeof(GLOBAL_STATE->SYSTEM_MODULE.last_block_url));
+
+    // Persist to NVS
+    nvs_config_set_u64(NVS_CONFIG_BLOCK_FOUND, 0);
+    nvs_config_set_u64(NVS_CONFIG_LAST_BLOCK_TIME, 0);
+    nvs_config_set_float(NVS_CONFIG_LAST_BLOCK_DIFF, 0.0f);
+    nvs_config_set_float(NVS_CONFIG_LAST_BLOCK_NET_DIFF, 0.0f);
+    nvs_config_set_bool(NVS_CONFIG_LAST_BLOCK_FALLBACK, false);
+    nvs_config_set_string(NVS_CONFIG_LAST_BLOCK_URL, "");
+
+    cJSON_AddStringToObject(root, "message", "Block data reset");
+
+    esp_err_t res = HTTP_send_json(req, root, &api_common_prebuffer_len);
+
+    cJSON_Delete(root);
+
+    return res;
+}
+
+static esp_err_t GET_system_defaults(httpd_req_t * req)
+{
+    if (is_network_allowed(req) != ESP_OK) {
+        return httpd_resp_send_err(req, HTTPD_401_UNAUTHORIZED, "Unauthorized");
+    }
+    if (set_cors_headers(req) != ESP_OK) {
+        httpd_resp_send_500(req);
+        return ESP_OK;
+    }
+
+    httpd_resp_set_type(req, "application/json");
+
+    cJSON * root = cJSON_CreateObject();
+    if (root == NULL) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Memory allocation failed");
+        return ESP_OK;
+    }
+
+    for (NvsConfigKey key = 0; key < NVS_CONFIG_COUNT; key++) {
+        Settings * s = nvs_config_get_settings(key);
+        if (!s || !s->rest_name) continue;
+        switch (s->type) {
+            case TYPE_STR:   cJSON_AddStringToObject(root, s->rest_name, s->default_value.str ? s->default_value.str : ""); break;
+            case TYPE_U16:   cJSON_AddNumberToObject(root, s->rest_name, s->default_value.u16);  break;
+            case TYPE_I32:   cJSON_AddNumberToObject(root, s->rest_name, s->default_value.i32);  break;
+            case TYPE_U64:   cJSON_AddNumberToObject(root, s->rest_name, (double)s->default_value.u64); break;
+            case TYPE_FLOAT: cJSON_AddNumberToObject(root, s->rest_name, s->default_value.f);    break;
+            case TYPE_BOOL:  cJSON_AddBoolToObject(root, s->rest_name, s->default_value.b);      break;
+            default: break;
+        }
+    }
+
+    esp_err_t res = HTTP_send_json(req, root, &api_common_prebuffer_len);
+    cJSON_Delete(root);
+    return res;
+}
+
+#define PROFILE_NVS_NAMESPACE "main"
+#define PROFILE_MAX_SLOTS 4
+#define PROFILE_KEY_FMT "profile_%d"
+
+static esp_err_t GET_profiles(httpd_req_t *req)
+{
+    if (is_network_allowed(req) != ESP_OK) {
+        return httpd_resp_send_err(req, HTTPD_401_UNAUTHORIZED, "Unauthorized");
+    }
+    if (set_cors_headers(req) != ESP_OK) {
+        httpd_resp_send_500(req);
+        return ESP_OK;
+    }
+    httpd_resp_set_type(req, "application/json");
+    cJSON *arr = cJSON_CreateArray();
+    nvs_handle_t nvs;
+    if (nvs_open(PROFILE_NVS_NAMESPACE, NVS_READONLY, &nvs) == ESP_OK) {
+        for (int i = 0; i < PROFILE_MAX_SLOTS; i++) {
+            char key[12];
+            snprintf(key, sizeof(key), PROFILE_KEY_FMT, i);
+            size_t len = 0;
+            if (nvs_get_str(nvs, key, NULL, &len) == ESP_OK && len > 0) {
+                char *pbuf = malloc(len);
+                if (pbuf && nvs_get_str(nvs, key, pbuf, &len) == ESP_OK) {
+                    cJSON *profile = cJSON_Parse(pbuf);
+                    if (profile) {
+                        cJSON_AddNumberToObject(profile, "id", i);
+                        cJSON_AddItemToArray(arr, profile);
+                    }
+                }
+                free(pbuf);
+            }
+        }
+        nvs_close(nvs);
+    }
+    esp_err_t res = HTTP_send_json(req, arr, &api_common_prebuffer_len);
+    cJSON_Delete(arr);
+    return res;
+}
+
+static esp_err_t POST_save_profile(httpd_req_t *req)
+{
+    if (is_network_allowed(req) != ESP_OK) {
+        return httpd_resp_send_err(req, HTTPD_401_UNAUTHORIZED, "Unauthorized");
+    }
+    if (set_cors_headers(req) != ESP_OK) {
+        httpd_resp_send_500(req);
+        return ESP_OK;
+    }
+    int total_len = req->content_len;
+    int cur_len = 0;
+    char *buf = ((rest_server_context_t *)(req->user_ctx))->scratch;
+    int received = 0;
+    if (total_len >= SCRATCH_BUFSIZE) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "content too long");
+        return ESP_OK;
+    }
+    while (cur_len < total_len) {
+        received = httpd_req_recv(req, buf + cur_len, total_len);
+        if (received <= 0) {
+            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to read body");
+            return ESP_OK;
+        }
+        cur_len += received;
+    }
+    buf[total_len] = '\0';
+    cJSON *root = cJSON_Parse(buf);
+    if (!root) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid JSON");
+        return ESP_OK;
+    }
+    cJSON *name = cJSON_GetObjectItem(root, "name");
+    if (!name || !cJSON_IsString(name) || strlen(name->valuestring) == 0 || strlen(name->valuestring) > 32) {
+        cJSON_Delete(root);
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid name");
+        return ESP_OK;
+    }
+    nvs_handle_t nvs;
+    if (nvs_open(PROFILE_NVS_NAMESPACE, NVS_READWRITE, &nvs) != ESP_OK) {
+        cJSON_Delete(root);
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "NVS open failed");
+        return ESP_OK;
+    }
+    int slot = -1;
+    for (int i = 0; i < PROFILE_MAX_SLOTS; i++) {
+        char key[12];
+        snprintf(key, sizeof(key), PROFILE_KEY_FMT, i);
+        size_t len = 0;
+        if (nvs_get_str(nvs, key, NULL, &len) != ESP_OK) {
+            slot = i;
+            break;
+        }
+    }
+    if (slot == -1) {
+        nvs_close(nvs);
+        cJSON_Delete(root);
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Maximum profiles reached");
+        return ESP_OK;
+    }
+    char *profile_str = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (!profile_str) {
+        nvs_close(nvs);
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Serialization failed");
+        return ESP_OK;
+    }
+    char key[12];
+    snprintf(key, sizeof(key), PROFILE_KEY_FMT, slot);
+    esp_err_t err = nvs_set_str(nvs, key, profile_str);
+    free(profile_str);
+    if (err == ESP_OK) nvs_commit(nvs);
+    nvs_close(nvs);
+    if (err != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "NVS write failed");
+        return ESP_OK;
+    }
+    nvs_config_set_i32(NVS_CONFIG_SELECTED_PROFILE, slot);
+    httpd_resp_set_type(req, "application/json");
+    cJSON *resp = cJSON_CreateObject();
+    cJSON_AddNumberToObject(resp, "id", slot);
+    esp_err_t res = HTTP_send_json(req, resp, &api_common_prebuffer_len);
+    cJSON_Delete(resp);
+    return res;
+}
+
+static esp_err_t DELETE_profile(httpd_req_t *req)
+{
+    if (is_network_allowed(req) != ESP_OK) {
+        return httpd_resp_send_err(req, HTTPD_401_UNAUTHORIZED, "Unauthorized");
+    }
+    if (set_cors_headers(req) != ESP_OK) {
+        httpd_resp_send_500(req);
+        return ESP_OK;
+    }
+    int total_len = req->content_len;
+    int cur_len = 0;
+    char *buf = ((rest_server_context_t *)(req->user_ctx))->scratch;
+    int received = 0;
+    if (total_len >= SCRATCH_BUFSIZE) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "content too long");
+        return ESP_OK;
+    }
+    while (cur_len < total_len) {
+        received = httpd_req_recv(req, buf + cur_len, total_len);
+        if (received <= 0) {
+            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to read body");
+            return ESP_OK;
+        }
+        cur_len += received;
+    }
+    buf[total_len] = '\0';
+    cJSON *root = cJSON_Parse(buf);
+    if (!root) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid JSON");
+        return ESP_OK;
+    }
+    cJSON *id_item = cJSON_GetObjectItem(root, "id");
+    if (!id_item || !cJSON_IsNumber(id_item) || id_item->valueint < 0 || id_item->valueint >= PROFILE_MAX_SLOTS) {
+        cJSON_Delete(root);
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid id");
+        return ESP_OK;
+    }
+    int del_id = id_item->valueint;
+    cJSON_Delete(root);
+    nvs_handle_t nvs;
+    if (nvs_open(PROFILE_NVS_NAMESPACE, NVS_READWRITE, &nvs) != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "NVS open failed");
+        return ESP_OK;
+    }
+    char *profiles[PROFILE_MAX_SLOTS] = {NULL};
+    for (int i = 0; i < PROFILE_MAX_SLOTS; i++) {
+        char pkey[12];
+        snprintf(pkey, sizeof(pkey), PROFILE_KEY_FMT, i);
+        size_t len = 0;
+        if (nvs_get_str(nvs, pkey, NULL, &len) == ESP_OK && len > 0) {
+            profiles[i] = malloc(len);
+            if (profiles[i] && nvs_get_str(nvs, pkey, profiles[i], &len) != ESP_OK) {
+                free(profiles[i]);
+                profiles[i] = NULL;
+            }
+        }
+    }
+    free(profiles[del_id]);
+    profiles[del_id] = NULL;
+    for (int i = del_id; i < PROFILE_MAX_SLOTS - 1; i++) {
+        profiles[i] = profiles[i + 1];
+    }
+    profiles[PROFILE_MAX_SLOTS - 1] = NULL;
+    for (int i = 0; i < PROFILE_MAX_SLOTS; i++) {
+        char pkey[12];
+        snprintf(pkey, sizeof(pkey), PROFILE_KEY_FMT, i);
+        if (profiles[i]) {
+            nvs_set_str(nvs, pkey, profiles[i]);
+            free(profiles[i]);
+        } else {
+            nvs_erase_key(nvs, pkey);
+        }
+    }
+    nvs_commit(nvs);
+    nvs_close(nvs);
+    httpd_resp_set_type(req, "application/json");
+    cJSON *resp = cJSON_CreateObject();
+    esp_err_t res = HTTP_send_json(req, resp, &api_common_prebuffer_len);
+    cJSON_Delete(resp);
+    return res;
+}
+
+static esp_err_t PATCH_update_profile(httpd_req_t *req)
+{
+    if (is_network_allowed(req) != ESP_OK) {
+        return httpd_resp_send_err(req, HTTPD_401_UNAUTHORIZED, "Unauthorized");
+    }
+    if (set_cors_headers(req) != ESP_OK) {
+        httpd_resp_send_500(req);
+        return ESP_OK;
+    }
+    int total_len = req->content_len;
+    int cur_len = 0;
+    char *buf = ((rest_server_context_t *)(req->user_ctx))->scratch;
+    int received = 0;
+    if (total_len >= SCRATCH_BUFSIZE) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "content too long");
+        return ESP_OK;
+    }
+    while (cur_len < total_len) {
+        received = httpd_req_recv(req, buf + cur_len, total_len);
+        if (received <= 0) {
+            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to read body");
+            return ESP_OK;
+        }
+        cur_len += received;
+    }
+    buf[total_len] = '\0';
+    cJSON *root = cJSON_Parse(buf);
+    if (!root) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid JSON");
+        return ESP_OK;
+    }
+    cJSON *id_item = cJSON_GetObjectItem(root, "id");
+    if (!id_item || !cJSON_IsNumber(id_item) || id_item->valueint < 0 || id_item->valueint >= PROFILE_MAX_SLOTS) {
+        cJSON_Delete(root);
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid id");
+        return ESP_OK;
+    }
+    int slot = id_item->valueint;
+    cJSON *name = cJSON_GetObjectItem(root, "name");
+    if (!name || !cJSON_IsString(name) || strlen(name->valuestring) == 0 || strlen(name->valuestring) > 32) {
+        cJSON_Delete(root);
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid name");
+        return ESP_OK;
+    }
+    cJSON_DeleteItemFromObject(root, "id");
+    char *profile_str = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (!profile_str) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Serialization failed");
+        return ESP_OK;
+    }
+    nvs_handle_t nvs;
+    if (nvs_open(PROFILE_NVS_NAMESPACE, NVS_READWRITE, &nvs) != ESP_OK) {
+        free(profile_str);
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "NVS open failed");
+        return ESP_OK;
+    }
+    char key[12];
+    snprintf(key, sizeof(key), PROFILE_KEY_FMT, slot);
+    esp_err_t err = nvs_set_str(nvs, key, profile_str);
+    free(profile_str);
+    if (err == ESP_OK) nvs_commit(nvs);
+    nvs_close(nvs);
+    if (err != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "NVS write failed");
+        return ESP_OK;
+    }
+    nvs_config_set_i32(NVS_CONFIG_SELECTED_PROFILE, slot);
+    httpd_resp_set_type(req, "application/json");
+    cJSON *resp = cJSON_CreateObject();
+    cJSON_AddNumberToObject(resp, "id", slot);
+    esp_err_t pres = HTTP_send_json(req, resp, &api_common_prebuffer_len);
+    cJSON_Delete(resp);
+    return pres;
+}
+
+// ---------------------------------------------------------------------------
+// Pool preset CRUD  (up to 8 named presets, stored in NVS namespace "pool_p")
+// ---------------------------------------------------------------------------
+#define POOL_PRESET_NVS_NAMESPACE "pool_p"
+#define POOL_PRESET_MAX_SLOTS 8
+#define POOL_PRESET_KEY_FMT "pp_%d"
+
+static esp_err_t GET_pool_profiles(httpd_req_t *req)
+{
+    if (is_network_allowed(req) != ESP_OK) {
+        return httpd_resp_send_err(req, HTTPD_401_UNAUTHORIZED, "Unauthorized");
+    }
+    if (set_cors_headers(req) != ESP_OK) {
+        httpd_resp_send_500(req);
+        return ESP_OK;
+    }
+    httpd_resp_set_type(req, "application/json");
+    cJSON *arr = cJSON_CreateArray();
+    nvs_handle_t nvs;
+    if (nvs_open(POOL_PRESET_NVS_NAMESPACE, NVS_READONLY, &nvs) == ESP_OK) {
+        for (int i = 0; i < POOL_PRESET_MAX_SLOTS; i++) {
+            char key[8];
+            snprintf(key, sizeof(key), POOL_PRESET_KEY_FMT, i);
+            size_t len = 0;
+            if (nvs_get_str(nvs, key, NULL, &len) == ESP_OK && len > 0) {
+                char *pbuf = malloc(len);
+                if (pbuf && nvs_get_str(nvs, key, pbuf, &len) == ESP_OK) {
+                    cJSON *preset = cJSON_Parse(pbuf);
+                    if (preset) {
+                        cJSON_AddNumberToObject(preset, "id", i);
+                        cJSON_AddItemToArray(arr, preset);
+                    }
+                }
+                free(pbuf);
+            }
+        }
+        nvs_close(nvs);
+    }
+    esp_err_t res = HTTP_send_json(req, arr, &api_common_prebuffer_len);
+    cJSON_Delete(arr);
+    return res;
+}
+
+static esp_err_t POST_save_pool_profile(httpd_req_t *req)
+{
+    if (is_network_allowed(req) != ESP_OK) {
+        return httpd_resp_send_err(req, HTTPD_401_UNAUTHORIZED, "Unauthorized");
+    }
+    if (set_cors_headers(req) != ESP_OK) {
+        httpd_resp_send_500(req);
+        return ESP_OK;
+    }
+    int total_len = req->content_len;
+    int cur_len = 0;
+    char *buf = ((rest_server_context_t *)(req->user_ctx))->scratch;
+    int received = 0;
+    if (total_len >= SCRATCH_BUFSIZE) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "content too long");
+        return ESP_OK;
+    }
+    while (cur_len < total_len) {
+        received = httpd_req_recv(req, buf + cur_len, total_len);
+        if (received <= 0) {
+            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to read body");
+            return ESP_OK;
+        }
+        cur_len += received;
+    }
+    buf[total_len] = '\0';
+    cJSON *root = cJSON_Parse(buf);
+    if (!root) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid JSON");
+        return ESP_OK;
+    }
+    cJSON *name = cJSON_GetObjectItem(root, "name");
+    if (!name || !cJSON_IsString(name) || strlen(name->valuestring) == 0 || strlen(name->valuestring) > 32) {
+        cJSON_Delete(root);
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid name");
+        return ESP_OK;
+    }
+    nvs_handle_t nvs;
+    if (nvs_open(POOL_PRESET_NVS_NAMESPACE, NVS_READWRITE, &nvs) != ESP_OK) {
+        cJSON_Delete(root);
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "NVS open failed");
+        return ESP_OK;
+    }
+    int slot = -1;
+    for (int i = 0; i < POOL_PRESET_MAX_SLOTS; i++) {
+        char key[8];
+        snprintf(key, sizeof(key), POOL_PRESET_KEY_FMT, i);
+        size_t len = 0;
+        if (nvs_get_str(nvs, key, NULL, &len) != ESP_OK) {
+            slot = i;
+            break;
+        }
+    }
+    if (slot == -1) {
+        nvs_close(nvs);
+        cJSON_Delete(root);
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Maximum presets reached");
+        return ESP_OK;
+    }
+    char *preset_str = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (!preset_str) {
+        nvs_close(nvs);
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Serialization failed");
+        return ESP_OK;
+    }
+    char key[8];
+    snprintf(key, sizeof(key), POOL_PRESET_KEY_FMT, slot);
+    esp_err_t err = nvs_set_str(nvs, key, preset_str);
+    free(preset_str);
+    if (err == ESP_OK) nvs_commit(nvs);
+    nvs_close(nvs);
+    if (err != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "NVS write failed");
+        return ESP_OK;
+    }
+    httpd_resp_set_type(req, "application/json");
+    cJSON *resp = cJSON_CreateObject();
+    cJSON_AddNumberToObject(resp, "id", slot);
+    esp_err_t res = HTTP_send_json(req, resp, &api_common_prebuffer_len);
+    cJSON_Delete(resp);
+    return res;
+}
+
+static esp_err_t DELETE_pool_profile(httpd_req_t *req)
+{
+    if (is_network_allowed(req) != ESP_OK) {
+        return httpd_resp_send_err(req, HTTPD_401_UNAUTHORIZED, "Unauthorized");
+    }
+    if (set_cors_headers(req) != ESP_OK) {
+        httpd_resp_send_500(req);
+        return ESP_OK;
+    }
+    int total_len = req->content_len;
+    int cur_len = 0;
+    char *buf = ((rest_server_context_t *)(req->user_ctx))->scratch;
+    int received = 0;
+    if (total_len >= SCRATCH_BUFSIZE) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "content too long");
+        return ESP_OK;
+    }
+    while (cur_len < total_len) {
+        received = httpd_req_recv(req, buf + cur_len, total_len);
+        if (received <= 0) {
+            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to read body");
+            return ESP_OK;
+        }
+        cur_len += received;
+    }
+    buf[total_len] = '\0';
+    cJSON *root = cJSON_Parse(buf);
+    if (!root) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid JSON");
+        return ESP_OK;
+    }
+    cJSON *id_item = cJSON_GetObjectItem(root, "id");
+    if (!id_item || !cJSON_IsNumber(id_item) || id_item->valueint < 0 || id_item->valueint >= POOL_PRESET_MAX_SLOTS) {
+        cJSON_Delete(root);
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid id");
+        return ESP_OK;
+    }
+    int del_id = id_item->valueint;
+    cJSON_Delete(root);
+    nvs_handle_t nvs;
+    if (nvs_open(POOL_PRESET_NVS_NAMESPACE, NVS_READWRITE, &nvs) != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "NVS open failed");
+        return ESP_OK;
+    }
+    char *presets[POOL_PRESET_MAX_SLOTS] = {NULL};
+    for (int i = 0; i < POOL_PRESET_MAX_SLOTS; i++) {
+        char pkey[8];
+        snprintf(pkey, sizeof(pkey), POOL_PRESET_KEY_FMT, i);
+        size_t len = 0;
+        if (nvs_get_str(nvs, pkey, NULL, &len) == ESP_OK && len > 0) {
+            presets[i] = malloc(len);
+            if (presets[i] && nvs_get_str(nvs, pkey, presets[i], &len) != ESP_OK) {
+                free(presets[i]);
+                presets[i] = NULL;
+            }
+        }
+    }
+    free(presets[del_id]);
+    presets[del_id] = NULL;
+    for (int i = del_id; i < POOL_PRESET_MAX_SLOTS - 1; i++) {
+        presets[i] = presets[i + 1];
+    }
+    presets[POOL_PRESET_MAX_SLOTS - 1] = NULL;
+    for (int i = 0; i < POOL_PRESET_MAX_SLOTS; i++) {
+        char pkey[8];
+        snprintf(pkey, sizeof(pkey), POOL_PRESET_KEY_FMT, i);
+        if (presets[i]) {
+            nvs_set_str(nvs, pkey, presets[i]);
+            free(presets[i]);
+        } else {
+            nvs_erase_key(nvs, pkey);
+        }
+    }
+    nvs_commit(nvs);
+    nvs_close(nvs);
+
+    // Adjust stored pool preset selections after compaction
+    int32_t sel_primary = nvs_config_get_i32(NVS_CONFIG_SELECTED_POOL_PRESET);
+    if (sel_primary == del_id) {
+        nvs_config_set_i32(NVS_CONFIG_SELECTED_POOL_PRESET, -1);
+    } else if (sel_primary > del_id) {
+        nvs_config_set_i32(NVS_CONFIG_SELECTED_POOL_PRESET, sel_primary - 1);
+    }
+    int32_t sel_fallback = nvs_config_get_i32(NVS_CONFIG_SELECTED_FALLBACK_POOL_PRESET);
+    if (sel_fallback == del_id) {
+        nvs_config_set_i32(NVS_CONFIG_SELECTED_FALLBACK_POOL_PRESET, -1);
+    } else if (sel_fallback > del_id) {
+        nvs_config_set_i32(NVS_CONFIG_SELECTED_FALLBACK_POOL_PRESET, sel_fallback - 1);
+    }
+
+    httpd_resp_set_type(req, "application/json");
+    cJSON *resp = cJSON_CreateObject();
+    esp_err_t res = HTTP_send_json(req, resp, &api_common_prebuffer_len);
+    cJSON_Delete(resp);
+    return res;
+}
+
+static esp_err_t PATCH_update_pool_profile(httpd_req_t *req)
+{
+    if (is_network_allowed(req) != ESP_OK) {
+        return httpd_resp_send_err(req, HTTPD_401_UNAUTHORIZED, "Unauthorized");
+    }
+    if (set_cors_headers(req) != ESP_OK) {
+        httpd_resp_send_500(req);
+        return ESP_OK;
+    }
+    int total_len = req->content_len;
+    int cur_len = 0;
+    char *buf = ((rest_server_context_t *)(req->user_ctx))->scratch;
+    int received = 0;
+    if (total_len >= SCRATCH_BUFSIZE) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "content too long");
+        return ESP_OK;
+    }
+    while (cur_len < total_len) {
+        received = httpd_req_recv(req, buf + cur_len, total_len);
+        if (received <= 0) {
+            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to read body");
+            return ESP_OK;
+        }
+        cur_len += received;
+    }
+    buf[total_len] = '\0';
+    cJSON *root = cJSON_Parse(buf);
+    if (!root) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid JSON");
+        return ESP_OK;
+    }
+    cJSON *id_item = cJSON_GetObjectItem(root, "id");
+    if (!id_item || !cJSON_IsNumber(id_item) || id_item->valueint < 0 || id_item->valueint >= POOL_PRESET_MAX_SLOTS) {
+        cJSON_Delete(root);
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid id");
+        return ESP_OK;
+    }
+    int slot = id_item->valueint;
+    cJSON *name = cJSON_GetObjectItem(root, "name");
+    if (!name || !cJSON_IsString(name) || strlen(name->valuestring) == 0 || strlen(name->valuestring) > 32) {
+        cJSON_Delete(root);
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid name");
+        return ESP_OK;
+    }
+    cJSON_DeleteItemFromObject(root, "id");
+    char *preset_str = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (!preset_str) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Serialization failed");
+        return ESP_OK;
+    }
+    nvs_handle_t nvs;
+    if (nvs_open(POOL_PRESET_NVS_NAMESPACE, NVS_READWRITE, &nvs) != ESP_OK) {
+        free(preset_str);
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "NVS open failed");
+        return ESP_OK;
+    }
+    char key[8];
+    snprintf(key, sizeof(key), POOL_PRESET_KEY_FMT, slot);
+    esp_err_t err = nvs_set_str(nvs, key, preset_str);
+    free(preset_str);
+    if (err == ESP_OK) nvs_commit(nvs);
+    nvs_close(nvs);
+    if (err != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "NVS write failed");
+        return ESP_OK;
+    }
+    httpd_resp_set_type(req, "application/json");
+    cJSON *resp = cJSON_CreateObject();
+    cJSON_AddNumberToObject(resp, "id", slot);
+    esp_err_t res = HTTP_send_json(req, resp, &api_common_prebuffer_len);
+    cJSON_Delete(resp);
     return res;
 }
 
@@ -875,6 +1585,12 @@ static esp_err_t GET_system_info(httpd_req_t * req)
     cJSON_AddFloatToObject(root, "hashRate_1m", GLOBAL_STATE->SYSTEM_MODULE.hashrate_1m);
     cJSON_AddFloatToObject(root, "hashRate_10m", GLOBAL_STATE->SYSTEM_MODULE.hashrate_10m);
     cJSON_AddFloatToObject(root, "hashRate_1h", GLOBAL_STATE->SYSTEM_MODULE.hashrate_1h);
+    cJSON_AddFloatToObject(root, "efficiency_1m", GLOBAL_STATE->SYSTEM_MODULE.efficiency_1m);
+    cJSON_AddFloatToObject(root, "efficiency_10m", GLOBAL_STATE->SYSTEM_MODULE.efficiency_10m);
+    cJSON_AddFloatToObject(root, "efficiency_1h", GLOBAL_STATE->SYSTEM_MODULE.efficiency_1h);
+    cJSON_AddFloatToObject(root, "diff_1m", GLOBAL_STATE->SYSTEM_MODULE.diff_1m);
+    cJSON_AddFloatToObject(root, "diff_10m", GLOBAL_STATE->SYSTEM_MODULE.diff_10m);
+    cJSON_AddFloatToObject(root, "diff_1h", GLOBAL_STATE->SYSTEM_MODULE.diff_1h);
     cJSON_AddFloatToObject(root, "expectedHashrate", GLOBAL_STATE->POWER_MANAGEMENT_MODULE.expected_hashrate);
     cJSON_AddFloatToObject(root, "errorPercentage", GLOBAL_STATE->SYSTEM_MODULE.error_percentage);
     cJSON_AddNumberToObject(root, "bestDiff", GLOBAL_STATE->SYSTEM_MODULE.best_nonce_diff);
@@ -916,8 +1632,38 @@ static esp_err_t GET_system_info(httpd_req_t * req)
         if (GLOBAL_STATE->SYSTEM_MODULE.last_share_time > 0) {
             last_share_age_sec = (esp_timer_get_time() - GLOBAL_STATE->SYSTEM_MODULE.last_share_time) / 1000000;
         }
-        cJSON_AddNumberToObject(root, "lastShareSeconds", (double)last_share_age_sec);
+        cJSON_AddNumberToObject(root, "lastAcceptedShareSeconds", (double)last_share_age_sec);
+
+        int64_t asic_last_job_sec = 0;
+        if (GLOBAL_STATE->ASIC_TASK_MODULE.last_job_sent_us > 0) {
+            asic_last_job_sec = (esp_timer_get_time() - GLOBAL_STATE->ASIC_TASK_MODULE.last_job_sent_us) / 1000000;
+        }
+        cJSON_AddNumberToObject(root, "asicLastJobSeconds", (double)asic_last_job_sec);
+
+        int64_t last_job_sec = 0;
+        if (GLOBAL_STATE->SYSTEM_MODULE.last_job_received_us > 0) {
+            last_job_sec = (esp_timer_get_time() - GLOBAL_STATE->SYSTEM_MODULE.last_job_received_us) / 1000000;
+        }
+        cJSON_AddNumberToObject(root, "lastJobSeconds", (double)last_job_sec);
+
+        int64_t last_nonce_sec = 0;
+        if (GLOBAL_STATE->SYSTEM_MODULE.last_nonce_us > 0) {
+            last_nonce_sec = (esp_timer_get_time() - GLOBAL_STATE->SYSTEM_MODULE.last_nonce_us) / 1000000;
+        }
+        cJSON_AddNumberToObject(root, "lastNonceSeconds", (double)last_nonce_sec);
+        cJSON_AddNumberToObject(root, "asicJobsDispatched", (double)GLOBAL_STATE->ASIC_TASK_MODULE.asic_jobs_dispatched);
+        cJSON_AddNumberToObject(root, "asicNonceCount", (double)GLOBAL_STATE->SYSTEM_MODULE.asic_nonce_count);
+        if (GLOBAL_STATE->SYSTEM_MODULE.asic_nonce_counts != NULL) {
+            cJSON *nonce_counts = cJSON_CreateArray();
+            int asic_count = GLOBAL_STATE->DEVICE_CONFIG.family.asic_count;
+            for (int i = 0; i < asic_count; i++) {
+                cJSON_AddItemToArray(nonce_counts, cJSON_CreateNumber((double)GLOBAL_STATE->SYSTEM_MODULE.asic_nonce_counts[i]));
+            }
+            cJSON_AddItemToObject(root, "asicNonceCounts", nonce_counts);
+        }
     }
+
+    cJSON_AddNumberToObject(root, "queueCount", GLOBAL_STATE->stratum_queue.count);
 
     cJSON *error_array = cJSON_CreateArray();
     cJSON_AddItemToObject(root, "sharesRejectedReasons", error_array);
@@ -948,7 +1694,10 @@ static esp_err_t GET_system_info(httpd_req_t * req)
     cJSON_AddNumberToObject(root, "fallbackStratumTLS", nvs_config_get_u16(NVS_CONFIG_FALLBACK_STRATUM_TLS));
     cJSON_AddStringToObject(root, "fallbackStratumCert", fallbackStratumCert);
     cJSON_AddNumberToObject(root, "fallbackStratumDecodeCoinbase", nvs_config_get_u16(NVS_CONFIG_FALLBACK_STRATUM_DECODE_COINBASE));
+    cJSON_AddNumberToObject(root, "stratumProfileId", nvs_config_get_i32(NVS_CONFIG_SELECTED_POOL_PRESET));
+    cJSON_AddNumberToObject(root, "fallbackStratumProfileId", nvs_config_get_i32(NVS_CONFIG_SELECTED_FALLBACK_POOL_PRESET));
     cJSON_AddFloatToObject(root, "responseTime", GLOBAL_STATE->SYSTEM_MODULE.response_time);
+    cJSON_AddFloatToObject(root, "networkPing", GLOBAL_STATE->SYSTEM_MODULE.network_ping_ms);
 
     cJSON_AddStringToObject(root, "version", GLOBAL_STATE->SYSTEM_MODULE.version);
     cJSON_AddStringToObject(root, "axeOSVersion", GLOBAL_STATE->SYSTEM_MODULE.axeOSVersion);
@@ -982,9 +1731,19 @@ static esp_err_t GET_system_info(httpd_req_t * req)
 
     cJSON_AddNumberToObject(root, "statsFrequency", nvs_config_get_u16(NVS_CONFIG_STATISTICS_FREQUENCY));
     cJSON_AddNumberToObject(root, "heliosStatsEnabled", nvs_config_get_bool(NVS_CONFIG_HELIOS_STATS_ENABLED));
+    cJSON_AddBoolToObject(root, "debugLog", nvs_config_get_bool(NVS_CONFIG_DEBUG_LOG));
+    cJSON_AddNumberToObject(root, "selectedProfileId", nvs_config_get_i32(NVS_CONFIG_SELECTED_PROFILE));
 
     cJSON_AddNumberToObject(root, "blockFound", GLOBAL_STATE->SYSTEM_MODULE.block_found);
+    cJSON_AddNumberToObject(root, "lifetimeBlocksFound", GLOBAL_STATE->SYSTEM_MODULE.lifetime_block_found);
     cJSON_AddBoolToObject(root, "showNewBlock", GLOBAL_STATE->SYSTEM_MODULE.show_new_block);
+    if (GLOBAL_STATE->SYSTEM_MODULE.last_block_time > 0) {
+        cJSON_AddNumberToObject(root, "lastBlockTime", GLOBAL_STATE->SYSTEM_MODULE.last_block_time);
+        cJSON_AddNumberToObject(root, "lastBlockDiff", GLOBAL_STATE->SYSTEM_MODULE.last_block_diff);
+        cJSON_AddNumberToObject(root, "lastBlockNetDiff", GLOBAL_STATE->SYSTEM_MODULE.last_block_net_diff);
+        cJSON_AddBoolToObject(root, "lastBlockFallback", GLOBAL_STATE->SYSTEM_MODULE.last_block_fallback);
+        cJSON_AddStringToObject(root, "lastBlockUrl", GLOBAL_STATE->SYSTEM_MODULE.last_block_url);
+    }
 
     if (GLOBAL_STATE->SYSTEM_MODULE.power_fault > 0) {
         cJSON_AddStringToObject(root, "power_fault", VCORE_get_fault_string(GLOBAL_STATE));
@@ -1107,6 +1866,12 @@ static esp_err_t GET_system_statistics(httpd_req_t * req)
     if (dataSelection[SRC_HASHRATE_1m]) { cJSON_AddItemToArray(labelArray, cJSON_CreateString(STATS_LABEL_HASHRATE_1m)); }
     if (dataSelection[SRC_HASHRATE_10m]) { cJSON_AddItemToArray(labelArray, cJSON_CreateString(STATS_LABEL_HASHRATE_10m)); }
     if (dataSelection[SRC_HASHRATE_1h]) { cJSON_AddItemToArray(labelArray, cJSON_CreateString(STATS_LABEL_HASHRATE_1h)); }
+    if (dataSelection[SRC_EFFICIENCY_1m]) { cJSON_AddItemToArray(labelArray, cJSON_CreateString(STATS_LABEL_EFFICIENCY_1m)); }
+    if (dataSelection[SRC_EFFICIENCY_10m]) { cJSON_AddItemToArray(labelArray, cJSON_CreateString(STATS_LABEL_EFFICIENCY_10m)); }
+    if (dataSelection[SRC_EFFICIENCY_1h]) { cJSON_AddItemToArray(labelArray, cJSON_CreateString(STATS_LABEL_EFFICIENCY_1h)); }
+    if (dataSelection[SRC_DIFF_1m]) { cJSON_AddItemToArray(labelArray, cJSON_CreateString(STATS_LABEL_DIFF_1m)); }
+    if (dataSelection[SRC_DIFF_10m]) { cJSON_AddItemToArray(labelArray, cJSON_CreateString(STATS_LABEL_DIFF_10m)); }
+    if (dataSelection[SRC_DIFF_1h]) { cJSON_AddItemToArray(labelArray, cJSON_CreateString(STATS_LABEL_DIFF_1h)); }
     if (dataSelection[SRC_ERROR_PERCENTAGE]) { cJSON_AddItemToArray(labelArray, cJSON_CreateString(STATS_LABEL_ERROR_PERCENTAGE)); }
     if (dataSelection[SRC_ASIC_TEMP]) { cJSON_AddItemToArray(labelArray, cJSON_CreateString(STATS_LABEL_ASIC_TEMP)); }
     if (dataSelection[SRC_VR_TEMP]) { cJSON_AddItemToArray(labelArray, cJSON_CreateString(STATS_LABEL_VR_TEMP)); }
@@ -1136,6 +1901,12 @@ static esp_err_t GET_system_statistics(httpd_req_t * req)
         if (dataSelection[SRC_HASHRATE_1m]) { cJSON_AddItemToArray(valueArray, cJSON_CreateFloat(statsData.hashrate_1m)); }
         if (dataSelection[SRC_HASHRATE_10m]) { cJSON_AddItemToArray(valueArray, cJSON_CreateFloat(statsData.hashrate_10m)); }
         if (dataSelection[SRC_HASHRATE_1h]) { cJSON_AddItemToArray(valueArray, cJSON_CreateFloat(statsData.hashrate_1h)); }
+        if (dataSelection[SRC_EFFICIENCY_1m]) { cJSON_AddItemToArray(valueArray, cJSON_CreateFloat(statsData.efficiency_1m)); }
+        if (dataSelection[SRC_EFFICIENCY_10m]) { cJSON_AddItemToArray(valueArray, cJSON_CreateFloat(statsData.efficiency_10m)); }
+        if (dataSelection[SRC_EFFICIENCY_1h]) { cJSON_AddItemToArray(valueArray, cJSON_CreateFloat(statsData.efficiency_1h)); }
+        if (dataSelection[SRC_DIFF_1m]) { cJSON_AddItemToArray(valueArray, cJSON_CreateFloat(statsData.diff_1m)); }
+        if (dataSelection[SRC_DIFF_10m]) { cJSON_AddItemToArray(valueArray, cJSON_CreateFloat(statsData.diff_10m)); }
+        if (dataSelection[SRC_DIFF_1h]) { cJSON_AddItemToArray(valueArray, cJSON_CreateFloat(statsData.diff_1h)); }
         if (dataSelection[SRC_ERROR_PERCENTAGE]) { cJSON_AddItemToArray(valueArray, cJSON_CreateFloat(statsData.errorPercentage)); }
         if (dataSelection[SRC_ASIC_TEMP]) { cJSON_AddItemToArray(valueArray, cJSON_CreateFloat(statsData.chipTemperature)); }
         if (dataSelection[SRC_VR_TEMP]) { cJSON_AddItemToArray(valueArray, cJSON_CreateFloat(statsData.vrTemperature)); }
@@ -1346,9 +2117,12 @@ esp_err_t start_rest_server(void * pvParameters)
     config.uri_match_fn = httpd_uri_match_wildcard;
     config.stack_size = 8192;
     config.max_open_sockets = 20;
-    config.max_uri_handlers = 24;
+    config.max_uri_handlers = 29;
     config.close_fn = websocket_close_fn;
     config.lru_purge_enable = true;
+    // Run httpd below stratum_task (5) so stratum always wins CPU when
+    // competing for lwIP/network resources.
+    config.task_priority = 4;
 
     ESP_LOGI(TAG, "Starting HTTP Server");
     REST_CHECK(httpd_start(&server, &config) == ESP_OK, "Start server failed", err_start);
@@ -1437,6 +2211,86 @@ esp_err_t start_rest_server(void * pvParameters)
         .user_ctx = NULL
     };
     httpd_register_uri_handler(server, &system_dismiss_block_found_uri);
+
+    httpd_uri_t system_reset_blocks_uri = {
+        .uri = "/api/system/blockFound/reset",
+        .method = HTTP_POST,
+        .handler = POST_reset_blocks,
+        .user_ctx = NULL
+    };
+    httpd_register_uri_handler(server, &system_reset_blocks_uri);
+
+    httpd_uri_t system_defaults_get_uri = {
+        .uri = "/api/system/defaults",
+        .method = HTTP_GET,
+        .handler = GET_system_defaults,
+        .user_ctx = NULL
+    };
+    httpd_register_uri_handler(server, &system_defaults_get_uri);
+
+    httpd_uri_t profiles_get_uri = {
+        .uri = "/api/system/profiles",
+        .method = HTTP_GET,
+        .handler = GET_profiles,
+        .user_ctx = rest_context
+    };
+    httpd_register_uri_handler(server, &profiles_get_uri);
+
+    httpd_uri_t profiles_post_uri = {
+        .uri = "/api/system/profiles",
+        .method = HTTP_POST,
+        .handler = POST_save_profile,
+        .user_ctx = rest_context
+    };
+    httpd_register_uri_handler(server, &profiles_post_uri);
+
+    httpd_uri_t profiles_delete_uri = {
+        .uri = "/api/system/profiles",
+        .method = HTTP_DELETE,
+        .handler = DELETE_profile,
+        .user_ctx = rest_context
+    };
+    httpd_register_uri_handler(server, &profiles_delete_uri);
+
+    httpd_uri_t profiles_patch_uri = {
+        .uri = "/api/system/profiles",
+        .method = HTTP_PATCH,
+        .handler = PATCH_update_profile,
+        .user_ctx = rest_context
+    };
+    httpd_register_uri_handler(server, &profiles_patch_uri);
+
+    httpd_uri_t pool_profiles_get_uri = {
+        .uri = "/api/system/pool-profiles",
+        .method = HTTP_GET,
+        .handler = GET_pool_profiles,
+        .user_ctx = rest_context
+    };
+    httpd_register_uri_handler(server, &pool_profiles_get_uri);
+
+    httpd_uri_t pool_profiles_post_uri = {
+        .uri = "/api/system/pool-profiles",
+        .method = HTTP_POST,
+        .handler = POST_save_pool_profile,
+        .user_ctx = rest_context
+    };
+    httpd_register_uri_handler(server, &pool_profiles_post_uri);
+
+    httpd_uri_t pool_profiles_delete_uri = {
+        .uri = "/api/system/pool-profiles",
+        .method = HTTP_DELETE,
+        .handler = DELETE_pool_profile,
+        .user_ctx = rest_context
+    };
+    httpd_register_uri_handler(server, &pool_profiles_delete_uri);
+
+    httpd_uri_t pool_profiles_patch_uri = {
+        .uri = "/api/system/pool-profiles",
+        .method = HTTP_PATCH,
+        .handler = PATCH_update_pool_profile,
+        .user_ctx = rest_context
+    };
+    httpd_register_uri_handler(server, &pool_profiles_patch_uri);
 
     httpd_uri_t update_system_settings_uri = {
         .uri = "/api/system", 

@@ -1,5 +1,56 @@
+.pool-tabview-wrapper {
+    position: relative;
+}
+
+.profile-tab-actions {
+    position: absolute;
+    top: 5px;
+    right: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
 .pi {
     right: 1rem;
     font-size: 1.5rem;
     top: 1rem;
+}
+
+.profile-dirty-indicator {
+    font-size: 0.55rem !important;
+    vertical-align: super;
+    top: auto;
+    right: auto;
+}
+
+:host ::ng-deep {
+    .p-tabview .p-tabview-nav {
+        border: none;
+        background: transparent;
+
+        li .p-tabview-nav-link {
+            border: none;
+            background: transparent;
+            opacity: 0.4;
+            transition: opacity 0.15s;
+        }
+
+        li.p-highlight .p-tabview-nav-link {
+            opacity: 1;
+            border: none;
+            background: transparent;
+        }
+
+        li:not(.p-highlight) .p-tabview-nav-link:hover {
+            opacity: 0.7;
+        }
+    }
+
+    .p-tabview .p-tabview-panels {
+        border: none;
+        background: transparent;
+        padding: 1rem 0 0 0;
+    }
 }

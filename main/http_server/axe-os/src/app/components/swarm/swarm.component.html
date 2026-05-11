@@ -403,11 +403,9 @@
                         <div class="text-900 font-medium text-2xl">{{ t.shares | diffSuffix }}</div>
                     </ng-container>
                     <ng-template #sharesMulti>
-                        <div class="flex justify-content-between w-full">
-                            <div *ngFor="let s of t.sharesByCoin" class="flex align-items-baseline gap-1">
-                                <div class="text-900 font-medium text-2xl">{{ s.shares | diffSuffix }}</div>
-                                <span class="text-500 text-xs">{{ s.coin }}</span>
-                            </div>
+                        <div *ngFor="let s of t.sharesByCoin" class="flex align-items-baseline gap-2">
+                            <div class="text-900 font-medium">{{ s.shares | diffSuffix }}</div>
+                            <span class="text-500 text-sm">{{ s.coin }}</span>
                         </div>
                     </ng-template>
                 </div>
@@ -419,11 +417,9 @@
                         <div class="text-900 font-medium text-2xl">{{ t.bestever | diffSuffix }}</div>
                     </ng-container>
                     <ng-template #besteverMulti>
-                        <div class="flex justify-content-between w-full">
-                            <div *ngFor="let b of t.besteverByCoin" class="flex align-items-baseline gap-1">
-                                <div class="text-900 font-medium text-2xl">{{ b.bestever | diffSuffix }}</div>
-                                <span class="text-500 text-xs">{{ b.coin }}</span>
-                            </div>
+                        <div *ngFor="let b of t.besteverByCoin" class="flex align-items-baseline gap-2">
+                            <div class="text-900 font-medium">{{ b.bestever | diffSuffix }}</div>
+                            <span class="text-500 text-sm">{{ b.coin }}</span>
                         </div>
                     </ng-template>
                 </div>

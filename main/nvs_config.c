@@ -88,6 +88,12 @@ static Settings settings[NVS_CONFIG_COUNT] = {
     [NVS_CONFIG_HELIOS_STATS_ENABLED]                  = {.nvs_key_name = "heliosStatsEn",      .type = TYPE_BOOL, .default_value = {.b = true},           .rest_name = "heliosStatsEnabled",      .min = 0,  .max = 1},
 
     [NVS_CONFIG_BEST_DIFF]                             = {.nvs_key_name = "bestdiff",        .type = TYPE_U64},
+    [NVS_CONFIG_BLOCK_FOUND]                           = {.nvs_key_name = "blockfound",      .type = TYPE_U64},
+    [NVS_CONFIG_LAST_BLOCK_TIME]                       = {.nvs_key_name = "lastblocktime",   .type = TYPE_U64},
+    [NVS_CONFIG_LAST_BLOCK_DIFF]                       = {.nvs_key_name = "lastblockdiff",   .type = TYPE_FLOAT},
+    [NVS_CONFIG_LAST_BLOCK_NET_DIFF]                   = {.nvs_key_name = "lastblknetdiff",  .type = TYPE_FLOAT},
+    [NVS_CONFIG_LAST_BLOCK_FALLBACK]                   = {.nvs_key_name = "lastblkfallback",  .type = TYPE_BOOL},
+    [NVS_CONFIG_LAST_BLOCK_URL]                        = {.nvs_key_name = "lastblockurl",    .type = TYPE_STR,   .default_value = {.str = ""}},
     [NVS_CONFIG_SELF_TEST]                             = {.nvs_key_name = "selftest",        .type = TYPE_BOOL},
     [NVS_CONFIG_SWARM]                                 = {.nvs_key_name = "swarmconfig",     .type = TYPE_STR,   .default_value = {.str = ""}},
     [NVS_CONFIG_THEME_SCHEME]                          = {.nvs_key_name = "themescheme",     .type = TYPE_STR,   .default_value = {.str = DEFAULT_THEME}},
@@ -140,6 +146,13 @@ static Settings settings[NVS_CONFIG_COUNT] = {
 
     // Danger zone: IOUT OC fault step index (0=default, 1=+5%, 2=+10%, 3=+15%, 4=+20%)
     [NVS_CONFIG_OC_FAULT_STEP]        = {.nvs_key_name = "oc_ovr_step",    .type = TYPE_U16,   .default_value = {.u16 = 0},               .rest_name = "ocFaultStep",  .min = 0, .max = 4, .danger_zone_gated = true},
+
+    [NVS_CONFIG_DEBUG_LOG]            = {.nvs_key_name = "debug_log",      .type = TYPE_BOOL,  .default_value = {.b = false},             .rest_name = "debugLog",   .min = 0, .max = 1},
+
+    [NVS_CONFIG_SELECTED_PROFILE]              = {.nvs_key_name = "sel_profile",    .type = TYPE_I32,   .default_value = {.i32 = -1},  .rest_name = NULL,                          .min = -1, .max = 3},
+
+    [NVS_CONFIG_SELECTED_POOL_PRESET]          = {.nvs_key_name = "pool_preset",   .type = TYPE_I32,   .default_value = {.i32 = -1},  .rest_name = "stratumProfileId",           .min = -1, .max = 7},
+    [NVS_CONFIG_SELECTED_FALLBACK_POOL_PRESET] = {.nvs_key_name = "fbpool_preset", .type = TYPE_I32,   .default_value = {.i32 = -1},  .rest_name = "fallbackStratumProfileId",   .min = -1, .max = 7},
 };
 
 Settings *nvs_config_get_settings(NvsConfigKey key)
@@ -272,12 +285,6 @@ esp_err_t nvs_config_init(void)
         Settings *setting = &settings[key];
 
         if (key == NVS_CONFIG_DANGER_ZONE) continue; // already loaded above
-
-        if (setting->danger_zone_gated && !settings[NVS_CONFIG_DANGER_ZONE].value.b) {
-            setting->value = setting->default_value;
-            ESP_LOGD(TAG, "%-20s = (danger-zone gated, using default)", setting->nvs_key_name);
-            continue;
-        }
 
         nvs_config_init_fallback(key, setting);
 

@@ -1,25 +1,10 @@
 #ifndef HASHRATE_MONITOR_TASK_H_
 #define HASHRATE_MONITOR_TASK_H_
 
-#include "asic_common.h"
-
-typedef struct {
-    uint32_t value;
-    uint64_t time_us;
-    float hashrate;
-} measurement_t;
-
-typedef struct {
-    measurement_t* total_measurement;
-    measurement_t** domain_measurements;
-    measurement_t* error_measurement;
-    float* chip_frequency;  // per-chip actual frequency decoded from PLL register (MHz)
-    float* chip_temp;        // per-chip on-die temperature from ASIC register (°C), 0 if not yet received
-
-    bool is_initialized;
-} HashrateMonitorModule;
+#include "global_state.h"
 
 void hashrate_monitor_task(void *pvParameters);
+void HASHRATE_update_diff_averages(SystemModule *sys_module, float diff);
 void hashrate_monitor_register_read(void *pvParameters, register_type_t register_type, uint8_t asic_nr, uint32_t value);
 void update_hashrate(measurement_t * measurement, uint32_t value);
 void update_hash_counter(measurement_t * measurement, uint32_t value, uint64_t time_us);

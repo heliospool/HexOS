@@ -26,6 +26,11 @@ static float hashrate_10m_prev;
 static float hashrate_10m[HASHRATE_10M_SIZE];
 static float hashrate_1h_prev;
 static float hashrate_1h[HASHRATE_1H_SIZE];
+static float efficiency_1m[HASHRATE_1M_SIZE];
+static float efficiency_10m_prev;
+static float efficiency_10m[HASHRATE_10M_SIZE];
+static float efficiency_1h_prev;
+static float efficiency_1h[HASHRATE_1H_SIZE];
 
 static const char *TAG = "hashrate_monitor";
 
@@ -82,6 +87,9 @@ static void init_averages()
     for (int i = 0; i < HASHRATE_1M_SIZE; i++) hashrate_1m[i] = nan_val;
     for (int i = 0; i < HASHRATE_10M_SIZE; i++) hashrate_10m[i] = nan_val;
     for (int i = 0; i < HASHRATE_1H_SIZE; i++) hashrate_1h[i] = nan_val;
+    for (int i = 0; i < HASHRATE_1M_SIZE; i++) efficiency_1m[i] = nan_val;
+    for (int i = 0; i < HASHRATE_10M_SIZE; i++) efficiency_10m[i] = nan_val;
+    for (int i = 0; i < HASHRATE_1H_SIZE; i++) efficiency_1h[i] = nan_val;
 }
 
 static float calculate_avg_nan_safe(const float arr[], int size) {
@@ -130,6 +138,69 @@ static void update_hashrate_averages(SystemModule * SYSTEM_MODULE)
     poll_count++;
 }
 
+static void update_efficiency_averages(SystemModule * SYSTEM_MODULE, float power)
+{
+    // Efficiency in J/Th: power (W) / hashrate (Th/s) = power / (hashrate_Ghs / 1000)
+    float current_eff = (SYSTEM_MODULE->current_hashrate > 0.0f)
+        ? power / (SYSTEM_MODULE->current_hashrate / 1000.0f)
+        : nanf("");
+
+    efficiency_1m[poll_count % HASHRATE_1M_SIZE] = current_eff;
+    SYSTEM_MODULE->efficiency_1m = calculate_avg_nan_safe(efficiency_1m, HASHRATE_1M_SIZE);
+
+    int eff_10m_blend = poll_count % HASHRATE_1M_SIZE;
+    if (eff_10m_blend == 0) {
+        efficiency_10m_prev = efficiency_10m[(poll_count / DIV_10M) % HASHRATE_10M_SIZE];
+    }
+    float eff_1m_value = SYSTEM_MODULE->efficiency_1m;
+    if (!isnanf(efficiency_10m_prev)) {
+        float f = (eff_10m_blend + 1.0f) / (float)HASHRATE_1M_SIZE;
+        eff_1m_value = f * eff_1m_value + (1.0f - f) * efficiency_10m_prev;
+    }
+
+    efficiency_10m[(poll_count / DIV_10M) % HASHRATE_10M_SIZE] = eff_1m_value;
+    SYSTEM_MODULE->efficiency_10m = calculate_avg_nan_safe(efficiency_10m, HASHRATE_10M_SIZE);
+
+    int eff_1h_blend = poll_count % DIV_1H;
+    if (eff_1h_blend == 0) {
+        efficiency_1h_prev = efficiency_1h[(poll_count / DIV_1H) % HASHRATE_1H_SIZE];
+    }
+    float eff_10m_value = SYSTEM_MODULE->efficiency_10m;
+    if (!isnanf(efficiency_1h_prev)) {
+        float f = (eff_1h_blend + 1.0f) / (float)DIV_1H;
+        eff_10m_value = f * eff_10m_value + (1.0f - f) * efficiency_1h_prev;
+    }
+
+    efficiency_1h[(poll_count / DIV_1H) % HASHRATE_1H_SIZE] = eff_10m_value;
+    SYSTEM_MODULE->efficiency_1h = calculate_avg_nan_safe(efficiency_1h, HASHRATE_1H_SIZE);
+}
+
+void HASHRATE_update_diff_averages(SystemModule *sys_module, float diff)
+{
+    int64_t now_us = esp_timer_get_time();
+    static int64_t last_us = 0;
+
+    if (last_us == 0) {
+        // First share — initialise with this diff
+        sys_module->diff_1m  = diff;
+        sys_module->diff_10m = diff;
+        sys_module->diff_1h  = diff;
+        last_us = now_us;
+        return;
+    }
+
+    float dt = (now_us - last_us) / 1e6f; // seconds since last share
+    last_us = now_us;
+
+    float alpha_1m  = 1.0f - expf(-dt / 60.0f);
+    float alpha_10m = 1.0f - expf(-dt / 600.0f);
+    float alpha_1h  = 1.0f - expf(-dt / 3600.0f);
+
+    sys_module->diff_1m  = alpha_1m  * diff + (1.0f - alpha_1m)  * sys_module->diff_1m;
+    sys_module->diff_10m = alpha_10m * diff + (1.0f - alpha_10m) * sys_module->diff_10m;
+    sys_module->diff_1h  = alpha_1h  * diff + (1.0f - alpha_1h)  * sys_module->diff_1h;
+}
+
 void hashrate_monitor_task(void *pvParameters)
 {
     GlobalState * GLOBAL_STATE = (GlobalState *)pvParameters;
@@ -167,7 +238,10 @@ void hashrate_monitor_task(void *pvParameters)
         SYSTEM_MODULE->current_hashrate = current_hashrate;
         SYSTEM_MODULE->error_percentage = current_hashrate > 0 ? error_hashrate / current_hashrate * 100.f : 0;
 
-        if(current_hashrate > 0.0f) update_hashrate_averages(SYSTEM_MODULE);
+        if(current_hashrate > 0.0f) {
+            update_hashrate_averages(SYSTEM_MODULE);
+            update_efficiency_averages(SYSTEM_MODULE, GLOBAL_STATE->POWER_MANAGEMENT_MODULE.power);
+        }
 
         vTaskDelayUntil(&taskWakeTime, POLL_RATE / portTICK_PERIOD_MS);
     }

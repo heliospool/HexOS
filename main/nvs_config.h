@@ -50,6 +50,12 @@ typedef enum {
     NVS_CONFIG_HELIOS_STATS_ENABLED,
 
     NVS_CONFIG_BEST_DIFF,
+    NVS_CONFIG_BLOCK_FOUND,
+    NVS_CONFIG_LAST_BLOCK_TIME,
+    NVS_CONFIG_LAST_BLOCK_DIFF,
+    NVS_CONFIG_LAST_BLOCK_NET_DIFF,
+    NVS_CONFIG_LAST_BLOCK_FALLBACK,
+    NVS_CONFIG_LAST_BLOCK_URL,
     NVS_CONFIG_SELF_TEST,
     NVS_CONFIG_SWARM,
     NVS_CONFIG_THEME_SCHEME,
@@ -104,6 +110,16 @@ typedef enum {
     // Danger zone: IOUT OC fault limit in A (0 = use family default)
     // Danger zone: IOUT OC fault limit as step index (0=family default, 1=+5%, 2=+10%, 3=+15%, 4=+20%)
     NVS_CONFIG_OC_FAULT_STEP,
+
+    // Enable verbose debug metrics logging (heap, task stacks, stratum counters, etc.)
+    NVS_CONFIG_DEBUG_LOG,
+
+    // Last profile ID selected by the user (-1 = none)
+    NVS_CONFIG_SELECTED_PROFILE,
+
+    // Active pool preset ID for primary and fallback (-1 = none / custom)
+    NVS_CONFIG_SELECTED_POOL_PRESET,
+    NVS_CONFIG_SELECTED_FALLBACK_POOL_PRESET,
 
     NVS_CONFIG_COUNT
 } NvsConfigKey;

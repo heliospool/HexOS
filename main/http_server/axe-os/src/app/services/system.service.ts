@@ -1,6 +1,6 @@
 import { HttpClient, HttpEvent } from '@angular/common/http';
 import { Injectable, Optional } from '@angular/core';
-import { delay, Observable, of, timeout } from 'rxjs';
+import { BehaviorSubject, delay, Observable, of, timeout } from 'rxjs';
 import { eChartLabel } from 'src/models/enum/eChartLabel';
 import { chartLabelKey } from 'src/models/enum/eChartLabel';
 import { chartLabelValue } from 'src/models/enum/eChartLabel';
@@ -59,6 +59,16 @@ function tickMockData() {
   m.hashRate_10m  = Math.round(jitter(m.hashRate_10m ?? nominalHash, 0.5));
   m.hashRate_1h   = Math.round(jitter(m.hashRate_1h ?? nominalHash, 0.3));
 
+  const nominalEff = 6.80;
+  m.efficiency_1m  = parseFloat(jitter(m.efficiency_1m  ?? nominalEff, 0.8).toFixed(2));
+  m.efficiency_10m = parseFloat(jitter(m.efficiency_10m ?? nominalEff, 0.5).toFixed(2));
+  m.efficiency_1h  = parseFloat(jitter(m.efficiency_1h  ?? nominalEff, 0.3).toFixed(2));
+
+  const nominalDiff = 11500;
+  m.diff_1m  = Math.round(jitter(m.diff_1m  ?? nominalDiff, 2000));
+  m.diff_10m = Math.round(jitter(m.diff_10m ?? nominalDiff, 1000));
+  m.diff_1h  = Math.round(jitter(m.diff_1h  ?? nominalDiff, 500));
+
   m.temp    = parseFloat(drift(m.temp ?? 67, 67, 0.4, 55, 74).toFixed(1));
   m.temp2   = parseFloat(drift(m.temp2 ?? 65, 65, 0.3, 54, 72).toFixed(1));
   m.vrTemp  = parseFloat(drift(m.vrTemp ?? 54, 54, 0.3, 48, 60).toFixed(1));
@@ -75,10 +85,11 @@ function tickMockData() {
   const shareInterval = 5 / 30; // ~1 share per 30s
   if (Math.random() < shareInterval) {
     m.sharesAccepted = (m.sharesAccepted ?? 0) + 1;
-    m.lastShareSeconds = 0;
+    m.lastAcceptedShareSeconds = 0;
   } else {
-    m.lastShareSeconds = Math.min((m.lastShareSeconds ?? 0) + 5, 120);
+    m.lastAcceptedShareSeconds = Math.min((m.lastAcceptedShareSeconds ?? 0) + 5, 120);
   }
+  m.asicLastJobSeconds = Math.min((m.asicLastJobSeconds ?? 0) + 5, 30);
 
   m.responseTime = parseFloat(jitter(m.responseTime ?? 18, 15).toFixed(1));
 
@@ -101,6 +112,16 @@ function tickMockData() {
 
   m.freeHeap = Math.max(180000, (m.freeHeap ?? 200504) - Math.round(Math.random() * 200));
   if (m.freeHeap < 185000) m.freeHeap = 210000 + Math.round(Math.random() * 10000);
+
+  // Simulate a block find roughly once every ~5 minutes of mock uptime
+  if (!m.showNewBlock && Math.random() < (5 / (5 * 60))) {
+    m.blockFound = (m.blockFound ?? 0) + 1;
+    m.showNewBlock = true;
+    m.lastBlockTime = Math.floor(Date.now() / 1000);
+    m.lastBlockUrl = m.stratumURL ?? 'btc.heliospool.com';
+    m.lastBlockDiff = m.lastSubmittedDiff ?? 3891;
+    m.lastBlockNetDiff = m.networkDifficulty ?? 155970000000000;
+  }
 }
 
 @Injectable({
@@ -108,10 +129,17 @@ function tickMockData() {
 })
 export class SystemApiService {
 
+  public latestInfo$ = new BehaviorSubject<ISystemInfo | null>(null);
+
   constructor(
     private httpClient: HttpClient,
     @Optional() private generatedSystemService: GeneratedSystemService
-  ) { }
+  ) {
+    if (!environment.production && environment.mockData) {
+      if (!mockSettingsLoaded) { loadMockSettings(); mockSettingsLoaded = true; }
+      this.latestInfo$.next({ ...environment.mockData.systemInfo } as ISystemInfo);
+    }
+  }
 
   public getInfo(uri: string = ''): Observable<ISystemInfo> {
     if (environment.production && this.generatedSystemService && !uri) {
@@ -220,7 +248,37 @@ export class SystemApiService {
       return this.httpClient.post(`${uri}/api/system/blockFound/dismiss`, {});
     }
 
-    return of('Block found notification dismissed (mock)');
+    const m = environment.mockData.systemInfo as any;
+    m.blockFound = 0;
+    m.showNewBlock = false;
+    return of({ blockFound: 0, showNewBlock: false });
+  }
+
+  public resetBlocks(uri: string = '') {
+    if (environment.production && !uri) {
+      return this.httpClient.post('/api/system/blockFound/reset', {});
+    }
+
+    if (environment.production && uri) {
+      return this.httpClient.post(`${uri}/api/system/blockFound/reset`, {});
+    }
+
+    const m = environment.mockData.systemInfo as any;
+    m.blockFound = 0;
+    m.lifetimeBlocksFound = 0;
+    m.showNewBlock = false;
+    m.lastBlockTime = 0;
+    m.lastBlockDiff = 0;
+    m.lastBlockNetDiff = 0;
+    m.lastBlockUrl = '';
+    return of({ message: 'Block data reset' });
+  }
+
+  public getSystemDefaults(): Observable<Record<string, any>> {
+    if (environment.production) {
+      return this.httpClient.get<Record<string, any>>('/api/system/defaults');
+    }
+    return of({});
   }
 
   public identify(uri: string = '') {
@@ -305,5 +363,76 @@ export class SystemApiService {
     return of(environment.mockData.asicSettings as ISystemASIC).pipe(delay(1000));
   }
 
+  private mockProfiles: any[] = [];
+  private mockProfileNextId = 0;
+
+  public getProfiles(uri: string = ''): Observable<any[]> {
+    if (environment.production) {
+      return this.httpClient.get<any[]>(`${uri}/api/system/profiles`).pipe(timeout(API_TIMEOUT));
+    }
+    return of([...this.mockProfiles]);
+  }
+
+  public saveProfile(profile: any, uri: string = ''): Observable<any> {
+    if (environment.production) {
+      return this.httpClient.post<any>(`${uri}/api/system/profiles`, profile).pipe(timeout(API_TIMEOUT));
+    }
+    const id = this.mockProfileNextId++;
+    this.mockProfiles.push({ ...profile, id });
+    return of({ id });
+  }
+
+  public deleteProfile(id: number, uri: string = ''): Observable<any> {
+    if (environment.production) {
+      return this.httpClient.delete<any>(`${uri}/api/system/profiles`, { body: { id } }).pipe(timeout(API_TIMEOUT));
+    }
+    this.mockProfiles = this.mockProfiles.filter(p => p.id !== id);
+    return of({});
+  }
+
+  public updateProfile(id: number, profile: any, uri: string = ''): Observable<any> {
+    if (environment.production) {
+      return this.httpClient.patch<any>(`${uri}/api/system/profiles`, { ...profile, id }).pipe(timeout(API_TIMEOUT));
+    }
+    const idx = this.mockProfiles.findIndex(p => p.id === id);
+    if (idx !== -1) this.mockProfiles[idx] = { ...profile, id };
+    return of({ id });
+  }
+
+  private mockPoolProfiles: any[] = [];
+  private mockPoolProfileNextId = 0;
+
+  public getPoolProfiles(uri: string = ''): Observable<any[]> {
+    if (environment.production) {
+      return this.httpClient.get<any[]>(`${uri}/api/system/pool-profiles`).pipe(timeout(API_TIMEOUT));
+    }
+    return of([...this.mockPoolProfiles]);
+  }
+
+  public savePoolProfile(preset: any, uri: string = ''): Observable<any> {
+    if (environment.production) {
+      return this.httpClient.post<any>(`${uri}/api/system/pool-profiles`, preset).pipe(timeout(API_TIMEOUT));
+    }
+    const id = this.mockPoolProfileNextId++;
+    this.mockPoolProfiles.push({ ...preset, id });
+    return of({ id });
+  }
+
+  public deletePoolProfile(id: number, uri: string = ''): Observable<any> {
+    if (environment.production) {
+      return this.httpClient.delete<any>(`${uri}/api/system/pool-profiles`, { body: { id } }).pipe(timeout(API_TIMEOUT));
+    }
+    this.mockPoolProfiles = this.mockPoolProfiles.filter(p => p.id !== id);
+    return of({});
+  }
+
+  public updatePoolProfile(id: number, preset: any, uri: string = ''): Observable<any> {
+    if (environment.production) {
+      return this.httpClient.patch<any>(`${uri}/api/system/pool-profiles`, { ...preset, id }).pipe(timeout(API_TIMEOUT));
+    }
+    const idx = this.mockPoolProfiles.findIndex(p => p.id === id);
+    if (idx !== -1) this.mockPoolProfiles[idx] = { ...preset, id };
+    return of({ id });
+  }
 
 }

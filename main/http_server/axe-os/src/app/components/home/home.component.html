@@ -17,7 +17,7 @@
                                                     <span class="text-color-secondary text-sm mb-1">Client</span>
                                                     <span class="text-900 font-medium text-2xl">{{ hp!.workerClient }}</span>
                                                 </div>
-                                                <div class="flex flex-column">
+                                                <div class="flex flex-column align-items-center">
                                                     <span class="text-color-secondary text-sm mb-1">Uptime</span>
                                                     <span class="text-900 font-medium text-2xl white-space-nowrap">{{ hp!.uptimeDisplay }}</span>
                                                 </div>
@@ -42,7 +42,7 @@
                                                     <span class="text-color-secondary text-sm mb-1">Last Update</span>
                                                     <span class="text-900 font-medium text-2xl white-space-nowrap">{{ hp!.lastShareDisplay }}</span>
                                                 </div>
-                                                <div class="flex flex-column">
+                                                <div class="flex flex-column align-items-center">
                                                     <span class="text-color-secondary text-sm mb-1">Workers</span>
                                                     <span class="text-900 font-medium text-2xl">{{ hp!.activeWorkers }}</span>
                                                 </div>
@@ -213,113 +213,69 @@
                                                         </tbody>
                                                     </table>
                                                 </div>
-                                                <div>
-                                                    <span class="text-green-500 font-medium white-space-nowrap">
-                                                        {{getEfficiencyAverage() | number: '1.2-2'}} J/Th
-                                                    </span>
-                                                    <span class="text-500">
-                                                        Average
-                                                    </span>
-                                                </div>
+                                                <table class="px-1 border-1 border-50 border-round-xs">
+                                                    <thead>
+                                                        <tr>
+                                                            <th *ngFor="let i of efficiencyAverageLabels" class="p-0 text-500 font-normal line-height-1">
+                                                                {{i.label}}
+                                                            </th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <tr>
+                                                            <td *ngFor="let i of efficiencyAverageLabels" class="p-0 text-center text-green-500 font-medium">
+                                                                {{ info[i.key] | number: '1.2-2' }} J/Th
+                                                            </td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
                                             </ng-container>
                                         </div>
                                     </div>
                                 </ng-container>
 
                                 <!-- Shares -->
-                                <ng-container *ngSwitchCase="'shares'">
-                                    <div class="card mb-0">
-                                        <div class="flex flex-column justify-content-between">
-                                            <span class="block text-lg font-medium mb-3">Shares</span>
-                                            <div class="flex align-items-center justify-content-between gap-2 mb-3">
-                                                <span class="text-900 font-medium text-2xl">
-                                                    {{info.sharesAccepted | number: '1.0-0'}}
-                                                </span>
-                                                <div class="flex gap-3">
-                                                    <table class="text-sm">
-                                                        <thead>
-                                                            <tr>
-                                                                <th class="p-0 text-400 font-normal line-height-1">Last Share</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            <tr>
-                                                                <td class="p-0 text-center line-height-1"
-                                                                    [ngClass]="lastShareIsStale(info) ? 'text-red-500' : 'text-800'">
-                                                                    {{getTimeSinceLastShare(info)}}
-                                                                </td>
-                                                            </tr>
-                                                        </tbody>
-                                                    </table>
-                                                    <table class="text-sm" *ngIf="(info.workReceived ?? 0) > 0">
-                                                        <thead>
-                                                            <tr>
-                                                                <th class="p-0 text-400 font-normal line-height-1">Jobs</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            <tr>
-                                                                <td class="p-0 text-center text-800 line-height-1">{{info.workReceived | number: '1.0-0'}}</td>
-                                                            </tr>
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            </div>
-                                            <div *ngIf="info.sharesRejected === 0">
-                                                <span class="text-red-500 font-medium">0 </span>
-                                                <span class="text-500">rejected</span>
-                                            </div>
-                                            <ng-container *ngIf="info.sharesRejected > 0">
-                                                <div *ngFor="let sharesRejectedReason of getSortedRejectionReasons(info); trackBy: trackByReason">
-                                                    <span class="text-red-500 font-medium">
-                                                        {{ sharesRejectedReason.count | number: '1.0-0' }}
-                                                    </span>
-                                                    <span class="text-500">
-                                                        {{ sharesRejectedReason.message }}
-                                                    </span>
-                                                    <tooltip-text-icon
-                                                        [text]="'(' + (getShareRejectionPercentage(sharesRejectedReason, info) | number:'1.2-2') + ' %)'"
-                                                        [tooltip]="getRejectionExplanation(sharesRejectedReason.message)"
-                                                        [split]=false />
-                                                </div>
-                                            </ng-container>
-                                        </div>
-                                    </div>
-                                </ng-container>
-
                                 <!-- Best Difficulty -->
                                 <ng-container *ngSwitchCase="'best-diff'">
                                     <div class="card mb-0">
-                                        <div class="flex justify-content-between mb-3">
-                                            <div>
-                                                <span class="block text-lg font-medium mb-3">Best Difficulty</span>
-                                                <div class="text-900 font-medium text-2xl">
-                                                    <span class="cursor-pointer" pTooltip="{{info.bestDiff | number:'1.0-0'}}" tooltipPosition="bottom">
-                                                        {{info.bestDiff | diffSuffix}}
-                                                    </span>
-                                                    <span class="text-500 text-lg">all-time best</span>
-                                                    <span class="text-sm font-medium mb-3" *ngIf="info.networkDifficulty">
-                                                        <tooltip-text-icon
-                                                            [text]="'(' + getNetworkDifficultyPercentage(info) + '%)'" 
-                                                            tooltip="Chance to find a Block"
-                                                            [split]="false"
-                                                        />
-                                                    </span>
+                                        <div class="flex flex-column justify-content-between">
+                                            <span class="block text-lg font-medium mb-3">Best Difficulty</span>
+                                            <div class="flex align-items-start justify-content-between gap-2 mb-3">
+                                                <div class="flex align-items-center gap-1">
+                                                    <div class="text-900 font-medium text-2xl white-space-nowrap">{{info.bestDiff | diffSuffix}}</div>
+                                                    <tooltip-icon *ngIf="info.networkDifficulty" icon="pi-question-circle" [tooltip]="'Chance to find a Block: ' + getNetworkDifficultyPercentage(info) + '%'" tooltipPosition="bottom" />
                                                 </div>
+                                                <table class="text-sm">
+                                                    <thead>
+                                                        <tr>
+                                                            <th class="p-0 text-400 font-normal line-height-1 pr-3">Session</th>
+                                                            <th class="p-0 text-400 font-normal line-height-1">Last</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <tr>
+                                                            <td class="p-0 text-center text-800 line-height-1 pr-3 white-space-nowrap cursor-pointer" pTooltip="{{info.bestSessionDiff | number:'1.0-0'}}" tooltipPosition="bottom">{{info.bestSessionDiff | diffSuffix}}</td>
+                                                            <td class="p-0 text-center text-800 line-height-1 white-space-nowrap cursor-pointer" style="vertical-align: top" pTooltip="{{info.lastSubmittedDiff | number:'1.0-0'}}" tooltipPosition="bottom">{{info.lastSubmittedDiff | diffSuffix}}</td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
                                             </div>
-                                        </div>
-                                        <div>
-                                            <span class="text-900 font-medium text-xl cursor-pointer" pTooltip="{{info.bestSessionDiff | number:'1.0-0'}}" tooltipPosition="bottom">
-                                                {{info.bestSessionDiff | diffSuffix}}
-                                            </span>
-                                            <span class="text-500 text-lg">session best</span>
-                                            <span class="text-sm font-medium mb-3"> ({{ info.uptimeSeconds | dateAgo: { intervals: 2, strict:true, short:true } }})</span>
-                                        </div>
-                                        <div>
-                                            <span class="text-900 font-medium text-xl cursor-pointer" pTooltip="{{info.lastSubmittedDiff | number:'1.0-0'}}" tooltipPosition="bottom">
-                                                {{info.lastSubmittedDiff | diffSuffix}}
-                                            </span>
-                                            <span class="text-500 text-lg">last submitted</span>
+                                            <table class="px-1 border-1 border-50 border-round-xs">
+                                                <thead>
+                                                    <tr>
+                                                        <th *ngFor="let i of diffAverageLabels" class="p-0 text-500 font-normal line-height-1">
+                                                            {{i.label}}
+                                                        </th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr>
+                                                        <td *ngFor="let i of diffAverageLabels" class="p-0 text-center text-green-500 font-medium">
+                                                            {{ info[i.key] | diffSuffix }}
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
                                         </div>
                                     </div>
                                 </ng-container>
@@ -328,7 +284,7 @@
                                 <ng-container *ngSwitchCase="'chart'">
                                     <div class="card">
                                         <form [formGroup]="form">
-                                            <div class="flex flex-nowrap justify-content-between mb-3">
+                                            <div class="flex flex-nowrap justify-content-between mb-1">
                                                 <p-dropdown
                                                     [options]="dataSourceLabels(info)"
                                                     optionLabel="name"
@@ -343,6 +299,14 @@
                                                     formControlName="chartY2Data"
                                                     styleClass="w-10rem border-100 p-dropdown--small">
                                                 </p-dropdown>
+                                            </div>
+                                            <div class="flex justify-content-end mb-2">
+                                                <button type="button" class="p-button p-button-text p-button-secondary"
+                                                    style="font-size: 0.75rem; padding: 0.25rem 0.5rem; gap: 0.3rem;"
+                                                    (click)="clearDataPoints()">
+                                                    Reset
+                                                    <i class="pi pi-refresh" style="font-size: 0.6rem;"></i>
+                                                </button>
                                             </div>
                                             <p-chart #chart id="chart" [data]="chartData" [options]="chartOptions"></p-chart>
                                         </form>
@@ -553,7 +517,7 @@
                                 <ng-container *ngSwitchCase="'hashrate-regs'">
                                     <div class="card">
                                         <h4 class="white-space-nowrap overflow-hidden text-overflow-ellipsis">Hashrate Registers</h4>
-                                        <ng-container *ngIf="getAsicsAmount(info) as asicAmount">
+                                        <ng-container *ngIf="getAsicsAmount(info) as asicAmount; else hashrateRegsLoading">
                                             <table class="heatmap text-{{asicAmount <= 2 ? 'sm' : 'xs'}}">
                                                 <thead>
                                                     <tr>
@@ -588,24 +552,52 @@
                                                 </tbody>
                                             </table>
                                         </ng-container>
+                                        <ng-template #hashrateRegsLoading>
+                                            <span class="text-500">Initializing...</span>
+                                        </ng-template>
                                     </div>
                                 </ng-container>
 
                                 <!-- Network -->
                                 <ng-container *ngSwitchCase="'network'">
                                     <div class="card">
-                                        <h4>Network</h4>
-                                        <div class="flex align-items-center justify-content-between gap-2 mb-2">
-                                            <span class="text-500">Stratum Disconnects</span>
-                                            <span class="text-900 font-medium">{{info.stratumDisconnects | number: '1.0-0'}}</span>
-                                        </div>
-                                        <div class="flex align-items-center justify-content-between gap-2 mb-2">
-                                            <span class="text-500">WiFi Disconnects</span>
-                                            <span class="text-900 font-medium">{{info.wifiDisconnects | number: '1.0-0'}}</span>
-                                        </div>
-                                        <div class="flex align-items-center justify-content-between gap-2">
-                                            <span class="text-500">TX / RX Errors</span>
-                                            <span class="text-900 font-medium">{{info.txErrors | number: '1.0-0'}} / {{info.rxErrors | number: '1.0-0'}}</span>
+                                        <div class="flex flex-column justify-content-between">
+                                            <span class="block text-lg font-medium mb-3">Network <tooltip-icon icon="pi-question-circle" tooltip="Failed share submissions (TX), missed pool responses (RX), dropped pool connections (Stratum), and how many times the network has disconnected (WiFi)." tooltipPosition="bottom" /></span>
+                                            <div class="flex align-items-start justify-content-between gap-2 mb-3">
+                                                <div class="font-medium text-2xl" [ngClass]="getWifiRssiColor(info.wifiRSSI)">{{getWifiRssiLabel(info.wifiRSSI)}}</div>
+                                                <table class="text-sm">
+                                                    <thead>
+                                                        <tr>
+                                                            <th class="p-0 text-400 font-normal line-height-1">Ping <tooltip-icon icon="pi-question-circle" tooltip="ICMP Response Time" tooltipPosition="top" size="xs"></tooltip-icon></th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <tr>
+                                                            <td class="p-0 text-center text-800 line-height-1 white-space-nowrap">{{info.networkPing >= 0 ? (info.networkPing | number: '1.0-0') + ' ms' : '—'}}</td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                            <table class="px-1 border-1 border-50 border-round-xs">
+                                                <thead>
+                                                    <tr>
+                                                        <th class="p-0 text-500 font-normal line-height-1">TX / RX</th>
+                                                        <th class="p-0 text-500 font-normal line-height-1">Stratum</th>
+                                                        <th class="p-0 text-500 font-normal line-height-1">WiFi</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr>
+                                                        <td class="p-0 text-center font-medium white-space-nowrap">
+                                                            <span [ngClass]="(info.txErrors ?? 0) === 0 ? 'text-green-500' : 'text-red-500'">{{info.txErrors | number: '1.0-0'}}</span>
+                                                            /
+                                                            <span [ngClass]="(info.rxErrors ?? 0) === 0 ? 'text-green-500' : 'text-red-500'">{{info.rxErrors | number: '1.0-0'}}</span>
+                                                        </td>
+                                                        <td class="p-0 text-center font-medium" [ngClass]="(info.stratumDisconnects ?? 0) === 0 ? 'text-green-500' : 'text-red-500'">{{info.stratumDisconnects | number: '1.0-0'}}</td>
+                                                        <td class="p-0 text-center font-medium" [ngClass]="(info.wifiDisconnects ?? 0) === 0 ? 'text-green-500' : 'text-red-500'">{{info.wifiDisconnects | number: '1.0-0'}}</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
                                         </div>
                                     </div>
                                 </ng-container>
@@ -764,6 +756,169 @@
                                     </div>
                                 </ng-container>
 
+                                <!-- Blocks Found -->
+                                <ng-container *ngSwitchCase="'blocks'">
+                                    <div class="card mb-0">
+                                        <div class="flex align-items-center justify-content-between mb-3">
+                                            <h4 class="mb-0">Blocks</h4>
+                                            <i class="pi pi-trash text-400 cursor-pointer" style="font-size:0.75rem;"
+                                                pTooltip="Reset block data" tooltipPosition="left"
+                                                (click)="showResetBlocksConfirm = true">
+                                            </i>
+                                        </div>
+                                        <div class="flex justify-content-between align-items-start gap-3">
+                                            <div class="flex flex-column">
+                                                <div class="text-500 mb-2">Last Block</div>
+                                                <ng-container *ngIf="info.lastBlockTime; else noBlock">
+                                                    <div class="flex flex-nowrap">
+                                                        <div class="col-fixed-width text-500">Date</div>
+                                                        <div>{{ (info.lastBlockTime * 1000) | date:'shortDate' }} {{ (info.lastBlockTime * 1000) | date:'shortTime' }}</div>
+                                                    </div>
+                                                    <div *ngIf="info.lastBlockUrl" class="flex flex-nowrap">
+                                                        <div class="col-fixed-width text-500">Pool</div>
+                                                        <div style="word-break:break-all;">{{info.lastBlockUrl}}</div>
+                                                    </div>
+                                                    <div *ngIf="info.lastBlockDiff" class="flex flex-nowrap">
+                                                        <div class="col-fixed-width text-500">Share Diff</div>
+                                                        <div>{{info.lastBlockDiff | diffSuffix}}</div>
+                                                    </div>
+                                                    <div *ngIf="info.lastBlockNetDiff" class="flex flex-nowrap">
+                                                        <div class="col-fixed-width text-500">Net Diff</div>
+                                                        <div>{{info.lastBlockNetDiff | diffSuffix}}</div>
+                                                    </div>
+                                                </ng-container>
+                                                <ng-template #noBlock>
+                                                    <div class="text-500">N/A</div>
+                                                </ng-template>
+                                            </div>
+                                            <span class="text-900 font-bold flex-shrink-0" style="font-size:3.5rem;line-height:1;">{{info.lifetimeBlocksFound ?? info.blockFound ?? 0}}</span>
+                                        </div>
+                                    </div>
+                                </ng-container>
+
+                                <!-- Pipeline -->
+                                <ng-container *ngSwitchCase="'pipeline'">
+                                    <div class="card mb-0 p-0" style="overflow: hidden">
+                                        <div class="pipeline-flow">
+
+                                            <!-- Row direction indicators -->
+                                            <div class="pf-row-dir pf-row-dir--t"><i class="pi pi-arrow-up"></i></div>
+                                            <div class="pf-row-dir pf-row-dir--b"><i class="pi pi-arrow-down"></i></div>
+
+                                            <!-- Pool label (spans both rows) -->
+                                            <div class="pf-label pf-label--1">Pool</div>
+
+                                            <!-- Connector 1 top section (row 1) -->
+                                            <div class="pf-section pf-section--c1t">
+                                                <div class="mb-1 pf-stat-primary">
+                                                    <h6 class="flex justify-content-between mb-1">
+                                                        Jobs<span>{{ info.workReceived | number: '1.0-0' }}</span>
+                                                    </h6>
+                                                </div>
+                                                <div class="mb-0 pf-stat-secondary">
+                                                    <h6 class="flex justify-content-between mb-1">
+                                                        Last Job<span>{{ formatSecondsAgo(info.lastJobSeconds, (info.workReceived ?? 0) > 0) }}</span>
+                                                    </h6>
+                                                </div>
+                                            </div>
+
+                                            <!-- Connector 1 bottom section (row 2) -->
+                                            <div class="pf-section pf-section--c1b">
+                                                <div class="mb-1 pf-stat-primary">
+                                                    <h6 class="flex justify-content-between mb-1">
+                                                        Shares<span>{{ info.sharesAccepted | number: '1.0-0' }}</span>
+                                                    </h6>
+                                                </div>
+                                                <div class="mb-1 pf-stat-secondary">
+                                                    <h6 class="flex justify-content-between mb-1">
+                                                        Last Share
+                                                        <span [ngClass]="lastShareIsStale(info) ? 'text-red-500' : ''">{{ getTimeSinceLastShare(info) }}</span>
+                                                    </h6>
+                                                </div>
+                                                <ng-container *ngIf="info.sharesRejected > 0">
+                                                    <div *ngFor="let r of getSortedRejectionReasons(info); trackBy: trackByReason; let i = index"
+                                                         [class.mt-2]="i === 0" class="pf-stat-secondary" style="font-size:0.78rem;">
+                                                        <span class="text-red-500 font-medium">{{ r.count | number: '1.0-0' }}</span>
+                                                        <span class="text-500"> {{ r.message }} </span>
+                                                        <tooltip-text-icon
+                                                            [text]="'(' + (getShareRejectionPercentage(r, info) | number:'1.2-2') + ' %)'"
+                                                            [tooltip]="getRejectionExplanation(r.message)"
+                                                            [split]=false />
+                                                    </div>
+                                                </ng-container>
+                                            </div>
+
+                                            <!-- Connector 1 right arrows -->
+                                            <div class="pf-arrow pf-arrow--c1r-t">
+                                                <i class="pi pi-chevron-right"></i>
+                                            </div>
+                                            <div class="pf-arrow pf-arrow--c1r-b">
+                                                <i class="pi pi-chevron-left"></i>
+                                            </div>
+
+                                            <!-- MCU label (spans both rows) -->
+                                            <div class="pf-label pf-label--2">MCU</div>
+
+                                            <!-- Row direction indicators (ESP32 ↔ ASIC, mobile only) -->
+                                            <div class="pf-row-dir pf-row-dir--t2"><i class="pi pi-arrow-up"></i></div>
+                                            <div class="pf-row-dir pf-row-dir--b2"><i class="pi pi-arrow-down"></i></div>
+
+                                            <!-- Connector 2 left arrows -->
+                                            <div class="pf-arrow pf-arrow--c2l-t">
+                                                <i class="pi pi-chevron-right"></i>
+                                            </div>
+                                            <div class="pf-arrow pf-arrow--c2l-b">
+                                                <i class="pi pi-chevron-left"></i>
+                                            </div>
+
+                                            <!-- Connector 2 top section (row 1) -->
+                                            <div class="pf-section pf-section--c2t">
+                                                <div class="mb-1 pf-stat-primary">
+                                                    <h6 class="flex justify-content-between mb-1">
+                                                        Jobs<span>{{ info.asicJobsDispatched | number: '1.0-0' }}</span>
+                                                    </h6>
+                                                </div>
+                                                <div class="mb-1 pf-stat-secondary">
+                                                    <h6 class="flex justify-content-between mb-1">
+                                                        Last Job<span>{{ formatSecondsAgo(info.asicLastJobSeconds, (info.asicJobsDispatched ?? 0) > 0) }}</span>
+                                                    </h6>
+                                                </div>
+                                                <div class="mb-0 pf-stat-secondary">
+                                                    <h6 class="flex justify-content-between mb-1">
+                                                        <span class="flex align-items-center gap-1">Queue<tooltip-icon tooltip="Stratum work items buffered and waiting to be dispatched to the ASIC (max 12)." icon="pi-question-circle"></tooltip-icon></span><span [ngClass]="{'text-green-500': (info.queueCount ?? 0) < 8, 'text-yellow-500': (info.queueCount ?? 0) >= 8 && (info.queueCount ?? 0) < 10, 'text-red-500': (info.queueCount ?? 0) >= 10}">{{ info.queueCount ?? 0 }} / 12</span>
+                                                    </h6>
+                                                </div>
+                                            </div>
+
+                                            <!-- Connector 2 bottom section (row 2) -->
+                                            <div class="pf-section pf-section--c2b">
+                                                <div class="mb-1 pf-stat-primary">
+                                                    <h6 class="flex justify-content-between mb-1">
+                                                        Nonces<span>{{ info.asicNonceCount | number: '1.0-0' }}</span>
+                                                    </h6>
+                                                </div>
+                                                <div class="mb-0 pf-stat-secondary">
+                                                    <h6 class="flex justify-content-between mb-1">
+                                                        Last Nonce<span>{{ formatSecondsAgo(info.lastNonceSeconds, (info.asicNonceCount ?? 0) > 0) }}</span>
+                                                    </h6>
+                                                </div>
+                                                <ng-container *ngIf="info.asicNonceCounts && info.asicNonceCounts.length > 1">
+                                                    <div *ngFor="let count of info.asicNonceCounts; let i = index" class="pf-stat-secondary"
+                                                         [class.mt-2]="i === 0">
+                                                        <div class="flex justify-content-between" style="font-size:0.78rem;">
+                                                            <span class="text-500">ASIC {{ i + 1 }}</span><span class="text-color">{{ count | number: '1.0-0' }}</span>
+                                                        </div>
+                                                    </div>
+                                                </ng-container>
+                                            </div>
+
+                                            <!-- ASIC label (spans both rows) -->
+                                            <div class="pf-label pf-label--3">{{ info.ASICModel || 'ASIC' }}</div>
+
+                                        </div>
+                                    </div>
+                                </ng-container>
+
     </ng-container>
 </ng-template>
 
@@ -796,20 +951,49 @@
          cdkDropListOrientation="vertical"
          [cdkDropListData]="rows"
          (cdkDropListDropped)="onRowDrop($event)"
-         class="dashboard-rows">
+         class="dashboard-rows" style="position: relative; padding-top: 2.25rem;">
 
-        <div *ngIf="editMode" (click)="addRow(0)" class="insert-zone">
-            <span class="insert-zone-label">+</span>
+        <div class="absolute flex align-items-center gap-1 text-white select-none" style="top: 0; right: 0.5rem; z-index: 1; pointer-events: none; line-height: 1.75rem; opacity: 0.65;">
+            <i class="pi pi-clock" style="font-size: 1.1rem;"></i>
+            <span>Uptime: {{ info.uptimeSeconds | dateAgo: { intervals: 2, strict:true, short:true } }}</span>
         </div>
 
-        <ng-container *ngFor="let row of rows; let i = index; trackBy: trackByRow">
+        <div class="absolute flex align-items-center gap-1 select-none dashboard-edit-controls" style="top: 0; left: 0.5rem; z-index: 2; line-height: 1.75rem;">
+            <ng-container *ngIf="!editMode">
+                <a class="text-white cursor-pointer dash-ctrl-btn" pTooltip="Customize dashboard" tooltipPosition="bottom" (click)="editModeService.toggle()">
+                    <i class="pi pi-lock text-xl"></i>
+                </a>
+            </ng-container>
+            <ng-container *ngIf="editMode">
+                <a class="text-white cursor-pointer dash-ctrl-btn" pTooltip="Save" tooltipPosition="bottom" (click)="editModeService.exit()">
+                    <i class="pi pi-lock-open text-xl"></i>
+                </a>
+                <a class="text-white cursor-pointer dash-ctrl-btn" pTooltip="Add row" tooltipPosition="bottom" (click)="addRow(0)">
+                    <i class="pi pi-expand text-xl"></i>
+                </a>
+                <a class="text-danger cursor-pointer dash-ctrl-btn" pTooltip="Reset to defaults" tooltipPosition="bottom" (click)="showResetLayoutConfirm = true">
+                    <i class="pi pi-objects-column text-xl"></i>
+                </a>
+                <a class="text-white cursor-pointer dash-ctrl-btn" pTooltip="Import layout" tooltipPosition="bottom" (click)="importLayoutInput.click()">
+                    <i class="pi pi-file-import text-xl"></i>
+                </a>
+                <a class="text-white cursor-pointer dash-ctrl-btn" pTooltip="Export layout" tooltipPosition="bottom" (click)="exportLayout()">
+                    <i class="pi pi-file-export text-xl"></i>
+                </a>
+                <input #importLayoutInput type="file" accept=".json" style="display:none" (change)="importLayout($event)" />
+                <a class="text-white cursor-pointer dash-ctrl-btn" pTooltip="Cancel" tooltipPosition="bottom" (click)="cancelEdit()">
+                    <i class="pi pi-times-circle text-xl"></i>
+                </a>
+            </ng-container>
+        </div>
+
+        <ng-container *ngFor="let row of visibleRows; let i = index; trackBy: trackByRow">
         <div cdkDrag
              [cdkDragData]="row"
              [cdkDragDisabled]="!editMode"
-             *ngIf="editMode || row.cardIds.length > 0"
+             *ngIf="editMode ? (row.cardIds.length === 0 || !allCardsConditional(row, info)) : hasVisibleCards(row, info)"
              [class]="'dashboard-row' + (editMode ? ' dashboard-row--edit' : '')">
 
-            <!-- Left-side row drag handle — only in edit mode -->
             <div *ngIf="editMode" cdkDragHandle class="row-drag-handle">
                 <i class="pi pi-bars"></i>
             </div>
@@ -817,12 +1001,6 @@
             <div class="row-grid-wrapper">
 
             <!-- Capacity badge in edit mode -->
-            <div *ngIf="editMode && row.cardIds.length > 0" class="row-capacity-badge"
-                 [class.row-capacity-full]="isRowFull(row)">
-                {{ row.cardIds.length }}/{{ layoutService.rowCapacity(row.colClass) }}
-            </div>
-
-            <!-- Capacity badge shown in edit mode when row has cards -->
             <div *ngIf="editMode && row.cardIds.length > 0" class="row-capacity-badge"
                  [class.row-capacity-full]="isRowFull(row)">
                 {{ row.cardIds.length }}/{{ layoutService.rowCapacity(row.colClass) }}
@@ -856,7 +1034,7 @@
                         <ng-container *ngTemplateOutlet="cardContent; context: { cardId: swapDisplacedCardId, info: info }"></ng-container>
                     </div>
 
-                    <div *ngIf="isCardVisible(cardId, info) || editMode"
+                    <div *ngIf="isCardVisible(cardId, info) || (editMode && !isCardConditional(cardId, info))"
                          cdkDrag
                          [cdkDragData]="cardId"
                          [cdkDragDisabled]="!editMode"
@@ -867,19 +1045,27 @@
                          [class.card-swap-target]="draggingIsSwap && draggingOverCompatibleRowId === row.id && draggingInsertIndex === j"
                          [class]="getCardColClass(row) + ' card-col-wrapper'">
 
-                        <!-- Ghost placeholder: card whose visibility condition is not met in edit mode -->
-                        <div *ngIf="editMode && !isCardVisible(cardId, info)"
+                        <!-- Ghost placeholder: card is user-hidden in edit mode -->
+                        <div *ngIf="editMode && isCardUserHidden(cardId)"
                              class="card card--ghost mb-0">
+                            <button class="card-hide-btn" (click)="$event.stopPropagation(); toggleCardHidden(cardId)"
+                                    pTooltip="Show card" tooltipPosition="top">
+                                <i class="pi pi-eye"></i>
+                            </button>
                             <span class="ghost-label">{{ getCardLabel(cardId) }}</span>
                         </div>
 
-                        <!-- Edit-mode overlay: dims card in edit mode (not on full-width chart rows) -->
-                        <div *ngIf="editMode && isCardVisible(cardId, info) && row.colClass !== 'col-12'"
+                        <!-- Edit-mode overlay: dims card and shows drag + hide controls -->
+                        <div *ngIf="editMode && isCardVisible(cardId, info)"
                              class="card-edit-overlay">
-                            <!-- Icon-only drag handle — dragging from anywhere on the card is intentionally disabled -->
-                            <div cdkDragHandle class="card-drag-handle">
+                            <!-- Icon-only drag handle — hidden for col-12 rows (row handle covers it) -->
+                            <div *ngIf="row.colClass !== 'col-12'" cdkDragHandle class="card-drag-handle">
                                 <i class="pi pi-arrows-alt"></i>
                             </div>
+                            <button class="card-hide-btn" (click)="$event.stopPropagation(); toggleCardHidden(cardId)"
+                                    pTooltip="Hide card" tooltipPosition="top">
+                                <i class="pi pi-eye-slash"></i>
+                            </button>
                         </div>
 
                         <ng-container *ngIf="isCardVisible(cardId, info)">
@@ -908,12 +1094,24 @@
 
         </div>
 
-        <div *ngIf="editMode" (click)="addRow(i + 1)" class="insert-zone">
-            <span class="insert-zone-label">+</span>
-        </div>
         </ng-container>
 
     </div>
 
     <app-confetti *ngIf="info.showNewBlock"></app-confetti>
+
+    <p-dialog header="Reset dashboard layout?" [(visible)]="showResetLayoutConfirm" [modal]="true" [closable]="true"
+        [style]="{width: '320px', maxWidth: '95vw'}">
+        <p class="mt-0">This will restore all cards to their default positions and show any hidden cards.</p>
+        <div class="flex justify-content-end gap-2 mt-3">
+            <button pButton type="button" label="Reset" class="p-button-danger" (click)="confirmResetLayout()"></button>
+        </div>
+    </p-dialog>
+    <p-dialog header="Reset block data?" [(visible)]="showResetBlocksConfirm" [modal]="true" [closable]="true"
+        [style]="{width: '320px', maxWidth: '95vw'}">
+        <p class="mt-0">This will permanently clear the lifetime block count and last block details.</p>
+        <div class="flex justify-content-end gap-2 mt-3">
+            <button pButton type="button" label="Reset" class="p-button-danger" (click)="onResetBlocks()"></button>
+        </div>
+    </p-dialog>
 </ng-container>

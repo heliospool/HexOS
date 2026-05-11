@@ -5,6 +5,7 @@
 #include "serial.h"
 #include <string.h>
 #include "esp_log.h"
+#include "esp_timer.h"
 #include "nvs_config.h"
 #include "utils.h"
 #include "stratum_task.h"
@@ -47,6 +48,14 @@ void ASIC_result_task(void *pvParameters)
         }
 
         bm_job *active_job = GLOBAL_STATE->ASIC_TASK_MODULE.active_jobs[job_id];
+        GLOBAL_STATE->SYSTEM_MODULE.last_nonce_us = esp_timer_get_time();
+        GLOBAL_STATE->SYSTEM_MODULE.asic_nonce_count++;
+        if (GLOBAL_STATE->SYSTEM_MODULE.asic_nonce_counts != NULL) {
+            int asic_count = GLOBAL_STATE->DEVICE_CONFIG.family.asic_count;
+            if (asic_result->asic_nr < asic_count) {
+                GLOBAL_STATE->SYSTEM_MODULE.asic_nonce_counts[asic_result->asic_nr]++;
+            }
+        }
         // check the nonce difficulty
         double nonce_diff = test_nonce_value(active_job, asic_result->nonce, asic_result->rolled_version);
 
@@ -57,6 +66,7 @@ void ASIC_result_task(void *pvParameters)
         {
             char * user = GLOBAL_STATE->SYSTEM_MODULE.is_using_fallback ? GLOBAL_STATE->SYSTEM_MODULE.fallback_pool_user : GLOBAL_STATE->SYSTEM_MODULE.pool_user;
             GLOBAL_STATE->SYSTEM_MODULE.last_submitted_diff = (float)nonce_diff;
+            HASHRATE_update_diff_averages(&GLOBAL_STATE->SYSTEM_MODULE, (float)nonce_diff);
             int ret = STRATUM_V1_submit_share(
                 GLOBAL_STATE->transport,
                 GLOBAL_STATE->send_uid++,

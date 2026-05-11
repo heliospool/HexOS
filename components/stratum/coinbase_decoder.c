@@ -55,40 +55,6 @@ static bool script_get_hash160(const uint8_t *script, size_t script_len, uint8_t
     return false;
 }
 
-// Decode a CashAddr string (with or without "bitcoincash:" prefix) to hash160.
-static bool cashaddr_decode_hash160(const char *addr, uint8_t hash160[20]) {
-    const char *payload = (strncasecmp(addr, "bitcoincash:", 12) == 0) ? addr + 12 : addr;
-    size_t plen = strlen(payload);
-    if (plen < 9) return false;
-
-    // Strip 8 checksum chars — only decode the data portion
-    size_t data_len = plen - 8;
-    uint8_t data[40];
-    for (size_t i = 0; i < data_len; i++) {
-        const char *p = strchr(CASHADDR_CHARSET, tolower((unsigned char)payload[i]));
-        if (!p) return false;
-        data[i] = (uint8_t)(p - CASHADDR_CHARSET);
-    }
-
-    // Convert ALL data_len 5-bit values to bytes.
-    // For a P2PKH address: 34 five-bit values → 21 bytes: [version_byte, h0..h19]
-    // decoded[0] is the version byte, decoded[1..20] is the hash160.
-    uint32_t acc = 0, bits = 0;
-    size_t out_i = 0;
-    uint8_t decoded[22];
-    for (size_t i = 0; i < data_len; i++) {
-        acc = (acc << 5) | data[i];
-        bits += 5;
-        while (bits >= 8 && out_i < sizeof(decoded)) {
-            bits -= 8;
-            decoded[out_i++] = (acc >> bits) & 0xff;
-        }
-    }
-    if (out_i < 21) return false; // need version + 20 hash bytes
-    memcpy(hash160, decoded + 1, 20); // skip version byte
-    return true;
-}
-
 // Decode a legacy base58check BCH address (starts with '1' or '3') to hash160.
 static bool base58_decode_hash160(const char *addr, uint8_t hash160[20]) {
     ensure_base58_init();
@@ -285,13 +251,24 @@ bool coinbase_is_user_output(const uint8_t *script, size_t script_len,
     if (dot) *dot = '\0';
 
     if (network == COINBASE_NETWORK_BCH) {
-        uint8_t script_hash[20], user_hash[20];
-        if (!script_get_hash160(script, script_len, script_hash)) return false;
         char first = user_addr_only[0];
-        bool decoded = (first == '1' || first == '3')
-                       ? base58_decode_hash160(user_addr_only, user_hash)
-                       : cashaddr_decode_hash160(user_addr_only, user_hash);
-        return decoded && (memcmp(script_hash, user_hash, 20) == 0);
+        if (first == '1' || first == '3') {
+            // Legacy base58 BCH address — must compare by hash160 since the
+            // scriptPubKey decodes to CashAddr format. base58_decode_hash160
+            // uses a fixed 25-byte buffer so this path is safe.
+            uint8_t script_hash[20], user_hash[20];
+            if (!script_get_hash160(script, script_len, script_hash)) return false;
+            return base58_decode_hash160(user_addr_only, user_hash)
+                && (memcmp(script_hash, user_hash, 20) == 0);
+        }
+        // CashAddr — string comparison like the BTC path.
+        // Decode the scriptPubKey to a bare CashAddr string and compare
+        // against the user address (also bare, prefix already stripped).
+        char output_address[MAX_ADDRESS_STRING_LEN];
+        coinbase_decode_address_from_scriptpubkey(script, script_len, network, output_address, MAX_ADDRESS_STRING_LEN);
+        const char *user_bare = (strncasecmp(user_addr_only, "bitcoincash:", 12) == 0)
+                                ? user_addr_only + 12 : user_addr_only;
+        return strncmp(user_bare, output_address, strlen(output_address)) == 0;
     } else {
         // BTC: string prefix comparison against decoded address
         char output_address[MAX_ADDRESS_STRING_LEN];

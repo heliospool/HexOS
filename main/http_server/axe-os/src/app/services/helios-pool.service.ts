@@ -6,7 +6,7 @@ import { environment } from '../../environments/environment';
 
 export type HeliosRegion = 'NA' | 'EU' | 'APAC';
 
-const REGION_LABELS: Record<string, HeliosRegion> = { com: 'NA', eu: 'EU', asia: 'APAC' };
+const REGION_LABELS: Record<string, HeliosRegion> = { na: 'NA', eu: 'EU', apac: 'APAC' };
 
 export interface HeliosWorker {
   workername: string;
@@ -51,17 +51,17 @@ export interface HeliosAccountStats {
 export class HeliosPoolService {
   constructor(private http: HttpClient) {}
 
-  static readonly REGIONS = ['com', 'eu', 'asia'] as const;
+  static readonly REGIONS = ['na', 'eu', 'apac'] as const;
 
   private regionFromStratumUrl(stratumUrl: string): string {
     const lower = stratumUrl.toLowerCase();
-    if (lower.includes('heliospool.eu')) return 'eu';
-    if (lower.includes('heliospool.asia')) return 'asia';
-    return 'com';
+    if (lower.includes('heliospool.eu') || lower.includes('-eu.heliospool')) return 'eu';
+    if (lower.includes('heliospool.asia') || lower.includes('-apac.heliospool')) return 'apac';
+    return 'na';
   }
 
   /** Fetches account stats from all known regions in parallel, one entry per region that responds. */
-  getAccountStatsAllRegions(coin: 'btc' | 'bch', address: string): Observable<HeliosRegionData[]> {
+  getAccountStatsAllRegions(coin: 'btc' | 'bch' | 'dgb' | 'chta', address: string): Observable<HeliosRegionData[]> {
     if (!environment.production) {
       return this.getAccountStats(coin, address, '').pipe(
         map(s => s ? [{ region: 'NA' as HeliosRegion, stats: s, workers: s.worker.map(w => ({ ...w, region: 'NA' as HeliosRegion })) }] : [])
@@ -69,7 +69,7 @@ export class HeliosPoolService {
     }
     return forkJoin(
       HeliosPoolService.REGIONS.map(region =>
-        this.http.get<HeliosAccountStats>(`https://${coin}.heliospool.${region}/api/users/${address}`).pipe(
+        this.http.get<HeliosAccountStats>(`https://api-${coin}-${region}.heliospool.com/api/users/${address}`).pipe(
           catchError(() => of(null)),
           map(s => {
             if (!s || !Array.isArray(s.worker) || s.workers === 0) return null;
@@ -85,7 +85,7 @@ export class HeliosPoolService {
     );
   }
 
-  getAccountStats(coin: 'btc' | 'bch', address: string, stratumUrl: string): Observable<HeliosAccountStats | null> {
+  getAccountStats(coin: 'btc' | 'bch' | 'dgb' | 'chta', address: string, stratumUrl: string): Observable<HeliosAccountStats | null> {
     if (!environment.production) {
       const now = Math.floor(Date.now() / 1000);
       const mockStats: HeliosAccountStats = {
@@ -118,7 +118,7 @@ export class HeliosPoolService {
     }
 
     const region = this.regionFromStratumUrl(stratumUrl);
-    return this.http.get<HeliosAccountStats>(`https://${coin}.heliospool.${region}/api/users/${address}`).pipe(
+    return this.http.get<HeliosAccountStats>(`https://api-${coin}-${region}.heliospool.com/api/users/${address}`).pipe(
       catchError(() => of(null))
     );
   }

@@ -591,6 +591,7 @@ void stratum_task(void * pvParameters)
 
             if (stratum_api_v1_message.method == MINING_NOTIFY) {
                 GLOBAL_STATE->SYSTEM_MODULE.work_received++;
+                GLOBAL_STATE->SYSTEM_MODULE.last_job_received_us = esp_timer_get_time();
                 SYSTEM_notify_new_ntime(GLOBAL_STATE, stratum_api_v1_message.mining_notification->ntime);
                 if (stratum_api_v1_message.mining_notification->clean_jobs &&
                     (GLOBAL_STATE->stratum_queue.count > 0)) {

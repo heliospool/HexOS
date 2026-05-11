@@ -7,7 +7,6 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "power_management_task.h"
-#include "hashrate_monitor_task.h"
 #include "serial.h"
 #include "stratum_api.h"
 #include "coinbase_decoder.h"
@@ -33,6 +32,12 @@ typedef struct
     float hashrate_1m;
     float hashrate_10m;
     float hashrate_1h;
+    float efficiency_1m;
+    float diff_1m;
+    float diff_10m;
+    float diff_1h;
+    float efficiency_10m;
+    float efficiency_1h;
     float error_percentage;
     int64_t start_time;
     uint64_t shares_accepted;
@@ -47,6 +52,12 @@ typedef struct
     char best_session_diff_string[DIFF_STRING_SIZE];
     int block_found;
     bool show_new_block;
+    uint64_t lifetime_block_found;  // total blocks found, persisted to NVS
+    int64_t last_block_time;        // epoch seconds at find time (0 = never found)
+    double last_block_diff;         // nonce diff when block was found
+    double last_block_net_diff;     // network diff at find time
+    bool last_block_fallback;       // true if found on fallback pool
+    char last_block_url[128];       // pool URL at find time
     char * ssid;
     char wifi_status[256];
     char ip_addr_str[16]; // IP4ADDR_STRLEN_MAX
@@ -94,8 +105,28 @@ typedef struct
     uint32_t wifi_disconnects;
     uint32_t tx_errors;
     uint32_t rx_errors;
+    float network_ping_ms;
     int64_t last_share_time;
+    int64_t last_job_received_us;
+    int64_t last_nonce_us;
+    uint32_t asic_nonce_count;         // total nonces from all chips
+    uint32_t *asic_nonce_counts;       // per-chip nonce counts (heap, size = asic_count)
 } SystemModule;
+
+typedef struct {
+    uint32_t value;
+    uint64_t time_us;
+    float hashrate;
+} measurement_t;
+
+typedef struct {
+    measurement_t* total_measurement;
+    measurement_t** domain_measurements;
+    measurement_t* error_measurement;
+    float* chip_frequency;
+    float* chip_temp;
+    bool is_initialized;
+} HashrateMonitorModule;
 
 typedef struct
 {
@@ -114,6 +145,10 @@ typedef struct
     bm_job **active_jobs;
     // Current job to be processed (replaces ASIC_jobs_queue)
     bm_job *current_job;
+    // Timestamp (esp_timer_get_time) of the last job pushed to the ASIC over UART
+    int64_t last_job_sent_us;
+    // Total jobs dispatched to the ASIC over UART since boot
+    uint32_t asic_jobs_dispatched;
     //semaphone
     SemaphoreHandle_t semaphore;
 } AsicTaskModule;

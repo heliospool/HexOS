@@ -117,13 +117,30 @@ p-chart>div {
     }
 }
 
-.p-button:not(.p-button-secondary) {
+.p-button:not(.p-button-secondary):not(.p-button-text) {
     background: var(--button-bg);
     border: 1px solid var(--button-bg);
 
     &:enabled:hover {
         background: var(--button-hover-bg);
         border-color: var(--button-hover-bg);
+    }
+}
+
+.profile-action-toolbar .profile-action-button {
+    background: transparent !important;
+    border-color: transparent !important;
+    color: #ffffff !important;
+
+    .pi { color: inherit !important; }
+
+    &:not(.p-button-disabled):hover {
+        background: rgba(255, 255, 255, 0.12) !important;
+    }
+
+    &.p-button-disabled {
+        background: transparent !important;
+        color: rgba(255, 255, 255, 0.38) !important;
     }
 }
 

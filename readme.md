@@ -7,7 +7,7 @@
 HexOS is open-source firmware for Bitcoin miners, built and maintained for [HeliosPool](https://heliospool.com) by [Z3r0XG](https://github.com/Z3r0XG). It is a fork of [bitaxeorg/ESP-Miner](https://github.com/bitaxeorg/ESP-Miner), tracking upstream closely while adding hardware support, pool integration, and UI improvements.
 
 > [!WARNING]
-> This is an enthusiast-led project. By proceeding, you acknowledge that this software carries no warranty and is used at your own risk. Neither the developers nor the community are responsible for voided warranties or hardware failure.
+> This is an enthusiast-led project. By proceeding, you acknowledge that this software carries no warranty and is used at your own risk. Neither the developers nor the community are responsible for voided warranties or hardware failure. This firmware introduces additional NVS entries and modifies values that differ from AxeOS defaults. Reverting will likely require a full reset of all existing data.
 
 For pre-built images ready to flash, see the [latest release](https://github.com/heliospool/HexOS/releases/latest). For questions and support, join the [HexOS Discord](https://discord.gg/Ev82a2H59h).
 
@@ -138,7 +138,8 @@ HexOS supports all upstream ESP-Miner hardware out of the box, plus additional G
 
 - **Stratum connection tuning** — `strat_retry`, `strat_crit_rty`, and `strat_timeout` configurable via CVS file; see [Stratum — connection tuning](./doc/configuration.md#stratum--connection-tuning)
 - **Self-test parameter tuning** — `st_difficulty`, `st_pwr_margin`, `st_vcore_min`, and `st_vcore_max` configurable via CVS file; see [Self-test parameters](./doc/configuration.md#self-test-parameters)
-- **Danger Zone advanced settings** — enabling Danger Zone (via the Settings toggle or `dangerzone=1` in the CVS file) unlocks fan PID gains, thermal shutdown thresholds, post-overheat frequency and voltage step-down, and voltage regulator input voltage limits — previously hardcoded constants — without editing source code; see [Danger zone](./doc/configuration.md#danger-zone)
+- **Danger Zone** — opt-in Settings toggle that unlocks advanced controls such as the overcurrent limit; disabling the toggle resets UI-exposed danger zone settings to firmware defaults
+- **Advanced thermal and power tuning** — fan PID gains, thermal shutdown thresholds, post-overheat step-down, and voltage regulator input voltage limits configurable via CVS file; see [Advanced thermal and power tuning](./doc/configuration.md#advanced-thermal-and-power-tuning)
 
 ---
 
@@ -233,14 +234,25 @@ esptool.py --chip esp32s3 -b 921600 --before default_reset --after hard_reset \
   0x0 esp-miner-factory-{BOARD}-{VERSION}.bin
 ```
 
-### OTA update (device already running HexOS)
+### OTA update (device already running HexOS - preserves settings)
 
 Navigate to your device's web UI → **Settings** → **Updates**.
 
-- **Firmware update**: upload `esp-miner-hexos.bin`
 - **Web UI update**: upload `www-hexos.bin`
+- **Firmware update**: upload `esp-miner-hexos.bin`
 
 The in-UI update checker automatically compares against the latest release on this repository.
+
+### OTA update (device running AxeOS - preserves settings)
+
+Navigate to your device's web UI → **Settings** → **Updates**.
+
+- **Web UI update**: rename `www-hexos.bin` to `www.bin` and upload
+- **Firmware update**: upload `esp-miner-hexos.bin`
+
+### Reverting back to AxeOS 
+
+For most devices, you can revert using the OTA method, but residual HexOS NVS settings may persist. If this leads to unexpected behavior under AxeOS, reverting via the factory‑flash method restores the original NVS layout, which also clears all existing settings, logs, and history as a side effect.
 
 ---
 

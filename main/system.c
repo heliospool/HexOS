@@ -54,6 +54,20 @@ void SYSTEM_init_system(GlobalState * GLOBAL_STATE)
     module->lastClockSync = 0;
     module->block_found = 0;
     module->show_new_block = false;
+    module->network_ping_ms = -1.0f;
+    module->lifetime_block_found = nvs_config_get_u64(NVS_CONFIG_BLOCK_FOUND);
+    module->last_block_time = nvs_config_get_u64(NVS_CONFIG_LAST_BLOCK_TIME);
+    module->last_block_diff = nvs_config_get_float(NVS_CONFIG_LAST_BLOCK_DIFF);
+    module->last_block_net_diff = nvs_config_get_float(NVS_CONFIG_LAST_BLOCK_NET_DIFF);
+    module->last_block_fallback = nvs_config_get_bool(NVS_CONFIG_LAST_BLOCK_FALLBACK);
+    char *last_block_url = nvs_config_get_string(NVS_CONFIG_LAST_BLOCK_URL);
+    if (last_block_url) {
+        strncpy(module->last_block_url, last_block_url, sizeof(module->last_block_url) - 1);
+        module->last_block_url[sizeof(module->last_block_url) - 1] = '\0';
+        free(last_block_url);
+    } else {
+        module->last_block_url[0] = '\0';
+    }
 
     // Initialize network address strings
     strcpy(module->ip_addr_str, "");
@@ -257,9 +271,35 @@ void SYSTEM_notify_found_nonce(GlobalState * GLOBAL_STATE, double diff, uint8_t 
 
     double network_diff = networkDifficulty(GLOBAL_STATE->ASIC_TASK_MODULE.active_jobs[job_id]->target);
     if (diff >= network_diff) {
+        uint32_t nbits = GLOBAL_STATE->ASIC_TASK_MODULE.active_jobs[job_id]->target;
+        ESP_LOGI(TAG, "BLOCK SOLVE: nonce_diff=%.1f network_diff=%.1f nbits=0x%08" PRIX32 " job=%s pool_diff=%ld count=%d",
+                 diff, network_diff, nbits,
+                 GLOBAL_STATE->ASIC_TASK_MODULE.active_jobs[job_id]->jobid,
+                 GLOBAL_STATE->ASIC_TASK_MODULE.active_jobs[job_id]->pool_diff,
+                 module->block_found + 1);
         module->block_found++;
+        module->lifetime_block_found++;
         module->show_new_block = true;
-        ESP_LOGI(TAG, "FOUND BLOCK!!!!!!!!!!!!!!!!!!!!!! %f >= %f (count: %d)", diff, network_diff, module->block_found);
+        module->last_block_diff = diff;
+        module->last_block_net_diff = network_diff;
+        module->last_block_fallback = module->is_using_fallback;
+        struct timeval tv;
+        gettimeofday(&tv, NULL);
+        module->last_block_time = (int64_t)tv.tv_sec;
+        const char * url = module->is_using_fallback ? module->fallback_pool_url : module->pool_url;
+        if (url) {
+            strncpy(module->last_block_url, url, sizeof(module->last_block_url) - 1);
+            module->last_block_url[sizeof(module->last_block_url) - 1] = '\0';
+        } else {
+            module->last_block_url[0] = '\0';
+        }
+
+        nvs_config_set_u64(NVS_CONFIG_BLOCK_FOUND, module->lifetime_block_found);
+        nvs_config_set_u64(NVS_CONFIG_LAST_BLOCK_TIME, module->last_block_time);
+        nvs_config_set_float(NVS_CONFIG_LAST_BLOCK_DIFF, (float)module->last_block_diff);
+        nvs_config_set_float(NVS_CONFIG_LAST_BLOCK_NET_DIFF, (float)module->last_block_net_diff);
+        nvs_config_set_bool(NVS_CONFIG_LAST_BLOCK_FALLBACK, module->last_block_fallback);
+        nvs_config_set_string(NVS_CONFIG_LAST_BLOCK_URL, module->last_block_url[0] ? module->last_block_url : "");
     }
 
     if ((uint64_t) diff <= module->best_nonce_diff) {

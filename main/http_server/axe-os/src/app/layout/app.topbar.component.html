@@ -55,7 +55,7 @@
             pTooltip="Hostname"
         >{{info.hostname}}</span>
 
-        <ul *ngIf="!isAPMode" class="flex ml-auto list-none p-0 m-0 gap-4 lg:flex-order-2">
+        <ul *ngIf="!isAPMode" class="flex ml-auto list-none p-0 m-0 gap-4 lg:flex-order-2 align-items-center">
             <li>
                 <a class="block py-2 text-white cursor-pointer"
                     tooltipPosition="bottom"
@@ -72,15 +72,6 @@
                     pTooltip="Wi-Fi RSSI: {{info.wifiRSSI}} dBm"
                 >
                     <wifi-icon [rssi]="info.wifiRSSI" />
-                </a>
-            </li>
-            <li>
-                <a class="block py-2 text-white cursor-pointer"
-                    tooltipPosition="bottom"
-                    [pTooltip]="editMode ? 'Save layout' : 'Customize dashboard'"
-                    (click)="toggleEditMode()"
-                >
-                    <i class="pi pi-{{editMode ? 'check' : 'pencil'}} text-xl block"></i>
                 </a>
             </li>
             <li>
