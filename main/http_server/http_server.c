@@ -47,6 +47,7 @@
 #include "http_server.h"
 #include "system.h"
 #include "websocket.h"
+#include "syslog_remote.h"
 
 static const char * TAG = "http_server";
 static const char * CORS_TAG = "CORS";
@@ -723,6 +724,12 @@ static esp_err_t PATCH_update_settings(httpd_req_t * req)
         cJSON_Delete(root);
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Wrong API input");
         return ESP_OK;
+    }
+
+    // Apply runtime syslog host change immediately (no reboot needed)
+    cJSON *syslog_item = cJSON_GetObjectItem(root, "syslogHost");
+    if (syslog_item && cJSON_IsString(syslog_item)) {
+        syslog_remote_set_host(syslog_item->valuestring);
     }
 
     cJSON_Delete(root);
@@ -1732,6 +1739,10 @@ static esp_err_t GET_system_info(httpd_req_t * req)
     cJSON_AddNumberToObject(root, "statsFrequency", nvs_config_get_u16(NVS_CONFIG_STATISTICS_FREQUENCY));
     cJSON_AddNumberToObject(root, "heliosStatsEnabled", nvs_config_get_bool(NVS_CONFIG_HELIOS_STATS_ENABLED));
     cJSON_AddBoolToObject(root, "debugLog", nvs_config_get_bool(NVS_CONFIG_DEBUG_LOG));
+
+    char *syslog_host = nvs_config_get_string(NVS_CONFIG_SYSLOG_HOST);
+    cJSON_AddStringToObject(root, "syslogHost", syslog_host ? syslog_host : "");
+    free(syslog_host);
     cJSON_AddNumberToObject(root, "selectedProfileId", nvs_config_get_i32(NVS_CONFIG_SELECTED_PROFILE));
 
     cJSON_AddNumberToObject(root, "blockFound", GLOBAL_STATE->SYSTEM_MODULE.block_found);

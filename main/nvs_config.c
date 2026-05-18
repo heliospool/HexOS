@@ -148,6 +148,7 @@ static Settings settings[NVS_CONFIG_COUNT] = {
     [NVS_CONFIG_OC_FAULT_STEP]        = {.nvs_key_name = "oc_ovr_step",    .type = TYPE_U16,   .default_value = {.u16 = 0},               .rest_name = "ocFaultStep",  .min = 0, .max = 4, .danger_zone_gated = true},
 
     [NVS_CONFIG_DEBUG_LOG]            = {.nvs_key_name = "debug_log",      .type = TYPE_BOOL,  .default_value = {.b = false},             .rest_name = "debugLog",   .min = 0, .max = 1},
+    [NVS_CONFIG_SYSLOG_HOST]          = {.nvs_key_name = "syslog_host",    .type = TYPE_STR,   .default_value = {.str = ""},  .min = 0, .max = 253, .rest_name = "syslogHost"},
 
     [NVS_CONFIG_SELECTED_PROFILE]              = {.nvs_key_name = "sel_profile",    .type = TYPE_I32,   .default_value = {.i32 = -1},  .rest_name = NULL,                          .min = -1, .max = 3},
 

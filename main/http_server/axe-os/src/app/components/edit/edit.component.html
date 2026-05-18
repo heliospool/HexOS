@@ -281,6 +281,14 @@
         </div>
 
         <div class="grid p-fluid">
+            <label class="col-12 md:col-2 hidden md:flex md:m-0 relative hover-next-input">Syslog Host</label>
+            <div class="col-12 md:col-10">
+                <span class="md:hidden mr-1">Syslog Host</span>
+                <input pInputText type="text" formControlName="syslogHost" placeholder="host or host:port, e.g. 192.168.1.100 or 192.168.1.100:514" class="w-full" autocomplete="off" />
+            </div>
+        </div>
+
+        <div class="grid p-fluid">
             <label class="col-12 md:col-2 hidden md:flex md:m-0 relative hover-next-input">
                 Data Logging
             </label>

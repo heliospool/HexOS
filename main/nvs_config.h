@@ -114,6 +114,9 @@ typedef enum {
     // Enable verbose debug metrics logging (heap, task stacks, stratum counters, etc.)
     NVS_CONFIG_DEBUG_LOG,
 
+    // Remote syslog host IP or hostname (empty = disabled)
+    NVS_CONFIG_SYSLOG_HOST,
+
     // Last profile ID selected by the user (-1 = none)
     NVS_CONFIG_SELECTED_PROFILE,
 

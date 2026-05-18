@@ -8,6 +8,7 @@ SRCS
     "screen.c"
     "input.c"
     "system.c"
+    "syslog_remote.c"
     "work_queue.c"
     "lv_font_portfolio-6x8.c"
     "logo.c"

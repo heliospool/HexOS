@@ -230,7 +230,8 @@ export class EditComponent implements OnInit, OnDestroy, OnChanges {
             Validators.max(this.statsFrequencyMaxValue)
           ]],
           heliosStatsEnabled: [info.heliosStatsEnabled ?? 1],
-          overclockEnabled: [info.overclockEnabled ?? 0]
+          overclockEnabled: [info.overclockEnabled ?? 0],
+          syslogHost: [info.syslogHost ?? '']
         });
 
         this.formSubject.next(this.form);
@@ -466,7 +467,7 @@ export class EditComponent implements OnInit, OnDestroy, OnChanges {
       'frequency', 'coreVoltage', 'autofanspeed', 'fanCurve', 'temptarget', 'vrrtarget', 'minfanspeed', 'manualFanSpeed',
       'dangerzone', 'ocFaultStep',
       'display', 'rotation', 'displayTimeout', 'invertscreen',
-      'statsFrequency', 'heliosStatsEnabled'
+      'statsFrequency', 'heliosStatsEnabled', 'syslogHost'
     ]);
   }
 

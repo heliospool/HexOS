@@ -11,6 +11,7 @@
 #include "esp_http_server.h"
 #include "websocket.h"
 #include "http_server.h"
+#include "syslog_remote.h"
 
 static const char * TAG = "websocket";
 
@@ -21,42 +22,35 @@ static SemaphoreHandle_t clients_mutex = NULL;
 
 int log_to_queue(const char *format, va_list args)
 {
+    // Format into a stack buffer — no heap allocation needed for stdout + syslog paths.
+    // Reserve the last 2 bytes for an optional '\n' and null terminator.
+    char stack_buf[512];
     va_list args_copy;
     va_copy(args_copy, args);
-
-    // Calculate the required buffer size +1 for \n
-    int needed_size = vsnprintf(NULL, 0, format, args_copy) + 1;
+    int len = vsnprintf(stack_buf, sizeof(stack_buf) - 1, format, args_copy);
     va_end(args_copy);
+    if (len <= 0) return 0;
+    if (len >= (int)(sizeof(stack_buf) - 1)) len = (int)(sizeof(stack_buf) - 2);
+    if (stack_buf[len - 1] != '\n') {
+        stack_buf[len++] = '\n';
+    }
+    stack_buf[len] = '\0';
 
-    // Allocate the buffer dynamically
-    char *log_buffer = (char *)calloc(needed_size, sizeof(char));
-    if (log_buffer == NULL) {
-        ESP_LOGE(TAG, "Failed to allocate memory for log buffer");
-        return 0;
+    fputs(stack_buf, stdout);
+    syslog_remote_send(stack_buf);
+
+    // Heap-allocate and enqueue only when WebSocket clients are connected.
+    if (active_clients > 0) {
+        char *heap_buf = (char *)malloc(len + 1);
+        if (heap_buf != NULL) {
+            memcpy(heap_buf, stack_buf, len + 1);
+            if (xQueueSendToBack(log_queue, &heap_buf, pdMS_TO_TICKS(100)) != pdPASS) {
+                free(heap_buf);
+            }
+        }
     }
 
-    // Format the string into the allocated buffer
-    va_copy(args_copy, args);
-    vsnprintf(log_buffer, needed_size, format, args_copy);
-    va_end(args_copy);
-
-    // Ensure the log message ends with a newline
-    size_t len = strlen(log_buffer);
-    if (len > 0 && log_buffer[len - 1] != '\n') {
-        log_buffer[len] = '\n';
-        log_buffer[len + 1] = '\0';
-    }
-
-    // Print to standard output
-    fputs(log_buffer, stdout);
-
-    // Send to queue for WebSocket broadcasting
-    if (xQueueSendToBack(log_queue, &log_buffer, pdMS_TO_TICKS(100)) != pdPASS) {
-        ESP_LOGW(TAG, "Failed to send log to queue, freeing buffer");
-        free(log_buffer);
-    }
-
-    return 0;
+    return len;
 }
 
 static esp_err_t add_client(int fd)
@@ -69,10 +63,6 @@ static esp_err_t add_client(int fd)
     esp_err_t ret = ESP_FAIL;
     for (int i = 0; i < MAX_WEBSOCKET_CLIENTS; i++) {
         if (clients[i] == -1) {
-            if (active_clients == 0) {
-                esp_log_set_vprintf(log_to_queue);
-            }
-
             clients[i] = fd;
             active_clients++;
             ESP_LOGI(TAG, "Added WebSocket client, fd: %d, slot: %d", fd, i);
@@ -103,10 +93,6 @@ static void remove_client(int fd)
 
             break;
         }
-    }
-
-    if (active_clients == 0) {
-        esp_log_set_vprintf(vprintf);
     }
 
     xSemaphoreGive(clients_mutex);
@@ -219,6 +205,8 @@ void websocket_task(void *pvParameters)
     if (clients_mutex == NULL) {
         ESP_LOGE(TAG, "Failed to create clients mutex");
     }
+
+    esp_log_set_vprintf(log_to_queue);
 
     // Batch multiple log lines into one frame per send interval to avoid
     // flooding the httpd work queue with one httpd_ws_send_frame_async call.

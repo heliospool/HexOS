@@ -23,6 +23,7 @@
 #include "connect.h"
 #include "asic_reset.h"
 #include "asic_init.h"
+#include "syslog_remote.h"
 
 static GlobalState GLOBAL_STATE;
 
@@ -108,6 +109,11 @@ void app_main(void)
     while (!GLOBAL_STATE.SYSTEM_MODULE.is_connected) {
         vTaskDelay(100 / portTICK_PERIOD_MS);
     }
+
+    // Start remote syslog now that the network is up
+    char *syslog_host = nvs_config_get_string(NVS_CONFIG_SYSLOG_HOST);
+    syslog_remote_init(syslog_host);
+    free(syslog_host);
 
     queue_init(&GLOBAL_STATE.stratum_queue);
 

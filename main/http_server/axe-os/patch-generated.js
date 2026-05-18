@@ -18,6 +18,7 @@ const systemInfoPatch = `    stratumProfileId?: number;
     diff_10m: number;
     diff_1h: number;
     selectedProfileId?: number;
+    syslogHost?: string;
 }`;
 let systemInfo = fs.readFileSync(systemInfoPath, 'utf8');
 if (!systemInfo.includes('stratumProfileId')) {

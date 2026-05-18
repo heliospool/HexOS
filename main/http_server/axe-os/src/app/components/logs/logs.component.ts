@@ -54,7 +54,9 @@ export class LogsComponent implements OnInit, OnDestroy, AfterViewChecked {
     });
 
     this.systemService.getInfo(this.uri).subscribe({
-      next: (info: SystemInfo) => { this.debugLog = info.debugLog ?? false; },
+      next: (info: SystemInfo) => {
+        this.debugLog = info.debugLog ?? false;
+      },
       error: () => {}
     });
   }

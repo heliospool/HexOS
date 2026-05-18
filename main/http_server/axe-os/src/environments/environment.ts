@@ -113,6 +113,7 @@ export const mockData: DevMockData = {
     statsFrequency: 30,
     heliosStatsEnabled: 1,
     debugLog: false,
+    syslogHost: '',
     selectedProfileId: -1,
     fanrpm: 3200,
     fan2rpm: 0,
