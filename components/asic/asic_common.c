@@ -5,6 +5,7 @@
 #include "serial.h"
 #include "esp_log.h"
 #include "crc.h"
+#include "global_state.h" // needed for asic_rx_failures counter
 
 #define PREAMBLE 0xAA55
 
@@ -88,12 +89,14 @@ int count_asic_chips(uint16_t asic_count, uint16_t chip_id, int chip_id_response
     return chip_counter;
 }
 
-esp_err_t receive_work(uint8_t * buffer, int buffer_size)
+esp_err_t receive_work(uint8_t * buffer, int buffer_size, void * global_state)
 {
+    GlobalState * GLOBAL_STATE = (GlobalState *)global_state;
     int received = SERIAL_rx(buffer, buffer_size, 10000);
 
     if (received < 0) {
         ESP_LOGE(TAG, "UART error in serial RX");
+        if (GLOBAL_STATE) GLOBAL_STATE->SYSTEM_MODULE.asic_rx_failures++;
         return ESP_FAIL;
     }
 
@@ -106,6 +109,7 @@ esp_err_t receive_work(uint8_t * buffer, int buffer_size)
         ESP_LOGE(TAG, "Invalid response length %i", received);
         ESP_LOG_BUFFER_HEX(TAG, buffer, received);
         SERIAL_clear_buffer();
+        if (GLOBAL_STATE) GLOBAL_STATE->SYSTEM_MODULE.asic_rx_failures++;
         return ESP_FAIL;
     }
 
@@ -114,6 +118,7 @@ esp_err_t receive_work(uint8_t * buffer, int buffer_size)
         ESP_LOGE(TAG, "Preamble mismatch: got 0x%04x, expected 0x%04x", received_preamble, PREAMBLE);
         ESP_LOG_BUFFER_HEX(TAG, buffer, received);
         SERIAL_clear_buffer();
+        if (GLOBAL_STATE) GLOBAL_STATE->SYSTEM_MODULE.asic_rx_failures++;
         return ESP_FAIL;
     }
 
@@ -121,6 +126,7 @@ esp_err_t receive_work(uint8_t * buffer, int buffer_size)
         ESP_LOGE(TAG, "Checksum failed on response");        
         ESP_LOG_BUFFER_HEX(TAG, buffer, received);
         SERIAL_clear_buffer();
+        if (GLOBAL_STATE) GLOBAL_STATE->SYSTEM_MODULE.asic_rx_failures++;
         return ESP_FAIL;
     }
 

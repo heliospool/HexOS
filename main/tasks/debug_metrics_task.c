@@ -149,7 +149,17 @@ void debug_metrics_task(void *pvParameters)
         // --- UART ASIC RX buffer fill ---
         size_t uart_rx_pending = 0;
         uart_get_buffered_data_len(UART_NUM_1, &uart_rx_pending);
-        ESP_LOGI(TAG, "uart1: rx_buf=%u bytes", (unsigned)uart_rx_pending);
+        ESP_LOGI(TAG, "uart1: rx_buf=%u bytes  rx_failures=%lu",
+                 (unsigned)uart_rx_pending,
+                 (unsigned long)GLOBAL_STATE->SYSTEM_MODULE.asic_rx_failures);
+
+        // --- ASIC result pipeline ---
+        int64_t last_nonce_sec = (sys->last_nonce_us > 0)
+            ? (now_us - sys->last_nonce_us) / 1000000 : -1;
+        ESP_LOGI(TAG, "asic_result: nonces=%lu  invalid_job=%lu  last_nonce=%llds",
+                 (unsigned long)sys->asic_nonce_count,
+                 (unsigned long)sys->asic_invalid_job_nonces,
+                 (long long)last_nonce_sec);
 
         // --- WebSocket log queue depth ---
         ESP_LOGI(TAG, "ws_log_queue: %u/%d",

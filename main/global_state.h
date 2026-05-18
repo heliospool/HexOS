@@ -111,6 +111,8 @@ typedef struct
     int64_t last_nonce_us;
     uint32_t asic_nonce_count;         // total nonces from all chips
     uint32_t *asic_nonce_counts;       // per-chip nonce counts (heap, size = asic_count)
+    uint32_t asic_rx_failures;         // UART frames from ASIC rejected (bad length, preamble, or CRC)
+    uint32_t asic_invalid_job_nonces;   // nonces returned by ASIC with an unrecognised job ID
 } SystemModule;
 
 typedef struct {

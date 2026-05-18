@@ -338,7 +338,7 @@ task_result * BM1370_process_work(void * pvParameters)
 
     memset(&result, 0, sizeof(task_result));
 
-    if (receive_work((uint8_t *)&asic_result, sizeof(asic_result)) == ESP_FAIL) {
+    if (receive_work((uint8_t *)&asic_result, sizeof(asic_result), (GlobalState *)pvParameters) == ESP_FAIL) {
         return NULL;
     }
     

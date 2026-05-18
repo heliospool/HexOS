@@ -44,6 +44,7 @@ void ASIC_result_task(void *pvParameters)
         if (GLOBAL_STATE->valid_jobs[job_id] == 0)
         {
             ESP_LOGW(TAG, "Invalid job nonce found, 0x%02X", job_id);
+            GLOBAL_STATE->SYSTEM_MODULE.asic_invalid_job_nonces++;
             continue;
         }
 
